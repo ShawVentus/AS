@@ -1,0 +1,73 @@
+# 数据库结构与管理指南
+
+本文档详细说明了 ArXiv Scout 项目的数据库设计、数据存储位置及管理方式。
+
+## 1. 存储位置与技术栈
+-   **数据库类型**: PostgreSQL (关系型数据库)
+-   **托管服务**: Supabase (云端托管)
+-   **连接方式**: 通过 `supabase-py` 客户端在后端进行读写操作。
+
+## 2. 数据存储结构 (Schema)
+
+数据库主要包含以下核心表：
+
+### 2.1 [papers](file:///Users/mac/Desktop/AS/backend/app/api/v1/endpoints/papers.py#13-16) (论文表)
+存储所有抓取到的论文及其分析结果。
+-   **来源**: 爬虫 (Crawler) 抓取原始数据 -> LLM 分析后更新。
+-   **关键字段**:
+    -   [id](file:///Users/mac/Desktop/AS/backend/tests/test_crawler_components.py#117-123): ArXiv ID (如 `2310.06825`)
+    -   `title`, `authors`, [date](file:///Users/mac/Desktop/AS/backend/app/services/mock_data.py#3-5), `category`: 基础元数据
+    -   `details`: JSON 格式，存储摘要 (abstract)、动机 (motivation)、方法 (method) 等详细分析。
+    -   `tldr`: 一句话总结 (由 LLM 生成)。
+    -   `suggestion`: 推荐理由或评分。
+    -   [tags](file:///Users/mac/Desktop/AS/backend/app/schemas/paper.py#35-41): 标签列表。
+
+### 2.2 `users` (用户表)
+存储用户的基础身份信息。
+-   **来源**: 系统初始化或用户注册。
+-   **关键字段**:
+    -   [id](file:///Users/mac/Desktop/AS/backend/tests/test_crawler_components.py#117-123): UUID
+    -   [email](file:///Users/mac/Desktop/AS/backend/app/services/report_service.py#80-122): 用户邮箱
+
+### 2.3 `profiles` (用户画像表)
+存储用户的个性化偏好，用于 LLM 的推荐算法。
+-   **来源**: 用户填写问卷或根据行为自动更新。
+-   **关键字段**:
+    -   [user_id](file:///Users/mac/Desktop/AS/backend/app/services/user_service.py#14-24): 关联 `users` 表
+    -   `focus`: JSON，关注领域、关键词 (如 "LLM", "Agent")。
+    -   `context`: JSON，当前任务、学习阶段。
+    -   [memory](file:///Users/mac/Desktop/AS/backend/app/api/v1/endpoints/user.py#16-20): JSON，已读论文、不感兴趣的论文记录。
+
+### 2.4 [reports](file:///Users/mac/Desktop/AS/backend/app/services/report_service.py#18-28) (研读报告表)
+存储生成的每日研读报告。
+-   **来源**: 定时任务 (Scheduler) 调用 LLM 生成。
+-   **关键字段**:
+    -   [id](file:///Users/mac/Desktop/AS/backend/tests/test_crawler_components.py#117-123): UUID
+    -   [user_id](file:///Users/mac/Desktop/AS/backend/app/services/user_service.py#14-24): 关联 `users` 表
+    -   `content`: JSON，报告的具体段落和引用。
+
+## 3. 数据流向 (Data Flow)
+
+1.  **数据采集**:
+    -   `Scrapy` 爬虫抓取 ArXiv 最新论文 -> 存入 [papers](file:///Users/mac/Desktop/AS/backend/app/api/v1/endpoints/papers.py#13-16) 表 (初始状态)。
+2.  **数据处理**:
+    -   [Scheduler](file:///Users/mac/Desktop/AS/backend/app/services/scheduler.py#11-123) 定时任务扫描 [papers](file:///Users/mac/Desktop/AS/backend/app/api/v1/endpoints/papers.py#13-16) 表中未分析的论文。
+    -   调用 `LLM Service` 结合 `profiles` 中的用户画像进行分析。
+    -   将分析结果 (TLDR, 标签, 推荐理由) 更新回 [papers](file:///Users/mac/Desktop/AS/backend/app/api/v1/endpoints/papers.py#13-16) 表。
+3.  **数据消费**:
+    -   **前端**: 通过 API (`/api/v1/papers`) 读取 [papers](file:///Users/mac/Desktop/AS/backend/app/api/v1/endpoints/papers.py#13-16) 表展示列表。
+    -   **报告**: `Report Service` 读取高分论文 -> 生成报告 -> 存入 [reports](file:///Users/mac/Desktop/AS/backend/app/services/report_service.py#18-28) 表 -> 发送邮件。
+
+## 4. 访问与管理
+
+### 4.1 如何查看数据
+-   **Supabase Dashboard**: 登录 Supabase 网页端，使用 "Table Editor" 可视化查看和编辑所有数据。
+-   **SQL Editor**: 在 Supabase 中运行 SQL 语句进行复杂查询或表结构修改。
+
+### 4.2 如何备份与迁移
+-   **Schema**: 定义在 [backend/schema.sql](file:///Users/mac/Desktop/AS/backend/schema.sql) 文件中。
+-   **迁移**: 目前主要通过在 Supabase SQL Editor 中手动运行 SQL 语句来变更结构 (如刚才添加 [user_id](file:///Users/mac/Desktop/AS/backend/app/services/user_service.py#14-24) 字段)。
+
+### 4.3 安全性 (RLS)
+-   项目启用了 **Row Level Security (RLS)**。
+-   目前开发阶段策略较为宽松 (允许 Service Role 读写)，生产环境可配置更严格的策略 (如仅允许用户读取自己的 Profile)。

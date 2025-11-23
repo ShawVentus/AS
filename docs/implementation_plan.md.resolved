@@ -1,0 +1,76 @@
+# 实施计划：论文查询与阅读 Agent (Paper Scout Agent)
+
+## 目标
+构建一个智能化的论文查询与阅读 Agent，核心在于**个性化记忆模块**，通过用户反馈不断进化，提供精准的论文筛选、深度分析、研报生成及邮件推送功能。前端追求极致的交互体验与美观度。
+
+## 架构设计
+- **前端**: React + Vite + TailwindCSS (现有基础升级)
+- **后端**: FastAPI (现有基础升级)
+- **数据库**: PostgreSQL (Supabase) - **新增**
+- **LLM**: Qwen (DashScope API) - **新增** (替换 DeepSeek)
+- **调度**: APScheduler (定时任务) - **新增**
+
+## 阶段规划
+
+### 阶段一：数据持久化与记忆模块 (Memory & DB)
+- [ ] **数据库设计**:
+    - `users`: 存储基础信息。
+    - `profiles`: 存储 JSON 结构的画像 (Focus, Context, Memory)。
+    - [papers](file:///Users/mac/Desktop/AS/backend/api/endpoints/papers.py#13-16): 存储爬取的论文元数据及分析结果。
+    - [reports](file:///Users/mac/Desktop/AS/backend/services/report_service.py#8-10): 存储生成的研报。
+    - `interactions`: 存储用户反馈 (Like/Dislike, Reason)。
+- [ ] **后端接口**:
+    - 实现完整的 User Profile CRUD。
+    - 实现“记忆更新”逻辑 (基于反馈更新权重/关键词)。
+    - 增加 [initialize_profile](file:///Users/mac/Desktop/AS/backend/services/user_service.py#9-22) 和 [update_profile_nl](file:///Users/mac/Desktop/AS/backend/services/user_service.py#23-42) 的具体实现。
+
+### 阶段二：论文获取与智能分析 (Paper Engine)
+- [ ] **ArXiv 爬虫 (Scrapy)**:
+    - 参考 `daily-arXiv-ai-enhanced` 实现 [ArxivSpider](file:///Users/mac/Desktop/AS/OpenResourceRepo/daily-arXiv-ai-enhanced/daily_arxiv/daily_arxiv/spiders/arxiv.py#6-78)。
+    - 使用 `scrapy` 框架抓取 `https://arxiv.org/list/{cat}/new`。
+    - 实现分类过滤 (Category Intersection) 和去重机制。
+- [ ] **LLM 服务集成 (Qwen)**:
+    - 使用 `openai` 客户端连接 DashScope (`qwen3-max`)。
+    - **Prompt 管理**: 所有 Prompt 外置于 `backend/prompt/` 目录。
+    - 实现 `Filter` (初筛): 读取 `backend/prompt/filter.md`，基于 Profile 判断相关性。
+    - 实现 `Analyzer` (分析): 读取 `backend/prompt/analyze.md`，提取 TLDR, Motivation 等。
+    - **引用处理**: 要求 LLM 返回带 `<ref id="p1">` 标签的文本，后端解析为结构化数据，前端渲染为可点击链接。
+
+### 阶段三：研报生成与推送 (Report & Email)
+- [ ] **研报生成器**:
+    - 实现聚类逻辑 (将今日论文按子主题分组)。
+    - 调用 LLM 生成综述型研报，读取 `backend/prompt/report.md`。
+- [ ] **邮件服务**:
+    - 参考 `SamArM` 实现 `EmailSender` 类 (SMTP, SSL/TLS)。
+    - 设计 HTML 邮件模板 (Jinja2)，支持批量发送和重试机制。
+
+### 阶段四：前端交互与体验升级 (Frontend Polish)
+- [ ] **布局重构**:
+    - 实现左侧可收缩侧边栏导航。
+    - 优化全局响应式布局。
+- [ ] **功能模块**:
+    - **记忆管理**: 可视化展示关键词权重、固定记忆、更新历史。
+    - **研报详情**: 实现“鼠标悬停引用显示论文卡片”的高级交互。
+    - **论文列表**: 优化卡片设计，集成 PDF 下载、Like/Dislike (含标签+自然语言反馈)。
+- [ ] **视觉优化**:
+    - 统一深色模式 (Dark Mode) 配色。
+    - 增加微交互 (Hover effects, Transitions)。
+
+## 额外改进与细节建议 (Thought)
+
+1.  **记忆的可解释性与可视化**:
+    - **建议**: 在前端用“词云”或“雷达图”展示用户的关注点（Focus）。
+    - **细节**: 为每个关键词维护一个 `score` (0-100)，每次 Like +1，Dislike -5。用户可以手动锁定 (Lock) 某些核心词不被降权。
+
+2.  **论文的“全生命周期”管理**:
+    - **建议**: 除了 Like/Dislike，增加 “Read Later” (稍后读) 和 “Archived” (归档) 状态。
+    - **细节**: 详情页增加“笔记”功能，允许用户对论文写简短的备忘，这些备忘也会进入 Memory 优化推荐。
+
+3.  **智能引用的交互体验**:
+    - **建议**: 在研报中，不仅悬停显示论文，点击引用标号应能平滑滚动到右侧（或下方）的论文详情，实现“对照阅读”体验。
+
+4.  **冷启动优化**:
+    - **建议**: 用户初次进入时，除了填问卷，提供一组当前热门论文 (Top cited this week) 让用户快速勾选“感兴趣/不感兴趣”，快速初始化画像。
+
+5.  **部署与运维**:
+    - **建议**: 使用 `docker-compose` 编排 前端+后端+数据库，方便一键启动。

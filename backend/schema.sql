@@ -30,6 +30,7 @@ create table if not exists papers (
 -- Reports Table
 create table if not exists reports (
     id text primary key,
+    user_id text references users(id), -- Added user_id
     title text not null,
     date text not null,
     summary text,

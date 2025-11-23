@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.user_service import UserService
-from schemas.user import UserFeedback
+from app.services.user_service import UserService
+from app.schemas.user import UserFeedback
 
 load_dotenv()
 

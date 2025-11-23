@@ -7,7 +7,7 @@ import json
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.llm_service import QwenService
+from app.services.llm_service import QwenService
 
 class TestLLMService(unittest.TestCase):
     def setUp(self):

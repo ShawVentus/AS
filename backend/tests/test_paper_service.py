@@ -6,11 +6,11 @@ import sys
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.paper_service import PaperService
-from schemas.paper import Paper
+from app.services.paper_service import PaperService
+from app.schemas.paper import Paper
 
 class TestPaperService(unittest.TestCase):
-    @patch('services.paper_service.get_db')
+    @patch('app.services.paper_service.get_db')
     def setUp(self, mock_get_db):
         self.mock_db = MagicMock()
         mock_get_db.return_value = self.mock_db

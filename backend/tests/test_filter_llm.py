@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.paper_service import PaperService
-from schemas.paper import Paper
-from schemas.user import UserProfile, UserInfo, Focus, Context, Memory
+from app.services.paper_service import PaperService
+from app.schemas.paper import Paper
+from app.schemas.user import UserProfile, UserInfo, Focus, Context, Memory
 
 load_dotenv()
 
@@ -31,7 +31,7 @@ def test_llm_filter():
         tags=[],
         citationCount=0,
         year=2023,
-        links={"pdf": "https://arxiv.org/pdf/2310.06825.pdf", "arxiv": "https://arxiv.org/abs/2310.06825"},
+        links={"pdf": "https://arxiv.org/pdf/2310.06825.pdf", "arxiv": "https://arxiv.org/abs/2310.06825", "html": "https://arxiv.org/html/2310.06825"},
         details={
             "abstract": "We introduce Mistral 7B, a 7-billion-parameter language model engineered for superior performance and efficiency. Mistral 7B outperforms Llama 2 13B across all evaluated benchmarks, and Llama 1 34B on many benchmarks. It approaches CodeLlama 7B performance on code, while remaining good at English tasks. It uses Grouped-query attention (GQA) for faster inference and Sliding Window Attention (SWA) to handle longer sequences at smaller cost. We release Mistral 7B under the Apache 2.0 license."
         }
@@ -46,7 +46,7 @@ def test_llm_filter():
             authors=[],
             institutions=[]
         ),
-        context=Context(currentTask="Research", futureGoal="", stage="", purpose=[], learningMode="basic"),
+        context=Context(currentTask="Research", futureGoal="", stage="", purpose=[]),
         memory=Memory(readPapers=[], dislikedPapers=[])
     )
     
@@ -88,7 +88,7 @@ def test_llm_filter():
             authors=[],
             institutions=[]
         ),
-        context=Context(currentTask="", futureGoal="", stage="", purpose=[], learningMode="basic"),
+        context=Context(currentTask="", futureGoal="", stage="", purpose=[]),
         memory=Memory(readPapers=[], dislikedPapers=[])
     )
     

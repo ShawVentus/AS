@@ -1,4 +1,4 @@
-from database import get_db
+from app.core.database import get_db
 import json
 import arxiv
 from datetime import datetime

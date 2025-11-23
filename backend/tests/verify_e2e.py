@@ -8,9 +8,9 @@ from dotenv import load_dotenv
 # Add backend to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.paper_service import PaperService
-from schemas.paper import Paper
-from schemas.user import UserProfile, UserInfo, Focus, Context, Memory
+from app.services.paper_service import PaperService
+from app.schemas.paper import Paper
+from app.schemas.user import UserProfile, UserInfo, Focus, Context, Memory
 
 load_dotenv()
 
@@ -69,7 +69,7 @@ def verify_flow():
         mock_profile = UserProfile(
             info=UserInfo(name="Test User", email="test@test.com", avatar="", nickname="Tester"),
             focus=Focus(domains=["AI"], keywords=["Agents"], authors=[], institutions=[]),
-            context=Context(currentTask="Verification", futureGoal="Success", stage="Dev", purpose=[], learningMode="basic"),
+            context=Context(currentTask="Verification", futureGoal="Success", stage="Dev", purpose=[]),
             memory=Memory(readPapers=[], dislikedPapers=[])
         )
         
