@@ -5,8 +5,6 @@
 
 # Python
 __pycache__/
-*__pycache__
-**/__pycache__
 *.py[cod]
 *$py.class
 .pytest_cache/
@@ -18,3 +16,4 @@ env/
 node_modules/
 dist/
 .DS_Store
+OpenResourceRepo
