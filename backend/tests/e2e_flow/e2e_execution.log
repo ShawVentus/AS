@@ -1,0 +1,71 @@
+Starting E2E Verification Suite...
+Python Executable: /opt/miniconda3/envs/arxivscout/bin/python
+
+============================================================
+🚀 Running Crawling Papers...
+============================================================
+=== Step 1: Crawl Papers ===
+Triggering crawler (limit=5)...
+Error crawling: [Errno 2] No such file or directory: 'scrapy'
+⚠️ Skipping invalid paper test_e2e_1763786009: 1 validation error for Paper
+tags
+  Input should be a valid list [type=list_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.12/v/list_type
+✅ Found 7 papers.
+Saved results to /Users/mac/Desktop/AS/backend/tests/e2e_flow/data/1_crawl_results.json
+
+✅ Crawling Papers COMPLETED in 1.35s
+
+============================================================
+🚀 Running Analyzing Papers (LLM)...
+============================================================
+=== Step 2: Analyze Papers ===
+Analyzing 5 papers...
+Analyzing: E2E Verification: AI Agents in...
+Analyzing: E2E Verification: AI Agents in...
+Analyzing: E2E Verification: AI Agents in...
+Analyzing: E2E Verification: AI Agents in...
+Analyzing: E2E Verification: AI Agents in...
+✅ Analyzed 5 papers.
+Saved results to /Users/mac/Desktop/AS/backend/tests/e2e_flow/data/2_analysis_results.json
+
+✅ Analyzing Papers (LLM) COMPLETED in 0.24s
+
+============================================================
+🚀 Running Generating Report...
+============================================================
+=== Step 3: Generate Report ===
+Generating report for 5 papers...
+DEBUG: LLM Report Result: {
+  "title": "2025/04/05 - AI Agent 自验证机制前沿动态",
+  "summary": "本期聚焦AI Agent的端到端自验证机制，探讨其在系统可靠性与自主性方面的最新进展。",
+  "content": [
+    {
+      "topic": "AI Agent 的端到端自验证",
+      "text": "近期研究关注AI Agent如何在运行过程中实现自我验证与校验，以提升系统的鲁棒性与可信度。多篇论文提出通过内嵌验证模块或闭环反馈机制，使Agent能够动态评估自身行为的合理性与一致性。例如，有工作探讨了基于形式化方法与运行时监控相结合的自验证框架<ref id=\"ptest_e2e_1763786226\">，并进一步扩展至多智能体协同场景下的交叉验证机制<ref id=\"ptest_e2e_1763786197\">。此类方法为构建高可靠性的自主智能系统提供了新思路，尤其适用于对安全性要求严苛的领域如医疗AI<ref id=\"ptest_e2e_1763786168\">。",
+      "refIds": [
+        "ptest_e2e_1763786226",
+        "ptest_e2e_1763786197",
+        "ptest_e2e_1763786168",
+        "ptest_e2e_1763786146",
+        "ptest_e2e_1763786095"
+      ]
+    }
+  ]
+}
+Error saving report: {'message': "Could not find the 'user_id' column of 'reports' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+✅ Report Generated: 2025/04/05 - AI Agent 自验证机制前沿动态
+Summary: 本期聚焦AI Agent的端到端自验证机制，探讨其在系统可靠性与自主性方面的最新进展。...
+Saved results to /Users/mac/Desktop/AS/backend/tests/e2e_flow/data/3_report_results.json
+
+✅ Generating Report COMPLETED in 15.78s
+
+============================================================
+🚀 Running Sending Email...
+============================================================
+  File "/Users/mac/Desktop/AS/backend/tests/e2e_flow/step4_email.py", line 54
+    except Exception as e:
+    ^^^^^^
+SyntaxError: invalid syntax
+
+❌ Sending Email FAILED with exit code 1

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { ChevronLeft, Brain, Microscope, ArrowRightCircle, Compass } from 'lucide-react';
-import { MOCK_PAPERS } from '../../../data/mockData';
-import type { Report } from '../../../data/mockData';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, Brain, Microscope, ArrowRightCircle, Compass, Mail, Loader2 } from 'lucide-react';
+import type { Report, Paper } from '../../../types';
+import { PaperAPI, ReportAPI } from '../../../services/api';
 import { cn } from '../../../utils/cn';
 
 interface ReportDetailProps {
@@ -12,7 +12,30 @@ interface ReportDetailProps {
 
 export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNavigateToPaper }) => {
     const [hoveredRefIds, setHoveredRefIds] = useState<string[]>([]);
-    const activePapers = hoveredRefIds.map(id => MOCK_PAPERS.find(p => p.id === id)).filter(Boolean);
+    const [papers, setPapers] = useState<Paper[]>([]);
+    const [sendingEmail, setSendingEmail] = useState(false);
+
+    useEffect(() => {
+        PaperAPI.getPapers().then(setPapers).catch(console.error);
+    }, []);
+
+    const activePapers = hoveredRefIds.map(id => papers.find(p => p.id === id)).filter(Boolean);
+
+    const handleSendEmail = async () => {
+        const email = prompt("请输入接收邮箱:");
+        if (!email) return;
+
+        setSendingEmail(true);
+        try {
+            await ReportAPI.sendEmail(report.id, email);
+            alert('邮件发送成功');
+        } catch (error) {
+            console.error('Failed to send email:', error);
+            alert('发送失败');
+        } finally {
+            setSendingEmail(false);
+        }
+    };
 
     return (
         <div className="flex h-full overflow-hidden animate-in fade-in">
@@ -30,9 +53,19 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
                             </div>
                         </div>
                     </div>
-                    <button onClick={() => onNavigateToPaper(null)} className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded border border-slate-800 hover:border-slate-600 transition-all">
-                        查看论文列表
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleSendEmail}
+                            disabled={sendingEmail}
+                            className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded border border-slate-800 hover:border-slate-600 transition-all flex items-center gap-2"
+                        >
+                            {sendingEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+                            发送邮件
+                        </button>
+                        <button onClick={() => onNavigateToPaper(null)} className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded border border-slate-800 hover:border-slate-600 transition-all">
+                            查看论文列表
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 md:p-8">

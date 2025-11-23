@@ -1,67 +1,5 @@
 import { addDays, format, subDays } from 'date-fns';
-
-export interface UserProfile {
-    info: {
-        name: string;
-        email: string;
-        avatar: string;
-        nickname: string;
-    };
-    memory: {
-        focus: {
-            domains: string[];
-            keywords: string[];
-            authors: string[];
-            institutions: string[];
-        };
-        context: {
-            currentTask: string;
-            futureGoal: string;
-            stage: string;
-            purpose: string[];
-            learningMode: 'basic' | 'innovation';
-        };
-    };
-}
-
-export interface Paper {
-    id: string;
-    title: string;
-    authors: string[];
-    category: string;
-    tldr: string;
-    suggestion: string;
-    tags: string[];
-    date: string;
-    details: {
-        motivation: string;
-        method: string;
-        result: string;
-        conclusion: string;
-        abstract: string;
-    };
-    links: {
-        pdf: string;
-        arxiv: string;
-        html: string;
-    };
-    isLiked?: boolean | null;
-    dislikeReason?: { reason: string; tags: string[] };
-    citationCount: number;
-    year: number;
-    whyThisPaper?: string;
-}
-
-export interface Report {
-    id: string;
-    title: string;
-    date: string;
-    summary: string;
-    content: {
-        text: string;
-        refIds: string[];
-    }[];
-}
+import type { UserProfile, Paper, Report } from '../types';
 
 export const USER_PROFILE: UserProfile = {
     info: {
@@ -70,20 +8,22 @@ export const USER_PROFILE: UserProfile = {
         avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
         nickname: "Scholar_X"
     },
+    focus: {
+        domains: ["cs.LG", "cs.AI"],
+        keywords: ["LLM", "Agent", "RAG"],
+        authors: ["Junxian He"],
+        institutions: ["AI2", "DeepSeek"]
+    },
+    context: {
+        currentTask: "开发论文查询Agent",
+        futureGoal: "AI赋能医疗",
+        stage: "研一",
+        purpose: ["Idea", "前沿"],
+        learningMode: 'basic'
+    },
     memory: {
-        focus: {
-            domains: ["cs.LG", "cs.AI"],
-            keywords: ["LLM", "Agent", "RAG"],
-            authors: ["Junxian He"],
-            institutions: ["AI2", "DeepSeek"]
-        },
-        context: {
-            currentTask: "开发论文查询Agent",
-            futureGoal: "AI赋能医疗",
-            stage: "研一",
-            purpose: ["Idea", "前沿"],
-            learningMode: 'basic'
-        }
+        readPapers: [],
+        dislikedPapers: []
     }
 };
 
@@ -142,7 +82,6 @@ export const MOCK_PAPERS: Paper[] = [
         suggestion: "略读",
         tags: ["Agent", "Tool"],
         isLiked: false,
-        dislikeReason: { reason: "方法陈旧", tags: ["创新性不足"] },
         details: {
             motivation: "海量论文筛选效率低。",
             method: "BERT分类器 + 规则引擎。",

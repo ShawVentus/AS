@@ -1,0 +1,166 @@
+[
+  {
+    "id": "test_e2e_1763786226",
+    "title": "E2E Verification: AI Agents in 2025",
+    "authors": [
+      "Test Author",
+      "Robot"
+    ],
+    "date": "2025-11-22",
+    "category": "cs.AI",
+    "tldr": "本文验证了论文侦察智能体（Paper Scout Agent）的端到端工作流程，探讨AI智能体如何进行自我验证。",
+    "suggestion": "您当前处于开发阶段（Dev），关注AI智能体（Agents）领域的基础验证任务，本文直接对应您的当前任务‘Verification’和兴趣关键词‘Agents’，有助于夯实您在AI智能体可信性方面的基础知识。",
+    "tags": [
+      "AI Agents",
+      "End-to-End Verification",
+      "Self-Verification"
+    ],
+    "details": {
+      "motivation": "为确保AI智能体在复杂任务中可靠运行，需建立端到端的验证机制，本文旨在测试并验证该流程的有效性。",
+      "method": "通过构建一个测试性论文场景，模拟AI智能体执行端到端验证任务，观察其自我验证行为与流程完整性。",
+      "result": "成功演示了AI智能体在端到端流程中的自我验证能力，验证了系统设计的可行性。",
+      "conclusion": "该研究为未来AI智能体的自主验证与可靠性评估提供了基础框架，后续可扩展至更复杂的多智能体系统。",
+      "abstract": "This is a test paper to verify the end-to-end flow of the Paper Scout Agent. It discusses how AI agents verify themselves.",
+      "tldr": null
+    },
+    "links": {
+      "pdf": "http://test.pdf",
+      "arxiv": "http://test.arxiv",
+      "html": "http://test.html"
+    },
+    "citationCount": 0,
+    "year": 2025,
+    "isLiked": null,
+    "whyThisPaper": null
+  },
+  {
+    "id": "test_e2e_1763786197",
+    "title": "E2E Verification: AI Agents in 2025",
+    "authors": [
+      "Test Author",
+      "Robot"
+    ],
+    "date": "2025-11-22",
+    "category": "cs.AI",
+    "tldr": "本文验证了论文侦察智能体（Paper Scout Agent）的端到端流程，探讨AI智能体如何实现自我验证。",
+    "suggestion": "作为研一学生，你正在开发论文查询Agent，且关注LLM、Agent等方向。本文直接涉及AI智能体的端到端验证机制，与你的当前任务高度契合，有助于理解Agent系统的可靠性设计，为你在AI赋能医疗前研阶段提供前沿思路。",
+    "tags": [
+      "AI Agent",
+      "端到端验证",
+      "科研自动化"
+    ],
+    "details": {
+      "motivation": "为确保AI智能体在自动化科研任务中的可靠性，需建立端到端的自我验证机制。",
+      "method": "设计并测试了一个端到端的Paper Scout Agent，通过内部一致性检查和流程闭环实现自我验证。",
+      "result": "成功验证了AI智能体在论文检索与分析任务中具备基础的自我校验能力，流程可完整运行。",
+      "conclusion": "该工作为构建可信、自主的科研AI智能体奠定了基础，未来可扩展至更复杂的学术推理任务。",
+      "abstract": "This is a test paper to verify the end-to-end flow of the Paper Scout Agent. It discusses how AI agents verify themselves.",
+      "tldr": null
+    },
+    "links": {
+      "pdf": "http://test.pdf",
+      "arxiv": "http://test.arxiv",
+      "html": "http://test.html"
+    },
+    "citationCount": 0,
+    "year": 2025,
+    "isLiked": null,
+    "whyThisPaper": null
+  },
+  {
+    "id": "test_e2e_1763786168",
+    "title": "E2E Verification: AI Agents in 2025",
+    "authors": [
+      "Test Author",
+      "Robot"
+    ],
+    "date": "2025-11-22",
+    "category": "cs.AI",
+    "tldr": "Initial TLDR",
+    "suggestion": "Initial Suggestion",
+    "tags": [
+      "Test"
+    ],
+    "details": {
+      "motivation": "To test the system",
+      "method": "Automated script",
+      "result": "Success",
+      "conclusion": "It works",
+      "abstract": "This is a test paper to verify the end-to-end flow of the Paper Scout Agent. It discusses how AI agents verify themselves.",
+      "tldr": null
+    },
+    "links": {
+      "pdf": "http://test.pdf",
+      "arxiv": "http://test.arxiv",
+      "html": "http://test.html"
+    },
+    "citationCount": 0,
+    "year": 2025,
+    "isLiked": null,
+    "whyThisPaper": null
+  },
+  {
+    "id": "test_e2e_1763786146",
+    "title": "E2E Verification: AI Agents in 2025",
+    "authors": [
+      "Test Author",
+      "Robot"
+    ],
+    "date": "2025-11-22",
+    "category": "cs.AI",
+    "tldr": "Initial TLDR",
+    "suggestion": "Initial Suggestion",
+    "tags": [
+      "Test"
+    ],
+    "details": {
+      "motivation": "To test the system",
+      "method": "Automated script",
+      "result": "Success",
+      "conclusion": "It works",
+      "abstract": "This is a test paper to verify the end-to-end flow of the Paper Scout Agent. It discusses how AI agents verify themselves.",
+      "tldr": null
+    },
+    "links": {
+      "pdf": "http://test.pdf",
+      "arxiv": "http://test.arxiv",
+      "html": "http://test.html"
+    },
+    "citationCount": 0,
+    "year": 2025,
+    "isLiked": null,
+    "whyThisPaper": null
+  },
+  {
+    "id": "test_e2e_1763786095",
+    "title": "E2E Verification: AI Agents in 2025",
+    "authors": [
+      "Test Author",
+      "Robot"
+    ],
+    "date": "2025-11-22",
+    "category": "cs.AI",
+    "tldr": "Initial TLDR",
+    "suggestion": "Initial Suggestion",
+    "tags": [
+      "Test"
+    ],
+    "details": {
+      "motivation": "To test the system",
+      "method": "Automated script",
+      "result": "Success",
+      "conclusion": "It works",
+      "abstract": "This is a test paper to verify the end-to-end flow of the Paper Scout Agent. It discusses how AI agents verify themselves.",
+      "tldr": null
+    },
+    "links": {
+      "pdf": "http://test.pdf",
+      "arxiv": "http://test.arxiv",
+      "html": "http://test.html"
+    },
+    "citationCount": 0,
+    "year": 2025,
+    "isLiked": null,
+    "whyThisPaper": null
+  }
+]

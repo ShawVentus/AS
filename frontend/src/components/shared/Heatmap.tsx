@@ -32,7 +32,7 @@ export const Heatmap: React.FC = () => {
                 ))}
             </div>
             <div className="flex items-center gap-2 mt-2 text-[10px] text-slate-500 justify-end">
-                <span>Less</span>
+                <span>少</span>
                 <div className="flex gap-1">
                     <div className="w-2.5 h-2.5 rounded-sm bg-slate-900"></div>
                     <div className="w-2.5 h-2.5 rounded-sm bg-emerald-900/40"></div>
@@ -40,7 +40,7 @@ export const Heatmap: React.FC = () => {
                     <div className="w-2.5 h-2.5 rounded-sm bg-emerald-500/80"></div>
                     <div className="w-2.5 h-2.5 rounded-sm bg-emerald-400"></div>
                 </div>
-                <span>More</span>
+                <span>多</span>
             </div>
         </div>
     );

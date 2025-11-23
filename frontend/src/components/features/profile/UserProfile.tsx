@@ -9,7 +9,7 @@ interface UserMenuProps {
 
 export const UserMenu: React.FC<UserMenuProps> = ({ onNavigate }) => {
     const [isHovered, setIsHovered] = useState(false);
-    const [learningMode, setLearningMode] = useState(USER_PROFILE.memory.context.learningMode);
+    const [learningMode, setLearningMode] = useState(USER_PROFILE.context.learningMode);
 
     const handleModeChange = (mode: 'basic' | 'innovation') => {
         setLearningMode(mode);
@@ -21,7 +21,7 @@ export const UserMenu: React.FC<UserMenuProps> = ({ onNavigate }) => {
             <div className="flex items-center gap-3 cursor-pointer py-2">
                 <div className="text-right hidden md:block leading-tight">
                     <div className="text-xs font-bold text-slate-300">{USER_PROFILE.info.name}</div>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-wide">{USER_PROFILE.memory.context.stage}</div>
+                    <div className="text-[10px] text-slate-500 uppercase tracking-wide">{USER_PROFILE.context.stage}</div>
                 </div>
                 <div className="relative">
                     <img src={USER_PROFILE.info.avatar} alt="avatar" className="w-8 h-8 rounded-full border border-slate-700 bg-slate-800" />
@@ -41,8 +41,8 @@ export const UserMenu: React.FC<UserMenuProps> = ({ onNavigate }) => {
                                 <div>
                                     <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">关注领域</label>
                                     <div className="flex flex-wrap gap-1.5">
-                                        {USER_PROFILE.memory.focus.domains.map(d => <span key={d} className="text-[10px] bg-indigo-950/50 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/10">{d}</span>)}
-                                        {USER_PROFILE.memory.focus.keywords.map(k => <span key={k} className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">{k}</span>)}
+                                        {USER_PROFILE.focus.domains.map(d => <span key={d} className="text-[10px] bg-indigo-950/50 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/10">{d}</span>)}
+                                        {USER_PROFILE.focus.keywords.map(k => <span key={k} className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">{k}</span>)}
                                     </div>
                                 </div>
                                 <div>

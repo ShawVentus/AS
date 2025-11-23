@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FileText, Target, Brain } from 'lucide-react';
-import { Navbar } from './components/layout/Navbar';
+import { Header } from './components/layout/Header';
 import { ReportDetail } from './components/features/reports/ReportDetail';
 import { ReportList } from './components/features/reports/ReportList';
 import { PaperList } from './components/features/papers/PaperList';
@@ -8,24 +8,46 @@ import { PaperCard } from './components/features/papers/PaperCard';
 import { SettingsPage } from './components/features/settings/SettingsPage';
 import { PaperDetailModal } from './components/shared/PaperDetailModal';
 import { Heatmap } from './components/shared/Heatmap';
-import { USER_PROFILE, MOCK_PAPERS } from './data/mockData';
-import type { Report, Paper } from './data/mockData';
+import { USER_PROFILE as DEFAULT_PROFILE, MOCK_PAPERS as DEFAULT_PAPERS } from './data/mockData';
+import type { Report, Paper, UserProfile } from './types';
+import { UserAPI, PaperAPI } from './services/api';
 
 function App() {
   const [currentView, setCurrentView] = useState('dashboard');
+  const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
+  const [recommendations, setRecommendations] = useState<Paper[]>(DEFAULT_PAPERS.slice(0, 2));
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
   const [modalPaper, setModalPaper] = useState<Paper | null>(null);
+
+  const [latestReport, setLatestReport] = useState<Report | null>(null);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const profile = await UserAPI.getProfile();
+        setUserProfile(profile);
+        const recs = await PaperAPI.getRecommendations();
+        setRecommendations(recs.slice(0, 3)); // Show 3 recommendations
+
+        // Fetch latest report
+        const reports = await import('./services/api').then(m => m.ReportAPI.getReports());
+        if (reports && reports.length > 0) {
+          setLatestReport(reports[0]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleNavigateToPaper = (paperId: string | null) => {
     if (!paperId) {
       setCurrentView('papers');
       return;
     }
-    const paper = MOCK_PAPERS.find(p => p.id === paperId);
-    if (paper) {
-      setModalPaper(paper);
-    }
+    PaperAPI.getPaperDetail(paperId).then(setModalPaper).catch(console.error);
   };
 
   const renderContent = () => {
@@ -42,8 +64,40 @@ function App() {
     if (currentView === 'dashboard') {
       return (
         <div className="p-6 max-w-5xl mx-auto animate-in fade-in">
-          <h1 className="text-xl font-bold text-white mb-1">早安，{USER_PROFILE.info.name}</h1>
+          <h1 className="text-xl font-bold text-white mb-1">早安，{userProfile.info.name}</h1>
           <p className="text-xs text-slate-500 mb-6">今日有 3 篇新论文可能相关。</p>
+
+          {/* Today's Report Push */}
+          {latestReport && (
+            <div className="mb-8">
+              <h2 className="text-sm font-bold text-white mb-3">今日报告推送</h2>
+              <div
+                onClick={() => {
+                  setSelectedReport(latestReport);
+                  setCurrentView('reports');
+                }}
+                className="bg-gradient-to-r from-indigo-900/50 to-slate-900 border border-indigo-500/30 rounded-lg p-4 cursor-pointer hover:border-indigo-500/50 transition-all group"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <FileText size={16} className="text-indigo-400" />
+                    <span className="font-bold text-white group-hover:text-indigo-300 transition-colors">
+                      {latestReport.title}
+                    </span>
+                    <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
+                      {latestReport.date}
+                    </span>
+                  </div>
+                  <div className="text-xs text-indigo-400 group-hover:translate-x-1 transition-transform">
+                    阅读报告 &rarr;
+                  </div>
+                </div>
+                <p className="text-sm text-slate-400 line-clamp-2">
+                  {latestReport.summary}
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-4 mb-8">
             {[{ icon: FileText, val: 12, label: '未读报告', col: 'indigo' }, { icon: Target, val: '85%', label: '覆盖率', col: 'cyan' }, { icon: Brain, val: 5, label: 'Idea', col: 'emerald' }].map((s, i) => (
@@ -62,9 +116,17 @@ function App() {
             </div>
           </div>
 
-          <h2 className="text-sm font-bold text-white mb-3">推荐论文</h2>
-          <div className="space-y-3 pb-10">
-            {MOCK_PAPERS.slice(0, 2).map(p => (
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-white">推荐论文</h2>
+            <button
+              onClick={() => setCurrentView('papers')}
+              className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+            >
+              查看更多 &rarr;
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-10">
+            {recommendations.map(p => (
               <PaperCard key={p.id} paper={p} onOpenDetail={(paper) => setModalPaper(paper)} />
             ))}
           </div>
@@ -87,10 +149,14 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500/30 selection:text-cyan-100">
-      <Navbar currentView={currentView} setCurrentView={setCurrentView} />
+    <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500/30 selection:text-cyan-100 overflow-hidden">
+      <Header
+        currentView={currentView}
+        setCurrentView={setCurrentView}
+        userProfile={userProfile}
+      />
 
-      <main className="pt-14 min-h-screen">
+      <main className="flex-1 h-full overflow-hidden relative">
         <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
           {renderContent()}
         </div>

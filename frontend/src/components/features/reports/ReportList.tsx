@@ -1,18 +1,48 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
-import { MOCK_REPORTS } from '../../../data/mockData';
-import type { Report } from '../../../data/mockData';
+import { Plus, Loader2, ChevronRight } from 'lucide-react';
+import { ReportAPI } from '../../../services/api';
+import type { Report } from '../../../types';
 
 interface ReportListProps {
     onSelectReport: (report: Report) => void;
 }
 
 export const ReportList: React.FC<ReportListProps> = ({ onSelectReport }) => {
+    const [reports, setReports] = React.useState<Report[]>([]);
+    const [generating, setGenerating] = React.useState(false);
+
+    const handleGenerate = async () => {
+        setGenerating(true);
+        try {
+            const newReport = await ReportAPI.generateReport();
+            setReports(prev => [newReport, ...prev]);
+        } catch (error) {
+            console.error('Failed to generate report:', error);
+            alert('生成失败');
+        } finally {
+            setGenerating(false);
+        }
+    };
+
+    React.useEffect(() => {
+        ReportAPI.getReports().then(setReports).catch(console.error);
+    }, []);
+
     return (
         <div className="p-6 max-w-4xl mx-auto animate-in fade-in">
-            <h2 className="text-xl font-bold text-white mb-6">历史研读报告</h2>
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-white">历史研读报告</h2>
+                <button
+                    onClick={handleGenerate}
+                    disabled={generating}
+                    className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-cyan-900/20"
+                >
+                    {generating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                    生成今日研报
+                </button>
+            </div>
             <div className="space-y-3">
-                {MOCK_REPORTS.map(report => (
+                {reports.map(report => (
                     <div key={report.id} onClick={() => onSelectReport(report)} className="bg-slate-900 border border-slate-800 p-4 rounded-lg hover:border-cyan-500/50 cursor-pointer group flex justify-between items-center transition-all">
                         <div>
                             <h3 className="text-sm font-bold text-slate-200 group-hover:text-cyan-400 mb-1 transition-colors">{report.title}</h3>

@@ -1,10 +1,30 @@
 import React, { useState } from 'react';
-import { Save, User, Brain, Target, BookOpen, Mail, Hash, X } from 'lucide-react';
+import { Save, User, Brain, Target, BookOpen, Mail, Hash, X, MessageSquare, Loader2 } from 'lucide-react';
 import { USER_PROFILE } from '../../../data/mockData';
+import { UserAPI } from '../../../services/api';
 
 export const SettingsPage = () => {
     const [activeTab, setActiveTab] = useState('memory');
-    const [learningMode, setLearningMode] = useState<'basic' | 'innovation'>(USER_PROFILE.memory.context.learningMode);
+    const [learningMode, setLearningMode] = useState<'basic' | 'innovation'>(USER_PROFILE.context.learningMode);
+    const [nlInput, setNlInput] = useState('');
+    const [isUpdatingNL, setIsUpdatingNL] = useState(false);
+
+    const handleNLUpdate = async () => {
+        if (!nlInput.trim()) return;
+        setIsUpdatingNL(true);
+        try {
+            // Mock user ID for now
+            await UserAPI.updateNL(nlInput, 'user_123');
+            setNlInput('');
+            // In a real app, we would reload the profile here
+            alert('画像已更新 (Mock)');
+        } catch (error) {
+            console.error('Failed to update profile:', error);
+            alert('更新失败');
+        } finally {
+            setIsUpdatingNL(false);
+        }
+    };
 
     return (
         <div className="p-6 max-w-4xl mx-auto animate-in fade-in pb-20">
@@ -29,6 +49,33 @@ export const SettingsPage = () => {
 
             {activeTab === 'memory' && (
                 <div className="space-y-8">
+                    {/* Natural Language Update */}
+                    <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
+                        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                            <MessageSquare className="text-cyan-400" size={20} /> 自然语言调整
+                        </h2>
+                        <div className="flex gap-4">
+                            <input
+                                type="text"
+                                value={nlInput}
+                                onChange={(e) => setNlInput(e.target.value)}
+                                placeholder="告诉 Agent 您最近想关注什么，例如：'最近想了解一下 RAG 在医疗领域的应用'..."
+                                className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none"
+                                onKeyDown={(e) => e.key === 'Enter' && handleNLUpdate()}
+                            />
+                            <button
+                                onClick={handleNLUpdate}
+                                disabled={isUpdatingNL || !nlInput.trim()}
+                                className="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                            >
+                                {isUpdatingNL ? <Loader2 size={18} className="animate-spin" /> : '更新'}
+                            </button>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500">
+                            Agent 会分析您的输入，自动调整关注领域、关键词和短期目标。
+                        </p>
+                    </section>
+
                     {/* Learning Mode */}
                     <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
                         <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
@@ -75,7 +122,7 @@ export const SettingsPage = () => {
                                     <span className="text-xs text-slate-500 font-normal ml-auto">论文检索页面</span>
                                 </h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {USER_PROFILE.memory.focus.domains.map(domain => (
+                                    {USER_PROFILE.focus.domains.map(domain => (
                                         <span key={domain} className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-slate-300 flex items-center gap-2">
                                             {domain} <button className="text-slate-500 hover:text-red-400"><X size={12} /></button>
                                         </span>
@@ -90,7 +137,7 @@ export const SettingsPage = () => {
                                     <span className="text-xs text-slate-500 font-normal ml-auto">论文筛选依据</span>
                                 </h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {USER_PROFILE.memory.focus.keywords.map(kw => (
+                                    {USER_PROFILE.focus.keywords.map(kw => (
                                         <span key={kw} className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-slate-300 flex items-center gap-2">
                                             {kw} <button className="text-slate-500 hover:text-red-400"><X size={12} /></button>
                                         </span>
@@ -101,79 +148,16 @@ export const SettingsPage = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <h3 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
-                                        <span className="w-1 h-4 bg-emerald-500 rounded-full"></span> 作者 (Authors)
-                                    </h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {USER_PROFILE.memory.focus.authors.map(author => (
-                                            <span key={author} className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-slate-300 flex items-center gap-2">
-                                                {author} <button className="text-slate-500 hover:text-red-400"><X size={12} /></button>
-                                            </span>
-                                        ))}
-                                        <button className="px-3 py-1.5 border border-dashed border-slate-700 rounded text-sm text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors">+ 添加作者</button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
-                                        <span className="w-1 h-4 bg-emerald-500 rounded-full"></span> 机构 (Institutions)
-                                    </h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {USER_PROFILE.memory.focus.institutions.map(inst => (
-                                            <span key={inst} className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-slate-300 flex items-center gap-2">
-                                                {inst} <button className="text-slate-500 hover:text-red-400"><X size={12} /></button>
-                                            </span>
-                                        ))}
-                                        <button className="px-3 py-1.5 border border-dashed border-slate-700 rounded text-sm text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors">+ 添加机构</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* Personal Context */}
-                    <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-                        <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                            <BookOpen className="text-indigo-400" size={20} /> 个人情况
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">当前正在做/学习什么</label>
-                                    <input type="text" defaultValue={USER_PROFILE.memory.context.currentTask} className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">未来想做什么</label>
-                                    <input type="text" defaultValue={USER_PROFILE.memory.context.futureGoal} className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none" />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">处于什么阶段</label>
-                                    <select defaultValue={USER_PROFILE.memory.context.stage} className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-indigo-500 focus:outline-none">
-                                        <option>研一</option>
-                                        <option>研二</option>
-                                        <option>研三</option>
-                                        <option>博士</option>
-                                        <option>工作</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">关注论文的目的</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {USER_PROFILE.memory.context.purpose.map(p => (
-                                            <span key={p} className="px-2 py-1 bg-indigo-950/30 border border-indigo-500/30 rounded text-xs text-indigo-300">{p}</span>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-medium text-slate-500 mb-1">偏向</label>
-                                    <div className="flex gap-4 mt-2">
-                                        <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                                            <input type="radio" name="orientation" defaultChecked={true} className="accent-indigo-500" /> 应用
-                                        </label>
-                                        <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                                            <input type="radio" name="orientation" className="accent-indigo-500" /> 科研
-                                        </label>
+                                    <div>
+                                        <label className="block text-xs font-medium text-slate-500 mb-1">偏向</label>
+                                        <div className="flex gap-4 mt-2">
+                                            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                                                <input type="radio" name="orientation" defaultChecked={true} className="accent-indigo-500" /> 应用
+                                            </label>
+                                            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                                                <input type="radio" name="orientation" className="accent-indigo-500" /> 科研
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
