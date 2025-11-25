@@ -8,13 +8,15 @@
 并都写入论文的公共存储区域。其需要将论文的摘要和评论两个字段作为输入。
 2.论文过滤（这个是服务每个用户的个性化功能）
 （对应class PaperFilter(BaseModel)、backend/app/prompt/filter.md、backend/app/services/paper_service.py的    def filter_papers(self, papers: List[PersonalizedPaper], user_profile: UserProfile) -> List[PersonalizedPaper]:）
-输入论文的所有元数据和用户的个性化用户画像，让模型分析论文是否值得阅读，得到    "why_this_paper": str # 针对该用户的推荐理由
+输入论文的所有元数据和用户的个性化用户画像，让模型分析论文是否值得阅读，得到    
+    "why_this_paper": str # 针对该用户的推荐理由
     "relevance_score": float # 0.0 ~ 1.0
     "accepted": true/false # LLM 建议是否接受
 的三个字段，存储到用户的专有数据库中。
 
 共有数据库会存储论文元数据和提取的六个字段
-私有数据库会存储论文的id、LLM生成的三个性化字段、以及以供用户与之交互的    user_accepted: bool = False # [RENAMED] 用户最终决定是否"接受" (生成报告用)
+私有数据库会存储论文的id、LLM生成的三个性化字段、以及以供用户与之交互的    
+    user_accepted: bool = False # [RENAMED] 用户最终决定是否"接受" (生成报告用)
     user_liked: Optional[bool] = None # [RENAMED] Like (True) / Dislike (False) / None
     user_feedback: Optional[str] = None # [RENAMED] 用户反馈的具体原因
 
