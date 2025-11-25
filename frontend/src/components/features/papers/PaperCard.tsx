@@ -51,8 +51,8 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
             <div className="p-5 pb-0 flex-grow">
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex gap-2">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-400 border border-cyan-900/50">{paper.category}</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">{paper.date}</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-400 border border-cyan-900/50">{paper.category?.[0]}</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">{paper.published_date}</span>
                     </div>
                 </div>
 
@@ -62,7 +62,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
                 <p className="text-xs text-slate-500 mb-4 line-clamp-1">{paper.authors.join(", ")}</p>
 
                 {/* Why This Paper - Highlight */}
-                {paper.whyThisPaper ? (
+                {paper.user_state?.why_this_paper ? (
                     <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-lg p-3 mb-4 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500/50"></div>
                         <div className="text-indigo-400 text-[10px] font-bold mb-1 flex items-center gap-1.5 uppercase tracking-wider">
@@ -70,7 +70,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
                             推荐理由
                         </div>
                         <p className="text-slate-300 text-xs leading-relaxed line-clamp-3">
-                            {paper.whyThisPaper}
+                            {paper.user_state.why_this_paper}
                         </p>
                     </div>
                 ) : (
@@ -99,7 +99,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
                 <div className="flex items-center gap-2">
                     <button
                         onClick={(e) => handleFeedbackClick(e, true)}
-                        className={`p-1.5 rounded-full transition-colors ${paper.isLiked === true ? 'text-green-400 bg-green-950/30' : 'text-slate-500 hover:text-green-400 hover:bg-green-950/30'}`}
+                        className={`p-1.5 rounded-full transition-colors ${paper.user_state?.user_liked === true ? 'text-green-400 bg-green-950/30' : 'text-slate-500 hover:text-green-400 hover:bg-green-950/30'}`}
                         title="喜欢"
                     >
                         <ThumbsUp size={14} />
@@ -107,7 +107,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
                     <div className="relative">
                         <button
                             onClick={(e) => handleFeedbackClick(e, false)}
-                            className={`p-1.5 rounded-full transition-colors ${paper.isLiked === false ? 'text-red-400 bg-red-950/30' : 'text-slate-500 hover:text-red-400 hover:bg-red-950/30'}`}
+                            className={`p-1.5 rounded-full transition-colors ${paper.user_state?.user_liked === false ? 'text-red-400 bg-red-950/30' : 'text-slate-500 hover:text-red-400 hover:bg-red-950/30'}`}
                             title="不喜欢"
                         >
                             <ThumbsDown size={14} />

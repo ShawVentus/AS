@@ -3,7 +3,7 @@ from datetime import datetime
 import json
 import os
 from app.schemas.report import Report
-from app.schemas.paper import Paper
+from app.schemas.paper import PersonalizedPaper
 from app.schemas.user import UserProfile
 from app.services.mock_data import MOCK_REPORTS
 from app.services.llm_service import llm_service
@@ -16,7 +16,12 @@ class ReportService:
         self.db = get_db()
 
     def get_reports(self) -> List[Report]:
-        """从数据库获取所有报告"""
+        """
+        从数据库获取所有生成的报告。
+
+        Returns:
+            List[Report]: 报告对象列表，按日期倒序排列。
+        """
         try:
             response = self.db.table("reports").select("*").order("date", desc=True).execute()
             if response.data:
@@ -26,9 +31,18 @@ class ReportService:
             print(f"Error fetching reports: {e}")
             return []
 
-    def generate_daily_report(self, papers: List[Paper], user_profile: UserProfile) -> Report:
+    def generate_daily_report(self, papers: List[PersonalizedPaper], user_profile: UserProfile) -> Report:
         """
-        使用LLM生成每日报告
+        使用 LLM 根据提供的论文列表生成每日总结报告。
+        
+        该方法会将生成的报告保存到数据库。
+
+        Args:
+            papers (List[PersonalizedPaper]): 用于生成报告的论文列表。
+            user_profile (UserProfile): 用户画像，用于定制报告内容。
+
+        Returns:
+            Report: 生成的报告对象。
         """
         # 1. 将论文转换为字典列表供LLM使用
         papers_data = [p.model_dump() for p in papers]
@@ -79,7 +93,14 @@ class ReportService:
 
     def send_email(self, report: Report, email: str) -> bool:
         """
-        通过邮件发送报告
+        将生成的报告通过电子邮件发送给指定用户。
+
+        Args:
+            report (Report): 要发送的报告对象。
+            email (str): 接收报告的电子邮件地址。
+
+        Returns:
+            bool: 发送是否成功。
         """
         try:
             # 渲染HTML
@@ -121,6 +142,15 @@ class ReportService:
             return False
 
     def get_report_by_id(self, report_id: str) -> Optional[Report]:
+        """
+        根据 ID 获取单个报告的详细信息。
+
+        Args:
+            report_id (str): 报告的唯一标识符。
+
+        Returns:
+            Optional[Report]: 如果找到则返回报告对象，否则返回 None。
+        """
         try:
             response = self.db.table("reports").select("*").eq("id", report_id).execute()
             if response.data:

@@ -1,0 +1,166 @@
+[
+  {
+    "id": "2511.16680",
+    "title": "Shona spaCy: A Morphological Analyzer for an Under-Resourced Bantu Language",
+    "authors": [
+      "Happymore Masoka"
+    ],
+    "published_date": "2025-11-12",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "abstract": "Despite rapid advances in multilingual natural language processing (NLP), the Bantu language Shona remains under-served in terms of morphological analysis and language-aware tools. This paper presents Shona spaCy, an open-source, rule-based morphological pipeline for Shona built on the spaCy framework. The system combines a curated JSON lexicon with linguistically grounded rules to model noun-class prefixes (Mupanda 1-18), verbal subject concords, tense-aspect markers, ideophones, and clitics, integrating these into token-level annotations for lemma, part-of-speech, and morphological features. The toolkit is available via pip install shona-spacy, with source code at https://github.com/HappymoreMasoka/shona-spacy and a PyPI release at https://pypi.org/project/shona-spacy/0.1.4/. Evaluation on formal and informal Shona corpora yields 90% POS-tagging accuracy and 88% morphological-feature accuracy, while maintaining transparency in its linguistic decisions. By bridging descriptive grammar and computational implementation, Shona spaCy advances NLP accessibility and digital inclusion for Shona speakers and provides a template for morphological analysis tools for other under-resourced Bantu languages.",
+    "links": {
+      "pdf": "https://arxiv.org/pdf/2511.16680v1",
+      "arxiv": "http://arxiv.org/abs/2511.16680v1",
+      "html": "http://arxiv.org/html/2511.16680v1"
+    },
+    "comment": "",
+    "tags": {},
+    "details": null,
+    "user_state": {
+      "paper_id": "2511.16680",
+      "user_id": "test@example.com",
+      "why_this_paper": "Relevant to LLM.",
+      "relevance_score": 0.9,
+      "accepted": true,
+      "user_accepted": true,
+      "user_liked": null,
+      "user_feedback": null
+    }
+  },
+  {
+    "id": "2511.16682",
+    "title": "Bench360: Benchmarking Local LLM Inference from 360°",
+    "authors": [
+      "Linus Stuhlmann",
+      "Mauricio Fadel Argerich",
+      "Jonathan Fürst"
+    ],
+    "published_date": "2025-11-12",
+    "category": [
+      "cs.CL",
+      "cs.AI",
+      "cs.LG",
+      "cs.PF"
+    ],
+    "abstract": "Running large language models (LLMs) locally is becoming increasingly common. While the growing availability of small open-source models and inference engines has lowered the entry barrier, users now face an overwhelming number of configuration choices. Identifying an optimal configuration -- balancing functional and non-functional requirements -- requires substantial manual effort. While several benchmarks target LLM inference, they are designed for narrow evaluation goals and not user-focused. They fail to integrate relevant system and task-specific metrics into a unified, easy-to-use benchmark that supports multiple inference engines, usage scenarios, and quantization levels. To address this gap, we present Bench360 -- Benchmarking Local LLM Inference from 360°. Bench360 allows users to easily define their own custom tasks along with datasets and relevant task-specific metrics and then automatically benchmarks selected LLMs, inference engines, and quantization levels across different usage scenarios (single stream, batch & server). Bench360 tracks a wide range of metrics, including (1) system metrics -- such as Computing Performance (e.g., latency, throughput), Resource Usage (e.g., energy per query), and Deployment (e.g., cold start time) -- and (2) task-specific metrics such as ROUGE, F1 score or accuracy. We demonstrate Bench360 on four common LLM tasks -- General Knowledge & Reasoning, QA, Summarization and Text-to-SQL -- across three hardware platforms and four state of the art inference engines. Our results reveal several interesting trade-offs between task performance and system-level efficiency, highlighting the differences in inference engines and models. Most importantly, there is no single best setup for local inference, which strongly motivates the need for a framework such as Bench360.",
+    "links": {
+      "pdf": "https://arxiv.org/pdf/2511.16682v1",
+      "arxiv": "http://arxiv.org/abs/2511.16682v1",
+      "html": "http://arxiv.org/html/2511.16682v1"
+    },
+    "comment": "",
+    "tags": {},
+    "details": null,
+    "user_state": {
+      "paper_id": "2511.16682",
+      "user_id": "test@example.com",
+      "why_this_paper": "Relevant to LLM.",
+      "relevance_score": 0.9,
+      "accepted": true,
+      "user_accepted": true,
+      "user_liked": null,
+      "user_feedback": null
+    }
+  },
+  {
+    "id": "2511.16683",
+    "title": "How Well Do LLMs Understand Tunisian Arabic?",
+    "authors": [
+      "Mohamed Mahdi"
+    ],
+    "published_date": "2025-11-12",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "abstract": "Large Language Models (LLMs) are the engines driving today's AI agents. The better these models understand human languages, the more natural and user-friendly the interaction with AI becomes, from everyday devices like computers and smartwatches to any tool that can act intelligently. Yet, the ability of industrial-scale LLMs to comprehend low-resource languages, such as Tunisian Arabic (Tunizi), is often overlooked. This neglect risks excluding millions of Tunisians from fully interacting with AI in their own language, pushing them toward French or English. Such a shift not only threatens the preservation of the Tunisian dialect but may also create challenges for literacy and influence younger generations to favor foreign languages. In this study, we introduce a novel dataset containing parallel Tunizi, standard Tunisian Arabic, and English translations, along with sentiment labels. We benchmark several popular LLMs on three tasks: transliteration, translation, and sentiment analysis. Our results reveal significant differences between models, highlighting both their strengths and limitations in understanding and processing Tunisian dialects. By quantifying these gaps, this work underscores the importance of including low-resource languages in the next generation of AI systems, ensuring technology remains accessible, inclusive, and culturally grounded.",
+    "links": {
+      "pdf": "https://arxiv.org/pdf/2511.16683v1",
+      "arxiv": "http://arxiv.org/abs/2511.16683v1",
+      "html": "http://arxiv.org/html/2511.16683v1"
+    },
+    "comment": "",
+    "tags": {},
+    "details": null,
+    "user_state": {
+      "paper_id": "2511.16683",
+      "user_id": "test@example.com",
+      "why_this_paper": "Relevant to LLM.",
+      "relevance_score": 0.9,
+      "accepted": true,
+      "user_accepted": true,
+      "user_liked": null,
+      "user_feedback": null
+    }
+  },
+  {
+    "id": "2511.16685",
+    "title": "Ellipsoid-Based Decision Boundaries for Open Intent Classification",
+    "authors": [
+      "Yuetian Zou",
+      "Hanlei Zhang",
+      "Hua Xu",
+      "Songze Li",
+      "Long Xiao"
+    ],
+    "published_date": "2025-11-13",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "abstract": "Textual open intent classification is crucial for real-world dialogue systems, enabling robust detection of unknown user intents without prior knowledge and contributing to the robustness of the system. While adaptive decision boundary methods have shown great potential by eliminating manual threshold tuning, existing approaches assume isotropic distributions of known classes, restricting boundaries to balls and overlooking distributional variance along different directions. To address this limitation, we propose EliDecide, a novel method that learns ellipsoid decision boundaries with varying scales along different feature directions. First, we employ supervised contrastive learning to obtain a discriminative feature space for known samples. Second, we apply learnable matrices to parameterize ellipsoids as the boundaries of each known class, offering greater flexibility than spherical boundaries defined solely by centers and radii. Third, we optimize the boundaries via a novelly designed dual loss function that balances empirical and open-space risks: expanding boundaries to cover known samples while contracting them against synthesized pseudo-open samples. Our method achieves state-of-the-art performance on multiple text intent benchmarks and further on a question classification dataset. The flexibility of the ellipsoids demonstrates superior open intent detection capability and strong potential for generalization to more text classification tasks in diverse complex open-world scenarios.",
+    "links": {
+      "pdf": "https://arxiv.org/pdf/2511.16685v1",
+      "arxiv": "http://arxiv.org/abs/2511.16685v1",
+      "html": "http://arxiv.org/html/2511.16685v1"
+    },
+    "comment": "",
+    "tags": {},
+    "details": null,
+    "user_state": {
+      "paper_id": "2511.16685",
+      "user_id": "test@example.com",
+      "why_this_paper": "Relevant to LLM.",
+      "relevance_score": 0.9,
+      "accepted": true,
+      "user_accepted": true,
+      "user_liked": null,
+      "user_feedback": null
+    }
+  },
+  {
+    "id": "2511.16681",
+    "title": "Towards Hyper-Efficient RAG Systems in VecDBs: Distributed Parallel Multi-Resolution Vector Search",
+    "authors": [
+      "Dong Liu",
+      "Yanxuan Yu"
+    ],
+    "published_date": "2025-11-12",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "abstract": "Retrieval-Augmented Generation (RAG) systems have become a dominant approach to augment large language models (LLMs) with external knowledge. However, existing vector database (VecDB) retrieval pipelines rely on flat or single-resolution indexing structures, which cannot adapt to the varying semantic granularity required by diverse user queries. This limitation leads to suboptimal trade-offs between retrieval speed and contextual relevance.\n  To address this, we propose \\textbf{Semantic Pyramid Indexing (SPI)}, a novel multi-resolution vector indexing framework that introduces query-adaptive resolution control for RAG in VecDBs. Unlike existing hierarchical methods that require offline tuning or separate model training, SPI constructs a semantic pyramid over document embeddings and dynamically selects the optimal resolution level per query through a lightweight classifier. This adaptive approach enables progressive retrieval from coarse-to-fine representations, significantly accelerating search while maintaining semantic coverage.\n  We implement SPI as a plugin for both FAISS and Qdrant backends and evaluate it across multiple RAG tasks including MS MARCO, Natural Questions, and multimodal retrieval benchmarks. SPI achieves up to \\textbf{5.7$\\times$} retrieval speedup and \\textbf{1.8$\\times$} memory efficiency gain while improving end-to-end QA F1 scores by up to \\textbf{2.5 points} compared to strong baselines. Our theoretical analysis provides guarantees on retrieval quality and latency bounds, while extensive ablation studies validate the contribution of each component. The framework's compatibility with existing VecDB infrastructures makes it readily deployable in production RAG systems. Code is availabe at \\href{https://github.com/FastLM/SPI_VecDB}{https://github.com/FastLM/SPI\\_VecDB}.",
+    "links": {
+      "pdf": "https://arxiv.org/pdf/2511.16681v1",
+      "arxiv": "http://arxiv.org/abs/2511.16681v1",
+      "html": "http://arxiv.org/html/2511.16681v1"
+    },
+    "comment": "Accepted to IEEE International Conference on Parallel and Distributed Systems 2025 (ICPADS 2025 Oral)",
+    "tags": {},
+    "details": null,
+    "user_state": {
+      "paper_id": "2511.16681",
+      "user_id": "test@example.com",
+      "why_this_paper": "Relevant to LLM.",
+      "relevance_score": 0.9,
+      "accepted": true,
+      "user_accepted": true,
+      "user_liked": null,
+      "user_feedback": null
+    }
+  }
+]

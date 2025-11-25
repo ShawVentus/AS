@@ -1,183 +1,195 @@
 [
   {
-    "id": "2511.15886",
+    "id": "2511.16680",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16681",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16682",
+    "category": [
+      "cs.CL",
+      "cs.AI",
+      "cs.LG",
+      "cs.PF"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16683",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16685",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16688",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16689",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16690",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16691",
     "category": [
       "cs.CL"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.15887",
+    "id": "2511.16693",
     "category": [
       "cs.CL"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.15976",
+    "id": "2511.16698",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16699",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16787",
+    "category": [
+      "cs.CL",
+      "cs.SE"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16811",
     "category": [
       "cs.CL"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16035",
-    "category": [
-      "cs.CL",
-      "cs.AI"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16054",
-    "category": [
-      "cs.CL",
-      "cs.AI"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16072",
-    "category": [
-      "cs.CL",
-      "cs.AI"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16122",
-    "category": [
-      "cs.CL",
-      "cs.AI"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16147",
-    "category": [
-      "cs.CL",
-      "cs.AI"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16198",
-    "category": [
-      "cs.CL",
-      "cs.DL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16275",
-    "category": [
-      "cs.CL",
-      "cs.AI"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16324",
-    "category": [
-      "cs.CL",
-      "cs.AI"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16331",
+    "id": "2511.16824",
     "category": [
       "cs.CL"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16345",
+    "id": "2511.16830",
     "category": [
       "cs.CL"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16353",
+    "id": "2511.16846",
     "category": [
       "cs.CL",
       "cs.AI"
@@ -185,54 +197,22 @@
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16397",
+    "id": "2511.16885",
     "category": [
       "cs.CL"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16416",
-    "category": [
-      "cs.CL",
-      "cs.LG"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16438",
-    "category": [
-      "cs.CL",
-      "cs.IR"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16467",
+    "id": "2511.16886",
     "category": [
       "cs.CL",
       "cs.AI",
@@ -241,13 +221,45 @@
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16470",
+    "id": "2511.16893",
+    "category": [
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16985",
+    "category": [
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17012",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17036",
     "category": [
       "cs.CL",
       "cs.CV"
@@ -255,42 +267,188 @@
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16528",
+    "id": "2511.17069",
     "category": [
-      "cs.CL",
-      "cs.AI",
-      "cs.IR"
+      "cs.CL"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16540",
+    "id": "2511.17081",
+    "category": [
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17127",
     "category": [
       "cs.CL",
+      "cs.AI",
+      "cs.DC"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17129",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17153",
+    "category": [
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17161",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17170",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17184",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17190",
+    "category": [
+      "cs.CL",
+      "cs.DB"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17205",
+    "category": [
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17208",
+    "category": [
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17220",
+    "category": [
+      "cs.CL",
+      "cs.AI",
+      "cs.CE",
       "cs.LG"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16544",
+    "id": "2511.17238",
+    "category": [
+      "cs.CL",
+      "cs.AI",
+      "cs.CV"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17241",
+    "category": [
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17290",
+    "category": [
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17301",
     "category": [
       "cs.CL",
       "cs.AI"
@@ -298,253 +456,143 @@
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16577",
-    "category": [
-      "cs.CL",
-      "cs.AI"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16654",
+    "id": "2511.17315",
     "category": [
       "cs.CL"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16664",
+    "id": "2511.17337",
     "category": [
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.15719",
-    "category": [
-      "cs.AI",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.15848",
-    "category": [
-      "cs.AI",
       "cs.CL",
       "cs.SD"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.15862",
+    "id": "2511.17358",
     "category": [
-      "cs.MA",
       "cs.CL"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.15915",
+    "id": "2511.17388",
     "category": [
-      "cs.LG",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.15958",
-    "category": [
-      "cs.AI",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.15994",
-    "category": [
-      "cs.AI",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.15996",
-    "category": [
-      "cs.IR",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16018",
-    "category": [
-      "cs.AI",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16209",
-    "category": [
-      "cs.CR",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16221",
-    "category": [
-      "cs.CV",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16334",
-    "category": [
-      "cs.AI",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16423",
-    "category": [
-      "cs.AI",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16478",
-    "category": [
-      "cs.IR",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16518",
-    "category": [
-      "cs.RO",
       "cs.CL",
+      "cs.LG"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17402",
+    "category": [
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17405",
+    "category": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17432",
+    "category": [
+      "cs.CL",
+      "cs.AI",
       "cs.CV"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16543",
+    "id": "2511.17473",
     "category": [
-      "cs.IR",
+      "cs.CL",
+      "cs.AI",
+      "cs.LG"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2510.17309",
+    "category": [
+      "cs.AI",
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16832",
+    "category": [
+      "cs.SI",
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16837",
+    "category": [
+      "cs.AI",
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.16842",
+    "category": [
       "cs.AI",
       "cs.CL",
       "cs.LG"
@@ -552,27 +600,104 @@
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16590",
+    "id": "2511.16931",
     "category": [
+      "cs.CY",
+      "cs.CE",
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17004",
+    "category": [
+      "cs.CV",
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17080",
+    "category": [
+      "cs.LO",
+      "cs.CL",
+      "cs.DM",
+      "cs.LG"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17100",
+    "category": [
+      "cs.LG",
       "cs.AI",
       "cs.CL"
     ],
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   },
   {
-    "id": "2511.16595",
+    "id": "2511.17256",
+    "category": [
+      "cs.CY",
+      "cs.CL"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17323",
+    "category": [
+      "cs.SD",
+      "cs.AI",
+      "cs.CL",
+      "cs.MM"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17335",
+    "category": [
+      "cs.RO",
+      "cs.CL",
+      "cs.CV",
+      "cs.SD",
+      "eess.AS"
+    ],
+    "title": "",
+    "authors": [],
+    "published_date": "",
+    "links": {},
+    "comment": ""
+  },
+  {
+    "id": "2511.17450",
     "category": [
       "cs.CV",
       "cs.AI",
@@ -581,51 +706,6 @@
     "title": "",
     "authors": [],
     "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16635",
-    "category": [
-      "cs.CV",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16639",
-    "category": [
-      "eess.AS",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
-    "links": {},
-    "comment": ""
-  },
-  {
-    "id": "2511.16671",
-    "category": [
-      "cs.CV",
-      "cs.AI",
-      "cs.CL"
-    ],
-    "title": "",
-    "authors": [],
-    "published_date": "",
-    "tldr": "",
-    "details": {},
     "links": {},
     "comment": ""
   }

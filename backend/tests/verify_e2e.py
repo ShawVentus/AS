@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.services.paper_service import PaperService
-from app.schemas.paper import Paper
+from app.schemas.paper import PaperMetadata, PersonalizedPaper, PaperLinks
 from app.schemas.user import UserProfile, UserInfo, Focus, Context, Memory
 
 load_dotenv()
@@ -23,32 +23,33 @@ def verify_flow():
     print("\n0️⃣  Cleaning up old test data...")
     try:
         service.db.table("papers").delete().like("id", "test_e2e_%").execute()
+        # Also clean states (cascade should handle it if set, but let's be safe)
+        # We can't easily delete states without user_id, but papers delete might cascade if configured.
+        # For now, we rely on paper deletion.
         print("✅ Old test data cleaned.")
     except Exception as e:
         print(f"⚠️ Cleanup warning: {e}")
     
-    # 1. Simulate Crawler: Insert a raw paper
+    # 1. Simulate Crawler: Insert a raw paper (PaperMetadata)
     print("\n1️⃣  Simulating Crawler Insertion...")
-    raw_paper = {
+    raw_paper_metadata = {
         "id": f"test_e2e_{int(datetime.now().timestamp())}",
         "title": "E2E Verification: AI Agents in 2025",
         "authors": ["Test Author", "Robot"],
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "category": "cs.AI",
+        "published_date": datetime.now().strftime("%Y-%m-%d"),
+        "category": ["cs.AI"],
+        "abstract": "This is a test paper to verify the end-to-end flow of the Paper Scout Agent. It discusses how AI agents verify themselves.",
         "tldr": "Initial TLDR",
-        "suggestion": "Initial Suggestion",
         "tags": ["Test"],
         "citationCount": 0,
         "year": 2025,
         "links": {"pdf": "http://test.pdf", "arxiv": "http://test.arxiv", "html": "http://test.html"},
-        "details": {
-            "abstract": "This is a test paper to verify the end-to-end flow of the Paper Scout Agent. It discusses how AI agents verify themselves."
-        }
+        "details": None
     }
     
-    # Manually insert into DB (bypassing crawler logic for speed)
+    # Manually insert into DB
     try:
-        service.db.table("papers").insert(raw_paper).execute()
+        service.db.table("papers").insert(raw_paper_metadata).execute()
         print("✅ Raw paper inserted.")
     except Exception as e:
         print(f"❌ Failed to insert raw paper: {e}")
@@ -57,14 +58,6 @@ def verify_flow():
     # 2. Simulate LLM Analysis
     print("\n2️⃣  Simulating LLM Analysis...")
     try:
-        # Fetch the paper back to get the object
-        papers = service.get_papers()
-        target_paper = next((p for p in papers if p.id == raw_paper["id"]), None)
-        
-        if not target_paper:
-            print("❌ Could not find inserted paper.")
-            return
-            
         # Create mock profile
         mock_profile = UserProfile(
             info=UserInfo(name="Test User", email="test@test.com", avatar="", nickname="Tester"),
@@ -73,6 +66,21 @@ def verify_flow():
             memory=Memory(readPapers=[], dislikedPapers=[])
         )
         
+        # Fetch the paper back (Personalized)
+        # We need to pass user_id to get_paper_by_id
+        target_paper = service.get_paper_by_id(raw_paper_metadata["id"], mock_profile.info.email)
+        
+        if not target_paper:
+            print("❌ Could not find inserted paper.")
+            return
+
+        # 1.5 Run Filter (to create User State)
+        print("\n1.5️⃣ Simulating Filter...")
+        service.filter_papers([target_paper], mock_profile)
+        
+        # Re-fetch to get state
+        target_paper = service.get_paper_by_id(raw_paper_metadata["id"], mock_profile.info.email)
+
         # Call the service method
         service.analyze_paper(target_paper, mock_profile)
         print("✅ LLM Analysis completed.")
@@ -86,12 +94,19 @@ def verify_flow():
     # 3. Verify Data Enrichment
     print("\n3️⃣  Verifying Data Enrichment...")
     try:
-        updated_papers = service.get_papers()
-        updated_paper = next((p for p in updated_papers if p.id == raw_paper["id"]), None)
+        # Fetch again
+        updated_paper = service.get_paper_by_id(raw_paper_metadata["id"], mock_profile.info.email)
         
         if updated_paper and updated_paper.tldr:
             print(f"✅ Paper enriched! TLDR: {updated_paper.tldr[:50]}...")
             print(f"✅ Tags: {updated_paper.tags}")
+            
+            # Verify User State
+            if updated_paper.user_state:
+                print(f"✅ User State Created! Reason: {updated_paper.user_state.why_this_paper}")
+                print(f"✅ Accepted: {updated_paper.user_state.accepted}")
+            else:
+                print("❌ User State missing.")
         else:
             print("❌ Paper was not enriched (TLDR missing).")
             
@@ -101,7 +116,8 @@ def verify_flow():
     # 4. Cleanup
     print("\n4️⃣  Cleaning up...")
     try:
-        service.db.table("papers").delete().eq("id", raw_paper["id"]).execute()
+        service.db.table("user_paper_states").delete().eq("paper_id", raw_paper_metadata["id"]).execute()
+        service.db.table("papers").delete().eq("id", raw_paper_metadata["id"]).execute()
         print("✅ Test paper deleted.")
     except Exception as e:
         print(f"⚠️ Failed to cleanup: {e}")

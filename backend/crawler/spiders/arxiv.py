@@ -87,17 +87,13 @@ class ArxivSpider(scrapy.Spider):
             # 详细信息将由 ArxivApiPipeline 通过 API 获取
             item = PaperItem()
             item["id"] = arxiv_id
-            # 用户要求: category 字段存放所有标签列表
             item["category"] = all_tags 
             
             # 初始化其他字段为空，避免 Pipeline 报错
             item["title"] = ""
             item["authors"] = []
             item["published_date"] = ""
-            item["tldr"] = ""
-            item["details"] = {}
             item["links"] = {}
             item["comment"] = ""
-            # 移除 tags 和 citation_count 初始化
             
             yield item

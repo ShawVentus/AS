@@ -12,15 +12,31 @@ class QwenService:
         )
         self.model = "qwen3-max"
 
-    def _read_prompt(self, filename: str) -> str:
-        """从文件读取提示词模板"""
+    def read_prompt(self, filename: str) -> str:
+        """
+        从文件系统中读取提示词模板。
+
+        Args:
+            filename (str): 提示词模板的文件名 (例如 "filter.md")。
+
+        Returns:
+            str: 提示词模板的内容。
+        """
         # backend/services/llm_service.py -> backend/prompt
         path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "prompt", filename)
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
-    def _call_llm(self, prompt: str) -> str:
-        """调用Qwen API"""
+    def call_llm(self, prompt: str) -> str:
+        """
+        调用 Qwen API 执行 LLM 请求。
+
+        Args:
+            prompt (str): 发送给 LLM 的完整提示词字符串。
+
+        Returns:
+            str: LLM 返回的 JSON 格式字符串内容。如果调用失败，返回 "{}"。
+        """
         try:
             completion = self.client.chat.completions.create(
                 model=self.model,
@@ -36,16 +52,26 @@ class QwenService:
             return "{}"
 
     def filter_paper(self, paper: Dict, user_profile: str) -> Dict[str, Any]:
-        """检查论文是否相关"""
-        template = self._read_prompt("filter.md")
+        """
+        使用 LLM 检查论文是否与用户画像相关。
+
+        Args:
+            paper (Dict): 包含论文信息的字典 (如 title, abstract, category)。
+            user_profile (str): 序列化后的用户画像字符串。
+
+        Returns:
+            Dict[str, Any]: 包含过滤结果的字典，例如 {"is_relevant": bool, "score": float, "reason": str}。
+                            如果解析失败，返回默认的不相关结果。
+        """
+        template = self.read_prompt("filter.md")
         prompt = template.format(
             user_profile=user_profile,
             title=paper.get("title", ""),
-            abstract=paper.get("details", {}).get("abstract", ""),
+            abstract=paper.get("abstract", ""),
             category=paper.get("category", "")
         )
         
-        response = self._call_llm(prompt)
+        response = self.call_llm(prompt)
         try:
             return json.loads(response)
         except json.JSONDecodeError:
@@ -53,15 +79,24 @@ class QwenService:
             return {"is_relevant": False, "score": 0, "reason": "Parse Error"}
 
     def analyze_paper(self, paper: Dict, user_profile: str) -> Dict[str, Any]:
-        """分析论文详情"""
-        template = self._read_prompt("analyze.md")
+        """
+        使用 LLM 分析论文详情，提取关键信息。
+
+        Args:
+            paper (Dict): 包含论文信息的字典 (如 title, abstract)。
+            user_profile (str): 序列化后的用户画像字符串 (虽然 analyze.md 不再需要，但接口保持一致或可移除)。
+
+        Returns:
+            Dict[str, Any]: 包含分析结果的字典，例如 {"tldr": str, "motivation": str, "method": str, ...}。
+                            如果解析失败，返回空字典。
+        """
+        template = self.read_prompt("analyze.md")
+        # analyze.md 只需 abstract
         prompt = template.format(
-            user_profile=user_profile,
-            title=paper.get("title", ""),
-            abstract=paper.get("details", {}).get("abstract", "")
+            abstract=paper.get("abstract", "")
         )
         
-        response = self._call_llm(prompt)
+        response = self.call_llm(prompt)
         try:
             return json.loads(response)
         except json.JSONDecodeError:
@@ -69,20 +104,30 @@ class QwenService:
             return {}
 
     def generate_report(self, papers: list, user_profile: str) -> Dict[str, Any]:
-        """生成每日报告"""
-        template = self._read_prompt("report.md")
+        """
+        使用 LLM 根据一组论文生成每日报告。
+
+        Args:
+            papers (list): 包含多篇论文信息的列表。
+            user_profile (str): 序列化后的用户画像字符串。
+
+        Returns:
+            Dict[str, Any]: 包含报告内容的字典，例如 {"title": str, "summary": str, "content": List}。
+                            如果解析失败，返回空字典。
+        """
+        template = self.read_prompt("report.md")
         
         # 为提示词格式化论文列表
         papers_text = ""
         for p in papers:
-            papers_text += f"ID: {p['id']}\nTitle: {p['title']}\nAbstract: {p['details']['abstract'][:200]}...\n\n"
+            papers_text += f"ID: {p['id']}\nTitle: {p['title']}\nAbstract: {p['abstract'][:200]}...\n\n"
             
         prompt = template.format(
             user_profile=user_profile,
             papers=papers_text
         )
         
-        response = self._call_llm(prompt)
+        response = self.call_llm(prompt)
         try:
             return json.loads(response)
         except json.JSONDecodeError:

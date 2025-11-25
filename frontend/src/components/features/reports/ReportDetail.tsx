@@ -124,7 +124,7 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
                                 <p className="text-xs text-slate-500 mb-2">{activePaper!.authors.join(", ")}</p>
 
                                 <div className="text-xs text-slate-400 leading-relaxed mb-3 line-clamp-3">
-                                    {activePaper!.details.abstract}
+                                    {activePaper!.abstract}
                                 </div>
 
                                 <button

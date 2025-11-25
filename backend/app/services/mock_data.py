@@ -17,10 +17,10 @@ USER_PROFILE = {
         "institutions": ["AI2", "DeepSeek"]
     },
     "context": {
-        "currentTask": "开发论文查询Agent",
-        "futureGoal": "AI赋能医疗",
-        "stage": "研一",
-        "purpose": ["Research"],
+        "currentTask": "尝试独立开发论文查询agent",
+        "futureGoal": "agent/LLM赋能医疗",
+        "stage": "初学者",
+        "purpose": ["关注前沿技术发展", "未来准备走工业界"]
     },
     "memory": {
         "readPapers": [],

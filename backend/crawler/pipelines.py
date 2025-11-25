@@ -43,24 +43,18 @@ class ArxivApiPipeline:
             item["title"] = paper.title
             item["authors"] = [a.name for a in paper.authors]
             item["published_date"] = paper.published.strftime("%Y-%m-%d")
-            item["tldr"] = "" # 仍由LLM生成
+            # item["tldr"] = "" # [REMOVED] LLM生成
             item["comment"] = paper.comment if paper.comment else ""
+            item["abstract"] = paper.summary # [MOVED] Top level
             
-            # 更新details
-            item["details"] = {
-                "abstract": paper.summary,
-                "motivation": "",
-                "method": "",
-                "result": "",
-                "conclusion": "",
-                # "comment" 已移至外层，此处移除以避免重复
-            }
+            # 更新details (移除 abstract, motivation等)
+            # item["details"] = {} # [REMOVED]
             
             # 更新链接
             item["links"] = {
                 "pdf": paper.pdf_url,
                 "arxiv": paper.entry_id,
-                "html": paper.entry_id.replace("/abs/", "/html/") # 修正: 替换为 /html/
+                "html": paper.entry_id.replace("/abs/", "/html/")
             }
             
             # 添加分类信息 (如果API返回的分类更多，可以合并)
@@ -114,10 +108,13 @@ class SupabasePipeline:
                 "authors": item["authors"],
                 "published_date": item["published_date"],
                 "category": primary_category, # DB: text
-                "tldr": item["tldr"],
-                "tags": categories,           # DB: text[]
-                "details": item["details"],
+                "abstract": item.get("abstract", ""), # [NEW]
+                "comment": item.get("comment", ""), # [NEW]
                 "links": item["links"],
+                # 以下字段使用默认值或留空，等待 LLM 分析
+                "tldr": None,
+                "tags": categories, # 暂时将 category 存入 tags，后续 LLM 可覆盖
+                "details": {},
                 # "citationCount" 使用默认值 0
             }
             

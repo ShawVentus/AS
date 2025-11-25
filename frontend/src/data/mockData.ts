@@ -32,8 +32,9 @@ export const MOCK_PAPERS: Paper[] = [
         id: "p1",
         title: "MedAgent: Large Language Models as Generalists for Medical Consulting",
         authors: ["Xiangru Tang", "Anni Zou", "Junxian He"],
-        date: "2025-10-24",
-        category: "cs.LG",
+        published_date: "2025-10-24",
+        category: ["cs.LG"],
+        abstract: "Recent advancements in Large Language Models (LLMs) have shown promise in specialized medical tasks...",
         tldr: "提出基于LLM的医疗通用咨询Agent框架，显著提升诊断准确率。",
         suggestion: "精读",
         tags: ["LLM", "Medical", "Agent"],
@@ -42,20 +43,27 @@ export const MOCK_PAPERS: Paper[] = [
             method: "Few-shot Prompting + RAG构建专家知识库。",
             result: "MedQA数据集SOTA，准确率提升15%。",
             conclusion: "LLM具备医疗通才潜力，需更好知识对齐。",
-            abstract: "Recent advancements in Large Language Models (LLMs) have shown promise in specialized medical tasks..."
         },
         links: { pdf: "#", arxiv: "#", html: "#" },
         citationCount: 45,
         year: 2025,
-        isLiked: null,
-        whyThisPaper: "契合您关注的 'LLM' 与 'Medical' 交叉领域，且作者 'Junxian He' 在您的关注列表中。"
+        user_state: {
+            paper_id: "p1",
+            user_id: "student@uni.edu.cn",
+            relevance_score: 0.95,
+            why_this_paper: "契合您关注的 'LLM' 与 'Medical' 交叉领域，且作者 'Junxian He' 在您的关注列表中。",
+            accepted: true,
+            user_accepted: true,
+            user_liked: null,
+        }
     },
     {
         id: "p2",
         title: "Chain-of-Verification Reduces Hallucination in Large Language Models",
         authors: ["Shehzaad Dhuliawala", "Jason Weston"],
-        date: "2025-10-23",
-        category: "cs.AI",
+        published_date: "2025-10-23",
+        category: ["cs.AI"],
+        abstract: "Large Language Models (LLMs) often hallucinate plausible but incorrect facts...",
         tldr: "通过自我验证链机制，减少生成长文本时的幻觉。",
         suggestion: "泛读",
         tags: ["Hallucination", "CoT"],
@@ -64,35 +72,48 @@ export const MOCK_PAPERS: Paper[] = [
             method: "CoVe: 生成 -> 验证 -> 修正。",
             result: "幻觉率降低30%。",
             conclusion: "自我验证有效且无需额外数据。",
-            abstract: "Large Language Models (LLMs) often hallucinate plausible but incorrect facts..."
         },
         links: { pdf: "#", arxiv: "#", html: "#" },
         citationCount: 120,
         year: 2025,
-        isLiked: null,
-        whyThisPaper: "针对您关注的 'RAG' 和 'Agent' 可靠性问题，提供了通用的幻觉消除思路。"
+        user_state: {
+            paper_id: "p2",
+            user_id: "student@uni.edu.cn",
+            relevance_score: 0.88,
+            why_this_paper: "针对您关注的 'RAG' 和 'Agent' 可靠性问题，提供了通用的幻觉消除思路。",
+            accepted: true,
+            user_accepted: true,
+            user_liked: null,
+        }
     },
     {
         id: "p3",
         title: "DeepSeeker: An Efficient Agent for Academic Paper Screening",
         authors: ["Team A"],
-        date: "2025-10-22",
-        category: "cs.IR",
+        published_date: "2025-10-22",
+        category: ["cs.IR"],
+        abstract: "We present DeepSeeker, a tool designed to help researchers...",
         tldr: "用于快速筛选海量论文的轻量级Agent。",
         suggestion: "略读",
         tags: ["Agent", "Tool"],
-        isLiked: false,
         details: {
             motivation: "海量论文筛选效率低。",
             method: "BERT分类器 + 规则引擎。",
             result: "速度提升10倍。",
             conclusion: "适合初筛。",
-            abstract: "We present DeepSeeker, a tool designed to help researchers..."
         },
         links: { pdf: "#", arxiv: "#", html: "#" },
         citationCount: 5,
         year: 2023,
-        whyThisPaper: "与您当前的 '开发论文查询Agent' 任务直接相关，可作为竞品分析参考。"
+        user_state: {
+            paper_id: "p3",
+            user_id: "student@uni.edu.cn",
+            relevance_score: 0.75,
+            why_this_paper: "与您当前的 '开发论文查询Agent' 任务直接相关，可作为竞品分析参考。",
+            accepted: false,
+            user_accepted: false,
+            user_liked: false,
+        }
     }
 ];
 

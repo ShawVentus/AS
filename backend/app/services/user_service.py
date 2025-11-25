@@ -12,7 +12,15 @@ class UserService:
         self.db = get_db()
 
     def _get_user_id(self, email: str) -> Optional[str]:
-        """从邮箱获取user_id的辅助方法"""
+        """
+        根据邮箱获取用户 ID。
+
+        Args:
+            email (str): 用户的电子邮件地址。
+
+        Returns:
+            Optional[str]: 用户的唯一 ID (UUID)。如果未找到用户，返回 None。
+        """
         try:
             response = self.db.table("users").select("id").eq("email", email).execute()
             if response.data:
@@ -23,7 +31,14 @@ class UserService:
             return None
 
     def _create_default_user(self) -> str:
-        """如果不存在则创建默认用户"""
+        """
+        检查并创建默认用户 (如果不存在)。
+        
+        用于 MVP 阶段的单用户模式。如果用户不存在，会创建用户记录并初始化默认画像。
+
+        Returns:
+            str: 默认用户的 ID。
+        """
         try:
             # 检查是否存在
             user_id = self._get_user_id(DEFAULT_EMAIL)
@@ -50,7 +65,14 @@ class UserService:
             raise e
 
     def get_profile(self) -> UserProfile:
-        """从数据库获取用户画像"""
+        """
+        获取当前用户的完整画像。
+        
+        如果用户不存在，会自动创建默认用户。如果数据库中画像缺失，会返回模拟数据。
+
+        Returns:
+            UserProfile: 用户画像对象，包含基本信息、关注点、上下文和记忆。
+        """
         try:
             user_id = self._get_user_id(DEFAULT_EMAIL)
             if not user_id:
@@ -76,11 +98,15 @@ class UserService:
 
     def initialize_profile(self, user_info: UserInfo) -> UserProfile:
         """
-        初始化用户画像
+        使用用户提交的基础信息初始化画像。
+        
+        通常在用户首次设置时调用。会更新数据库中的 info 字段。
+
         Args:
-            user_info: 用户提交的基础问卷信息
+            user_info (UserInfo): 用户提交的基础问卷信息。
+
         Returns:
-            UserProfile: 初始化的完整用户画像
+            UserProfile: 更新后的完整用户画像。
         """
         try:
             # 确保用户存在
@@ -106,12 +132,15 @@ class UserService:
 
     def update_profile_nl(self, user_id: str, feedback_text: str) -> UserProfile:
         """
-        根据自然语言反馈更新画像
+        根据自然语言反馈更新用户画像。
+
         Args:
-            user_id: 用户ID (ignored in MVP, using DEFAULT_EMAIL)
-            feedback_text: 用户的自然语言输入
+            user_id (str): 用户 ID (MVP 阶段可能忽略，使用默认用户)。
+            feedback_text (str): 用户的自然语言输入 (例如 "我对 LLM 感兴趣")。
+
         Returns:
-            UserProfile: 更新后的用户画像
+            UserProfile: 更新后的用户画像。
+
         TODO:
             1. 调用 LLM (Qwen) 提取 feedback_text 中的实体和意图。
             2. 更新 Focus (添加新关键词) 和 Context (调整短期关注点)。
@@ -139,12 +168,15 @@ class UserService:
 
     def update_profile_from_selection(self, user_id: str, feedbacks: List[UserFeedback]) -> UserProfile:
         """
-        根据行为反馈更新画像
+        根据用户的显式行为反馈 (Like/Dislike) 更新画像。
+
         Args:
-            user_id: 用户ID
-            feedbacks: 用户对一组论文的反馈列表
+            user_id (str): 用户 ID。
+            feedbacks (List[UserFeedback]): 用户对一组论文的反馈列表。
+
         Returns:
-            UserProfile: 更新后的用户画像
+            UserProfile: 更新后的用户画像。
+
         TODO:
             1. 分析 Dislike 的论文，提取负面特征，更新 Memory 中的"屏蔽词/不感兴趣领域"。
             2. 分析 Like 的论文，强化 Focus 中的相关权重。
@@ -174,7 +206,17 @@ class UserService:
         return profile
 
     def update_profile(self, profile_data: dict) -> UserProfile:
-        """通用更新方法"""
+        """
+        通用画像更新方法。
+        
+        支持部分更新，例如只更新 info 或 focus 字段。
+
+        Args:
+            profile_data (dict): 包含要更新字段的字典。
+
+        Returns:
+            UserProfile: 更新后的完整用户画像。
+        """
         # 获取当前画像
         profile = self.get_profile()
         

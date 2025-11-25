@@ -1,0 +1,28 @@
+论文分析和论文过滤是两个独立的功能，二者使用的数据都是爬取器爬取的论文元数据，也都是调取api，逐篇分析论文。
+1.论文分析（对应class PaperAnalysis(BaseModel):、/Users/mac/Desktop/AS/backend/app/prompt/analyze.md、    def analyze_paper(self, paper: PersonalizedPaper, user_profile: UserProfile) -> PaperAnalysis:）的主要功能为：提取六个字段（    tldr: str
+    motivation: str
+    method: str
+    result: str
+    conclusion: str
+    tags: Dict[str, str]）
+并都写入论文的公共存储区域。其需要将论文的摘要和评论两个字段作为输入。
+2.论文过滤（这个是服务每个用户的个性化功能）
+（对应class PaperFilter(BaseModel)、backend/app/prompt/filter.md、backend/app/services/paper_service.py的    def filter_papers(self, papers: List[PersonalizedPaper], user_profile: UserProfile) -> List[PersonalizedPaper]:）
+输入论文的所有元数据和用户的个性化用户画像，让模型分析论文是否值得阅读，得到    "why_this_paper": str # 针对该用户的推荐理由
+    "relevance_score": float # 0.0 ~ 1.0
+    "accepted": true/false # LLM 建议是否接受
+的三个字段，存储到用户的专有数据库中。
+
+共有数据库会存储论文元数据和提取的六个字段
+私有数据库会存储论文的id、LLM生成的三个性化字段、以及以供用户与之交互的    user_accepted: bool = False # [RENAMED] 用户最终决定是否"接受" (生成报告用)
+    user_liked: Optional[bool] = None # [RENAMED] Like (True) / Dislike (False) / None
+    user_feedback: Optional[str] = None # [RENAMED] 用户反馈的具体原因
+
+三个字段
+前端向用户展示论文时，会根据用户私有数据库中当前论文是否接受（    accepted: bool # LLM 建议是否接受）判断是否显示，通过论文id去公共数据库获取论文的元信息，再将检索到的结果合并显示到前端
+
+以上是功能表述，我需要你
+1.检查目前的代码实现功能和我描述的差距
+2.在不修改代码原逻辑的情况下给出修改plan
+3.收到后，先向我确认是否有其他需要我确认的问题与可以优化项目的选项，并给出你的推荐。我给出反馈后你再生成中文版plan
+4.全程用中文回复

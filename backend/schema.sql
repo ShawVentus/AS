@@ -13,9 +13,11 @@ create table if not exists papers (
     id text primary key,
     title text not null,
     authors text[] not null,
-    date text not null,
+    published_date text not null, -- Renamed from date
     category text not null,
+    abstract text, -- Added abstract
     tldr text,
+    comment text, -- Added comment
     suggestion text,
     tags text[],
     details jsonb default '{}'::jsonb,
@@ -89,3 +91,34 @@ create policy "Allow all access for dev" on profiles for all using (true);
 alter table users enable row level security;
 drop policy if exists "Allow all access for users dev" on users;
 create policy "Allow all access for users dev" on users for all using (true);
+-- User Paper States Table (Personalized Interactions)
+create table if not exists user_paper_states (
+    user_id text references users(id),
+    paper_id text references papers(id),
+    relevance_score float default 0.0,
+    why_this_paper text,
+    accepted boolean default false, -- LLM Suggestion
+    user_accepted boolean default false, -- User Decision
+    user_liked boolean, -- User Preference
+    user_feedback text, -- User Feedback Reason
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    primary key (user_id, paper_id)
+);
+
+-- RLS for user_paper_states
+alter table user_paper_states enable row level security;
+
+create policy "Users can view their own paper states"
+  on user_paper_states for select
+  using (auth.uid()::text = user_id);
+
+create policy "Users can insert their own paper states"
+  on user_paper_states for insert
+  with check (auth.uid()::text = user_id);
+
+create policy "Users can update their own paper states"
+  on user_paper_states for update
+  using (auth.uid()::text = user_id);
+
+-- For dev: allow all access
+create policy "Allow all access for dev" on user_paper_states for all using (true);
