@@ -98,7 +98,6 @@ create table if not exists user_paper_states (
     relevance_score float default 0.0,
     why_this_paper text,
     accepted boolean default false, -- LLM Suggestion
-    user_accepted boolean default false, -- User Decision
     user_liked boolean, -- User Preference
     user_feedback text, -- User Feedback Reason
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,

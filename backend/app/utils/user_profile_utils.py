@@ -15,5 +15,5 @@ def get_user_profile_context(user_id: str) -> Dict[str, Any]:
     # 模拟根据 user_id 获取画像，这里直接返回默认的 USER_PROFILE
     return {
         "focus": USER_PROFILE["focus"],
-        "context": USER_PROFILE["context"]
+        "status": USER_PROFILE["status"]
     }

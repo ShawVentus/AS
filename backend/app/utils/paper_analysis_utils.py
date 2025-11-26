@@ -2,32 +2,27 @@ import json
 from typing import Dict, Any
 from app.services.llm_service import llm_service
 
-def analyze_single_paper(paper: Dict[str, Any], user_profile: Dict[str, Any]) -> Dict[str, Any]:
+def filter_single_paper(paper_str: str, user_profile_str: str) -> Dict[str, Any]:
     """
-    使用 LLM 分析单篇论文的相关性。
+    使用 LLM 筛选单篇论文的相关性 (Personalized Filter)。
 
     Args:
-        paper (Dict[str, Any]): 论文元数据字典 (包含 title, abstract, category 等)。
-        user_profile (Dict[str, Any]): 用户画像字典。
+        paper_str (str): 序列化后的论文元数据字符串。
+        user_profile_str (str): 序列化后的用户画像字符串。
 
     Returns:
-        Dict[str, Any]: 分析结果字典，包含:
-            - why_this_paper (str): 推荐理由
-            - relevance_score (float): 相关性评分 (0.0-1.0)
-            - accepted (bool): 是否建议接受
-            如果解析失败，返回默认的拒绝状态。
+        Dict[str, Any]: 筛选结果字典 (对应 PaperFilter 模型):
+            - why_this_paper (str)
+            - relevance_score (float)
+            - accepted (bool)
     """
     try:
         # 1. 读取 Prompt 模板
         template = llm_service.read_prompt("filter.md")
         
         # 2. 格式化 Prompt
-        # 将 user_profile 和 paper 转换为格式化的 JSON 字符串
-        profile_str = json.dumps(user_profile, ensure_ascii=False, indent=2)
-        paper_str = json.dumps(paper, ensure_ascii=False, indent=2)
-        
         prompt = template.format(
-            user_profile=profile_str,
+            user_profile=user_profile_str,
             paper=paper_str
         )
         
@@ -37,24 +32,49 @@ def analyze_single_paper(paper: Dict[str, Any], user_profile: Dict[str, Any]) ->
         # 4. 解析结果
         result = json.loads(response_str)
         
-        # 确保返回字段存在且类型正确
         return {
             "why_this_paper": result.get("why_this_paper", "No reason provided."),
             "relevance_score": float(result.get("relevance_score", 0.0)),
             "accepted": bool(result.get("accepted", False))
         }
         
-    except json.JSONDecodeError:
-        print(f"JSON Decode Error for paper {paper.get('id')}: {response_str}")
-        return {
-            "why_this_paper": "Analysis failed (JSON Error)",
-            "relevance_score": 0.0,
-            "accepted": False
-        }
     except Exception as e:
-        print(f"Error analyzing paper {paper.get('id')}: {e}")
+        print(f"Error filtering paper {paper.get('id')}: {e}")
         return {
-            "why_this_paper": f"Analysis failed ({str(e)})",
+            "why_this_paper": f"Filter failed ({str(e)})",
             "relevance_score": 0.0,
             "accepted": False
         }
+
+def analyze_paper_content(paper: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    使用 LLM 分析单篇论文的内容 (Public Analysis)。
+
+    Args:
+        paper (Dict[str, Any]): 论文元数据字典 (需包含 abstract, comment)。
+
+    Returns:
+        Dict[str, Any]: 分析结果字典 (对应 PaperAnalysis 模型)。
+    """
+    try:
+        # 1. 读取 Prompt 模板
+        template = llm_service.read_prompt("analyze.md")
+        
+        # 2. 格式化 Prompt
+        # 确保 comment 不为 None
+        comment = paper.get("comment") or ""
+        
+        prompt = template.format(
+            abstract=paper.get("abstract", ""),
+            comment=comment
+        )
+        
+        # 3. 调用 LLM
+        response_str = llm_service.call_llm(prompt)
+        
+        # 4. 解析结果
+        return json.loads(response_str)
+        
+    except Exception as e:
+        print(f"Error analyzing paper content {paper.get('id')}: {e}")
+        return {}

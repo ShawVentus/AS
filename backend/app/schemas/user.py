@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class UserInfo(BaseModel):
     """用户信息模型"""
+    id: Optional[str] = None
     name: str
     email: str
     avatar: str
@@ -15,8 +16,8 @@ class Focus(BaseModel):
     authors: List[str]
     institutions: List[str]
 
-class Context(BaseModel):
-    """用户上下文模型"""
+class Status(BaseModel):
+    """用户状态模型"""
     currentTask: str
     futureGoal: str
     stage: str
@@ -31,7 +32,7 @@ class UserProfile(BaseModel):
     """用户画像总模型"""
     info: UserInfo
     focus: Focus
-    context: Context
+    status: Status
     memory: Memory
 
 class UserFeedback(BaseModel):

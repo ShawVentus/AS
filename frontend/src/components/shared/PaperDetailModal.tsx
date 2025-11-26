@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { X, Download, ExternalLink, FileText, Brain, Microscope, Lightbulb, Target, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Loader2, Save } from 'lucide-react';
-import type { Paper, PaperAnalysis } from '../../types';
-import { PaperAPI } from '../../services/api';
+import React, { useEffect } from 'react';
+import { X, Download, ExternalLink, FileText, Brain, Microscope, Lightbulb, Target, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Save } from 'lucide-react';
+import type { Paper } from '../../types';
 
 interface PaperDetailModalProps {
     paper: Paper | null;
@@ -83,22 +82,22 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, onClo
                     <div className="flex justify-between items-start">
                         <div>
                             <div className="flex gap-3 mb-3">
-                                <span className="px-2 py-0.5 rounded text-xs font-bold bg-cyan-950 text-cyan-400 border border-cyan-900/50">{paper.category?.[0]}</span>
-                                <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">{paper.published_date}</span>
+                                <span className="px-2 py-0.5 rounded text-xs font-bold bg-cyan-950 text-cyan-400 border border-cyan-900/50">{paper.meta.category?.[0]}</span>
+                                <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">{paper.meta.published_date}</span>
                             </div>
-                            <h2 className="text-xl md:text-2xl font-bold text-white mb-2 leading-snug">{paper.title}</h2>
-                            <p className="text-slate-400 text-sm">{paper.authors.join(", ")}</p>
+                            <h2 className="text-xl md:text-2xl font-bold text-white mb-2 leading-snug">{paper.meta.title}</h2>
+                            <p className="text-slate-400 text-sm">{paper.meta.authors.join(", ")}</p>
                         </div>
                         <div className="flex gap-2">
                             <button
-                                onClick={() => onFeedback && onFeedback(paper.id, true)}
+                                onClick={() => onFeedback && onFeedback(paper.meta.id, true)}
                                 className={`p-2 rounded-full transition-colors ${paper.user_state?.user_liked === true ? 'text-green-400 bg-green-950/30' : 'text-slate-500 hover:text-green-400 hover:bg-green-950/30'}`}
                                 title="喜欢"
                             >
                                 <ThumbsUp size={20} />
                             </button>
                             <button
-                                onClick={() => onFeedback && onFeedback(paper.id, false)}
+                                onClick={() => onFeedback && onFeedback(paper.meta.id, false)}
                                 className={`p-2 rounded-full transition-colors ${paper.user_state?.user_liked === false ? 'text-red-400 bg-red-950/30' : 'text-slate-500 hover:text-red-400 hover:bg-red-950/30'}`}
                                 title="不喜欢"
                             >
@@ -129,7 +128,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, onClo
                         <h3 className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
                             <span className="font-mono font-bold text-cyan-500">一句话总结</span>
                         </h3>
-                        <p className="text-slate-300 font-medium text-sm leading-relaxed">{paper.tldr}</p>
+                        <p className="text-slate-300 font-medium text-sm leading-relaxed">{paper.analysis?.tldr || "暂无"}</p>
                     </div>
 
                     {/* Abstract */}
@@ -137,7 +136,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, onClo
                         <h3 className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
                             <FileText size={14} /> 摘要
                         </h3>
-                        <p className="text-slate-300 leading-7 text-sm text-justify">{paper.abstract}</p>
+                        <p className="text-slate-300 leading-7 text-sm text-justify">{paper.meta.abstract}</p>
                     </div>
 
                     {/* Grid for Details */}
@@ -147,7 +146,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, onClo
                             <h3 className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
                                 <Target size={14} /> 研究动机
                             </h3>
-                            <p className="text-slate-400 text-sm leading-relaxed">{paper.details?.motivation || "暂无"}</p>
+                            <p className="text-slate-400 text-sm leading-relaxed">{paper.analysis?.motivation || "暂无"}</p>
                         </div>
 
                         {/* Method */}
@@ -155,7 +154,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, onClo
                             <h3 className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
                                 <Brain size={14} /> 研究方法
                             </h3>
-                            <p className="text-slate-400 text-sm leading-relaxed">{paper.details?.method || "暂无"}</p>
+                            <p className="text-slate-400 text-sm leading-relaxed">{paper.analysis?.method || "暂无"}</p>
                         </div>
 
                         {/* Result */}
@@ -163,7 +162,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, onClo
                             <h3 className="text-emerald-500/80 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
                                 <Brain size={14} /> 实验结果
                             </h3>
-                            <p className="text-slate-400 text-sm leading-relaxed">{paper.details?.result || "暂无"}</p>
+                            <p className="text-slate-400 text-sm leading-relaxed">{paper.analysis?.result || "暂无"}</p>
                         </div>
 
                         {/* Conclusion */}
@@ -171,7 +170,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, onClo
                             <h3 className="text-cyan-500/80 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
                                 <Microscope size={14} /> 结论
                             </h3>
-                            <p className="text-slate-400 text-sm leading-relaxed">{paper.details?.conclusion || "暂无"}</p>
+                            <p className="text-slate-400 text-sm leading-relaxed">{paper.analysis?.conclusion || "暂无"}</p>
                         </div>
                     </div>
                 </div>
@@ -198,13 +197,13 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, onClo
 
                     <div className="flex items-center justify-between w-full pt-2 border-t border-slate-800/50">
                         <div className="flex gap-3">
-                            <a href={paper.links.html} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-colors">
+                            <a href={paper.meta.links.html} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-colors">
                                 <ExternalLink size={14} /> HTML
                             </a>
-                            <a href={paper.links.arxiv} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-colors">
+                            <a href={paper.meta.links.arxiv} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-colors">
                                 <ExternalLink size={14} /> Arxiv
                             </a>
-                            <a href={paper.links.pdf} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-colors">
+                            <a href={paper.meta.links.pdf} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition-colors">
                                 <Download size={14} /> PDF
                             </a>
                         </div>
@@ -214,7 +213,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, onClo
                                 使用 <span className="border border-slate-700 rounded px-1">←</span> <span className="border border-slate-700 rounded px-1">→</span> 切换
                             </span>
                             <a
-                                href={paper.links.pdf}
+                                href={paper.meta.links.pdf}
                                 download
                                 target="_blank"
                                 rel="noreferrer"

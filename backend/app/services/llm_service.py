@@ -78,22 +78,23 @@ class QwenService:
             print(f"JSON Decode Error in filter: {response}")
             return {"is_relevant": False, "score": 0, "reason": "Parse Error"}
 
-    def analyze_paper(self, paper: Dict, user_profile: str) -> Dict[str, Any]:
+    def analyze_paper(self, paper: Dict, comment: str = "") -> Dict[str, Any]:
         """
-        使用 LLM 分析论文详情，提取关键信息。
+        使用 LLM 分析论文详情，提取关键信息 (Public Analysis)。
 
         Args:
-            paper (Dict): 包含论文信息的字典 (如 title, abstract)。
-            user_profile (str): 序列化后的用户画像字符串 (虽然 analyze.md 不再需要，但接口保持一致或可移除)。
+            paper (Dict): 包含论文信息的字典 (如 abstract)。
+            comment (str): 论文的评论/备注信息 (用于辅助生成 tags)。
 
         Returns:
             Dict[str, Any]: 包含分析结果的字典，例如 {"tldr": str, "motivation": str, "method": str, ...}。
                             如果解析失败，返回空字典。
         """
         template = self.read_prompt("analyze.md")
-        # analyze.md 只需 abstract
+        
         prompt = template.format(
-            abstract=paper.get("abstract", "")
+            abstract=paper.get("abstract", ""),
+            comment=comment
         )
         
         response = self.call_llm(prompt)

@@ -45,7 +45,15 @@ class ReportService:
             Report: 生成的报告对象。
         """
         # 1. 将论文转换为字典列表供LLM使用
-        papers_data = [p.model_dump() for p in papers]
+        # 适配新结构：展平数据供 prompt 使用
+        papers_data = []
+        for p in papers:
+            flat_p = p.meta.model_dump()
+            if p.analysis:
+                flat_p.update(p.analysis.model_dump())
+            if p.user_state:
+                flat_p.update(p.user_state.model_dump())
+            papers_data.append(flat_p)
         
         # 2. 调用LLM生成报告
         # 我们将user_profile序列化为字符串供提示词使用
@@ -65,7 +73,7 @@ class ReportService:
             
         report = Report(
             id=str(uuid.uuid4()),
-            user_id=user_profile.info.email, # 现在使用email作为ID代理(如果需要),或者只生成UUID
+            user_id=user_profile.info.id, # 使用用户ID
             title=llm_result.get("title", "Daily Report"),
             date=datetime.now().strftime("%Y-%m-%d"),
             summary=llm_result.get("summary", ""),

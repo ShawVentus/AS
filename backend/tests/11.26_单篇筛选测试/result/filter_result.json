@@ -1,0 +1,16 @@
+{
+  "user_id": "test_user_id",
+  "created_at": "2025-11-26T17:13:15.555230",
+  "total_analyzed": 1,
+  "accepted_count": 0,
+  "rejected_count": 1,
+  "selected_papers": [],
+  "rejected_papers": [
+    {
+      "paper_id": "2511.16680",
+      "why_this_paper": "该论文聚焦于为资源稀缺的班图语言绍纳语（Shona）构建基于规则的形态分析工具，属于低资源语言NLP和计算语言学领域。如果用户关注低资源语言处理、非洲语言技术、形态学建模或spaCy框架扩展，则此论文高度相关。此外，其开源性质和对语言包容性的强调可能契合数字包容或语言多样性相关目标。",
+      "relevance_score": 0.3,
+      "accepted": false
+    }
+  ]
+}

@@ -18,7 +18,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
         if (isLike) {
             // Like usually doesn't need a reason, but we could add tags later.
             // For now, just trigger it.
-            if (onFeedback) onFeedback(paper.id, true);
+            if (onFeedback) onFeedback(paper.meta.id, true);
             setShowFeedbackMenu(false);
         } else {
             // Dislike triggers menu
@@ -28,7 +28,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
     };
 
     const submitDislike = (reason: string) => {
-        if (onFeedback) onFeedback(paper.id, false, reason);
+        if (onFeedback) onFeedback(paper.meta.id, false, reason);
         setShowFeedbackMenu(false);
         setCustomReason('');
     };
@@ -42,6 +42,9 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
         return () => window.removeEventListener('click', closeMenu);
     }, [showFeedbackMenu]);
 
+    // Helper to get tags keys
+    const tags = paper.analysis?.tags ? Object.keys(paper.analysis.tags) : [];
+
     return (
         <div
             className="group relative bg-slate-900 border border-slate-800 rounded-xl overflow-visible hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-900/20 transition-all duration-300 cursor-pointer flex flex-col h-full"
@@ -51,15 +54,15 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
             <div className="p-5 pb-0 flex-grow">
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex gap-2">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-400 border border-cyan-900/50">{paper.category?.[0]}</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">{paper.published_date}</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-400 border border-cyan-900/50">{paper.meta.category?.[0]}</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">{paper.meta.published_date}</span>
                     </div>
                 </div>
 
                 <h3 className="text-base font-bold text-white mb-2 leading-snug group-hover:text-cyan-400 transition-colors line-clamp-2">
-                    {paper.title}
+                    {paper.meta.title}
                 </h3>
-                <p className="text-xs text-slate-500 mb-4 line-clamp-1">{paper.authors.join(", ")}</p>
+                <p className="text-xs text-slate-500 mb-4 line-clamp-1">{paper.meta.authors.join(", ")}</p>
 
                 {/* Why This Paper - Highlight */}
                 {paper.user_state?.why_this_paper ? (
@@ -79,7 +82,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
                             一句话总结
                         </div>
                         <p className="text-slate-400 text-xs leading-relaxed line-clamp-3">
-                            {paper.tldr}
+                            {paper.analysis?.tldr || paper.meta.abstract}
                         </p>
                     </div>
                 )}
@@ -88,11 +91,11 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
             {/* Card Footer */}
             <div className="p-4 pt-0 mt-auto flex items-center justify-between border-t border-slate-800/50 pt-3 relative">
                 <div className="flex gap-1.5">
-                    {paper.tags.slice(0, 2).map(tag => (
+                    {tags.slice(0, 2).map(tag => (
                         <span key={tag} className="text-[10px] text-slate-500 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">#{tag}</span>
                     ))}
-                    {paper.tags.length > 2 && (
-                        <span className="text-[10px] text-slate-600 px-1.5 py-0.5">+{paper.tags.length - 2}</span>
+                    {tags.length > 2 && (
+                        <span className="text-[10px] text-slate-600 px-1.5 py-0.5">+{tags.length - 2}</span>
                     )}
                 </div>
 

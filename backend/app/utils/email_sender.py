@@ -25,12 +25,31 @@ class EmailSender:
         self.env = Environment(loader=FileSystemLoader(template_dir))
 
     def render_template(self, template_name: str, context: Dict) -> str:
-        """渲染HTML模板"""
+        """
+        渲染HTML模板。
+
+        Args:
+            template_name (str): 模板文件名。
+            context (Dict): 模板上下文数据。
+
+        Returns:
+            str: 渲染后的 HTML 字符串。
+        """
         template = self.env.get_template(template_name)
         return template.render(**context)
 
     def _create_message(self, to_email: str, subject: str, html_content: str) -> MIMEMultipart:
-        """创建邮件消息"""
+        """
+        创建邮件消息对象。
+
+        Args:
+            to_email (str): 收件人邮箱。
+            subject (str): 邮件主题。
+            html_content (str): 邮件 HTML 内容。
+
+        Returns:
+            MIMEMultipart: 构造好的邮件对象。
+        """
         msg = MIMEMultipart('alternative')
         msg['From'] = Header(f'Paper Scout <{self.sender_email}>')
         msg['To'] = to_email
@@ -39,7 +58,18 @@ class EmailSender:
         return msg
 
     def send_email(self, to_email: str, subject: str, html_content: str, max_retries: int = 3) -> Tuple[bool, str]:
-        """使用重试逻辑发送邮件"""
+        """
+        使用重试逻辑发送邮件。
+
+        Args:
+            to_email (str): 收件人邮箱。
+            subject (str): 邮件主题。
+            html_content (str): 邮件 HTML 内容。
+            max_retries (int, optional): 最大重试次数。默认为 3。
+
+        Returns:
+            Tuple[bool, str]: (是否成功, 状态消息)。
+        """
         if not self.sender_email or not self.sender_password:
             logger.error("SMTP凭据未设置")
             return False, "SMTP凭据未设置"
@@ -80,7 +110,18 @@ class EmailSender:
         return False, "已超过最大重试次数"
 
     def send_batch_emails(self, recipients: List[str], subject: str, html_content: str, delay: float = 1.0) -> Dict[str, Any]:
-        """批量发送邮件(带延迟)"""
+        """
+        批量发送邮件(带延迟)。
+
+        Args:
+            recipients (List[str]): 收件人邮箱列表。
+            subject (str): 邮件主题。
+            html_content (str): 邮件 HTML 内容。
+            delay (float, optional): 发送间隔(秒)。默认为 1.0。
+
+        Returns:
+            Dict[str, Any]: 发送统计信息，包含 total, success, failed 等。
+        """
         stats = {
             'total': len(recipients),
             'success': 0,

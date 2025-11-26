@@ -5,18 +5,19 @@ def get_date_str(days_ago: int = 0) -> str:
 
 USER_PROFILE = {
     "info": {
-        "name": "Scholar_X",
-        "email": "student@uni.edu.cn",
-        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
-        "nickname": "Scholar_X"
+        "id": "1",
+        "name": "Shaw",
+        "email": "2962326813@qq.com",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix", # 头像
+        "nickname": "Shaw"
     },
     "focus": {
         "domains": ["cs.LG", "cs.AI"],
-        "keywords": ["LLM", "Agent", "RAG"],
+        "keywords": ["LLM", "Agent", "Medical"],
         "authors": ["Junxian He"],
         "institutions": ["AI2", "DeepSeek"]
     },
-    "context": {
+    "status": {
         "currentTask": "尝试独立开发论文查询agent",
         "futureGoal": "agent/LLM赋能医疗",
         "stage": "初学者",

@@ -1,11 +1,11 @@
 from typing import List, Optional
 import json
-from app.schemas.user import UserProfile, UserInfo, UserFeedback, Focus, Context, Memory
+from app.schemas.user import UserProfile, UserInfo, UserFeedback, Focus, Status, Memory
 from app.services.mock_data import USER_PROFILE
 from app.core.database import get_db
 
 # MVP的硬编码用户邮箱(单用户模式)
-DEFAULT_EMAIL = "student@uni.edu.cn"
+DEFAULT_EMAIL = USER_PROFILE["info"]["email"]
 
 class UserService:
     def __init__(self):
@@ -36,6 +36,9 @@ class UserService:
         
         用于 MVP 阶段的单用户模式。如果用户不存在，会创建用户记录并初始化默认画像。
 
+        Args:
+            None
+
         Returns:
             str: 默认用户的 ID。
         """
@@ -55,7 +58,7 @@ class UserService:
                 "user_id": user_id,
                 "info": USER_PROFILE["info"],
                 "focus": USER_PROFILE["focus"],
-                "context": USER_PROFILE["context"],
+                "status": USER_PROFILE["status"],
                 "memory": USER_PROFILE["memory"]
             }
             self.db.table("profiles").insert(profile_data).execute()
@@ -69,6 +72,9 @@ class UserService:
         获取当前用户的完整画像。
         
         如果用户不存在，会自动创建默认用户。如果数据库中画像缺失，会返回模拟数据。
+
+        Args:
+            None
 
         Returns:
             UserProfile: 用户画像对象，包含基本信息、关注点、上下文和记忆。
@@ -85,7 +91,7 @@ class UserService:
                 return UserProfile(
                     info=data["info"],
                     focus=data["focus"],
-                    context=data["context"],
+                    status=data["status"],
                     memory=data["memory"]
                 )
             else:

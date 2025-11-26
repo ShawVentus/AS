@@ -1,0 +1,227 @@
+我现在需要构造一款每日爬取arxiv论文，根据用户画像个性化生成待读论文，并生成每日推送报告的工具。
+
+论文元数据：
+
+  {
+
+    "id": "2511.16680",
+
+    "category": [
+
+      "cs.CL",
+
+      "cs.AI"
+
+    ],
+
+    "title": "Shona spaCy: A Morphological Analyzer for an Under-Resourced Bantu Language",
+
+    "authors": [
+
+      "Happymore Masoka"
+
+    ],
+
+    "published_date": "2025-11-12",
+
+    "links": {
+
+      "pdf": "https://arxiv.org/pdf/2511.16680v1",
+
+      "arxiv": "http://arxiv.org/abs/2511.16680v1",
+
+      "html": "http://arxiv.org/html/2511.16680v1"
+
+    },
+
+    "comment": "",
+
+    "abstract": "Despite rapid advances in multilingual natural language processing (NLP), the Bantu language Shona remains under-served in terms of morphological analysis and language-aware tools. This paper presents Shona spaCy, an open-source, rule-based morphological pipeline for Shona built on the spaCy framework. The system combines a curated JSON lexicon with linguistically grounded rules to model noun-class prefixes (Mupanda 1-18), verbal subject concords, tense-aspect markers, ideophones, and clitics, integrating these into token-level annotations for lemma, part-of-speech, and morphological features. The toolkit is available via pip install shona-spacy, with source code at https://github.com/HappymoreMasoka/shona-spacy and a PyPI release at https://pypi.org/project/shona-spacy/0.1.4/. Evaluation on formal and informal Shona corpora yields 90% POS-tagging accuracy and 88% morphological-feature accuracy, while maintaining transparency in its linguistic decisions. By bridging descriptive grammar and computational implementation, Shona spaCy advances NLP accessibility and digital inclusion for Shona speakers and provides a template for morphological analysis tools for other under-resourced Bantu languages."
+
+  },
+
+用户画像：
+
+
+
+USER_PROFILE = {
+
+    "info": {
+
+        "id": "1",
+
+        "name": "Shaw",
+
+        "email": "2962326813@qq.com",
+
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix", # 头像
+
+        "nickname": "Shaw"
+
+    },
+
+    "focus": {
+
+        "domains": ["cs.LG", "cs.AI"],
+
+        "keywords": ["LLM", "Agent", "Medical"],
+
+        "authors": ["Junxian He"],
+
+        "institutions": ["AI2", "DeepSeek"]
+
+    },
+
+    "status": {
+
+        "currentTask": "尝试独立开发论文查询agent",
+
+        "futureGoal": "agent/LLM赋能医疗",
+
+        "stage": "初学者",
+
+        "purpose": ["关注前沿技术发展", "未来准备走工业界"]
+
+    },
+
+    "memory": {
+
+        "readPapers": [],
+
+        "dislikedPapers": []
+
+    }
+
+}
+
+每篇分析生成的建议：
+
+{
+
+  "user_id": "1",
+
+  "created_at": "2025-11-26 17:15:30",
+
+  "total_analyzed": 5,
+
+  "accepted_count": 2,
+
+  "rejected_count": 3,
+
+  "selected_papers": [
+
+    {
+
+      "paper_id": "2511.16682",
+
+      "why_this_paper": "该论文提出了Bench360，一个面向用户的本地LLM推理综合评测框架，覆盖系统性能与任务指标，对正在尝试开发论文查询agent的初学者具有实用参考价值。虽然不直接涉及医疗领域，但其对LLM部署效率与性能权衡的分析有助于未来构建高效、可落地的医疗agent系统，契合用户关注前沿技术及工业界应用的目标。",
+
+      "relevance_score": 0.72,
+
+      "accepted": true
+
+    },
+
+    {
+
+      "paper_id": "2511.16681",
+
+      "why_this_paper": "该论文聚 焦于RAG系统中的高效向量检索，提出了一种多分辨率索引框架SPI，可显著提升LLM结合外部知识时的检索速度与效率。虽然不直接涉及医疗领域，但RAG是构建LLM Agent（尤其是面向专业领域如医疗）的关键技术之一。用户当前任务是开发论文查询Agent，且未来目标是LLM/Agent赋能医疗，因此掌握高效、可部署的RAG优化方法具有实用价值。此外，论文属于cs.AI类别，与用户关注领域部分重合，且成果具备工业落地潜力，契合用户走向工业界的目标。",
+
+      "relevance_score": 0.72,
+
+      "accepted": true
+
+    }
+
+  ],
+
+  "rejected_papers": [
+
+    {
+
+      "paper_id": "2511.16685",
+
+      "why_this_paper": "该论文属于cs.AI领域，与用户关注的AI方向部分相关，但核心内容聚焦于开放意图分类中的决策边界建模，未涉及LLM、Agent或医疗应用。作者和机构也不在用户关注列表中。虽然对对话系统有一定意义，但与用户当前开发论文查询agent及未来LLM赋能医疗的目标关联较弱。",
+
+      "relevance_score": 0.3,
+
+      "accepted": false
+
+    },
+
+    {
+
+      "paper_id": "2511.16683",
+
+      "why_this_paper": "该论文虽然涉及LLM和语言理解，但聚焦于突尼斯阿拉伯语这一低资源语言的处理，与用户关注的'LLM'、'Agent'和'Medical'关键词关联较弱。尽管属于cs.AI领域，但研究内容偏向语言学和文化包容性，而非医疗应用或智能体开发，对用户当前任务（开发论文查询agent）和未来目标（LLM/agent赋能医疗）帮助有限。",
+
+      "relevance_score": 0.25,
+
+      "accepted": false
+
+    },
+
+    {
+
+      "paper_id": "2511.16680",
+
+      "why_this_paper": "该论文聚焦于为资源稀缺的班图语言Shona构建基于规则的形态分析工具，属于计算语言学（cs.CL）领域，虽然涉及NLP和spaCy框架，但其核心内容与用户关注的LLM、Agent、医疗应用等方向关联较弱。尽管论文分类包含cs.AI，但未涉及大语言模型、智能体架构或医疗场景，且作者和机构也不在用户关注列表中。对于处于初学者阶段、目标是开发论文查询agent并探索LLM赋能医疗的用户而言，该论文的技术路线和应用场景参考价值有限。",
+
+      "relevance_score": 0.2,
+
+      "accepted": false
+
+    }
+
+  ]
+
+}
+
+
+
+分析指令：
+
+你是一个专业的学术论文筛选助手。
+
+你的任务是根据用户的研究兴趣（Focus）和当前状态（Status），站在用户的视角上，判断一篇论文是否值得用户阅读。
+
+
+
+用户画像：
+
+{user_profile}
+
+
+
+论文元信息:
+
+{paper}
+
+
+
+请判断该论文的相关性。
+
+返回格式要求：
+
+请仅返回一个 JSON 对象，不要包含任何其他文本。格式如下：
+
+{{
+
+    "why_this_paper": str # 针对该用户的推荐理由，称呼使用您
+
+    "relevance_score": float # 0.0 ~ 1.0
+
+    "accepted": true/false # LLM 建议是否接受
+
+}} 
+
+
+
+现在我进入到了报告生成阶段，需要根据提取的论文阅读建议生成一份报告。
+
+1.你认为这份报告应该长什么样？应该利用我现有的哪些数据？
+
+我认为带有用户需求的用户画像，论文分析结果都需要作为输入，此外，特殊tags也应该输入，比如如果论文有code dataset 被期刊会议接受，也应该作为生成报告的内容
+
+2.生成单篇论文分析的结果是否需要针对优化？毕竟这个分析结果会直接影响报告的生成结果。因此prompt是否需要优化？

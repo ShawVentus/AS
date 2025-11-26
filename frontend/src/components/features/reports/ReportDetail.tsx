@@ -19,7 +19,7 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
         PaperAPI.getPapers().then(setPapers).catch(console.error);
     }, []);
 
-    const activePapers = hoveredRefIds.map(id => papers.find(p => p.id === id)).filter(Boolean);
+    const activePapers = hoveredRefIds.map(id => papers.find(p => p.meta.id === id)).filter(Boolean);
 
     const handleSendEmail = async () => {
         const email = prompt("请输入接收邮箱:");
@@ -115,20 +115,20 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
                 <div className="flex-1 p-4 overflow-y-auto space-y-4">
                     {activePapers.length > 0 ? (
                         activePapers.map((activePaper) => (
-                            <div key={activePaper!.id} className="animate-in fade-in slide-in-from-right-2 duration-200 bg-slate-900/50 p-3 rounded border border-slate-800 hover:border-cyan-500/30 transition-colors">
+                            <div key={activePaper!.meta.id} className="animate-in fade-in slide-in-from-right-2 duration-200 bg-slate-900/50 p-3 rounded border border-slate-800 hover:border-cyan-500/30 transition-colors">
                                 <div className="flex items-start gap-2 mb-2">
-                                    <span className="text-[10px] bg-cyan-950 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-900 font-mono">ID: {activePaper!.id}</span>
-                                    <span className="text-[10px] text-emerald-500 border border-emerald-900/50 px-1.5 py-0.5 rounded">{activePaper!.suggestion}</span>
+                                    <span className="text-[10px] bg-cyan-950 text-cyan-400 px-1.5 py-0.5 rounded border border-cyan-900 font-mono">ID: {activePaper!.meta.id}</span>
+                                    {/* <span className="text-[10px] text-emerald-500 border border-emerald-900/50 px-1.5 py-0.5 rounded">{activePaper!.suggestion}</span> */}
                                 </div>
-                                <h4 className="text-sm font-bold text-white mb-1 leading-snug">{activePaper!.title}</h4>
-                                <p className="text-xs text-slate-500 mb-2">{activePaper!.authors.join(", ")}</p>
+                                <h4 className="text-sm font-bold text-white mb-1 leading-snug">{activePaper!.meta.title}</h4>
+                                <p className="text-xs text-slate-500 mb-2">{activePaper!.meta.authors.join(", ")}</p>
 
                                 <div className="text-xs text-slate-400 leading-relaxed mb-3 line-clamp-3">
-                                    {activePaper!.abstract}
+                                    {activePaper!.meta.abstract}
                                 </div>
 
                                 <button
-                                    onClick={() => onNavigateToPaper(activePaper!.id)}
+                                    onClick={() => onNavigateToPaper(activePaper!.meta.id)}
                                     className="w-full flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs py-1.5 rounded transition-colors font-medium"
                                 >
                                     查看详情 <ArrowRightCircle size={12} />
