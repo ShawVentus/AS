@@ -29,24 +29,23 @@ export const USER_PROFILE: UserProfile = {
 
 export const MOCK_PAPERS: Paper[] = [
     {
-        id: "p1",
-        title: "MedAgent: Large Language Models as Generalists for Medical Consulting",
-        authors: ["Xiangru Tang", "Anni Zou", "Junxian He"],
-        published_date: "2025-10-24",
-        category: ["cs.LG"],
-        abstract: "Recent advancements in Large Language Models (LLMs) have shown promise in specialized medical tasks...",
-        tldr: "提出基于LLM的医疗通用咨询Agent框架，显著提升诊断准确率。",
-        suggestion: "精读",
-        tags: ["LLM", "Medical", "Agent"],
-        details: {
+        meta: {
+            id: "p1",
+            title: "MedAgent: Large Language Models as Generalists for Medical Consulting",
+            authors: ["Xiangru Tang", "Anni Zou", "Junxian He"],
+            published_date: "2025-10-24",
+            category: ["cs.LG"],
+            abstract: "Recent advancements in Large Language Models (LLMs) have shown promise in specialized medical tasks...",
+            links: { pdf: "#", arxiv: "#", html: "#" },
+        },
+        analysis: {
+            tldr: "提出基于LLM的医疗通用咨询Agent框架，显著提升诊断准确率。",
+            tags: { "LLM": "LLM", "Medical": "Medical", "Agent": "Agent" },
             motivation: "现有医疗LLM专注单一任务，缺乏通用推理能力。",
             method: "Few-shot Prompting + RAG构建专家知识库。",
             result: "MedQA数据集SOTA，准确率提升15%。",
             conclusion: "LLM具备医疗通才潜力，需更好知识对齐。",
         },
-        links: { pdf: "#", arxiv: "#", html: "#" },
-        citationCount: 45,
-        year: 2025,
         user_state: {
             paper_id: "p1",
             user_id: "student@uni.edu.cn",
@@ -58,24 +57,23 @@ export const MOCK_PAPERS: Paper[] = [
         }
     },
     {
-        id: "p2",
-        title: "Chain-of-Verification Reduces Hallucination in Large Language Models",
-        authors: ["Shehzaad Dhuliawala", "Jason Weston"],
-        published_date: "2025-10-23",
-        category: ["cs.AI"],
-        abstract: "Large Language Models (LLMs) often hallucinate plausible but incorrect facts...",
-        tldr: "通过自我验证链机制，减少生成长文本时的幻觉。",
-        suggestion: "泛读",
-        tags: ["Hallucination", "CoT"],
-        details: {
+        meta: {
+            id: "p2",
+            title: "Chain-of-Verification Reduces Hallucination in Large Language Models",
+            authors: ["Shehzaad Dhuliawala", "Jason Weston"],
+            published_date: "2025-10-23",
+            category: ["cs.AI"],
+            abstract: "Large Language Models (LLMs) often hallucinate plausible but incorrect facts...",
+            links: { pdf: "#", arxiv: "#", html: "#" },
+        },
+        analysis: {
+            tldr: "通过自我验证链机制，减少生成长文本时的幻觉。",
+            tags: { "Hallucination": "Hallucination", "CoT": "CoT" },
             motivation: "幻觉阻碍LLM在严肃场景落地。",
             method: "CoVe: 生成 -> 验证 -> 修正。",
             result: "幻觉率降低30%。",
             conclusion: "自我验证有效且无需额外数据。",
         },
-        links: { pdf: "#", arxiv: "#", html: "#" },
-        citationCount: 120,
-        year: 2025,
         user_state: {
             paper_id: "p2",
             user_id: "student@uni.edu.cn",
@@ -87,24 +85,23 @@ export const MOCK_PAPERS: Paper[] = [
         }
     },
     {
-        id: "p3",
-        title: "DeepSeeker: An Efficient Agent for Academic Paper Screening",
-        authors: ["Team A"],
-        published_date: "2025-10-22",
-        category: ["cs.IR"],
-        abstract: "We present DeepSeeker, a tool designed to help researchers...",
-        tldr: "用于快速筛选海量论文的轻量级Agent。",
-        suggestion: "略读",
-        tags: ["Agent", "Tool"],
-        details: {
+        meta: {
+            id: "p3",
+            title: "DeepSeeker: An Efficient Agent for Academic Paper Screening",
+            authors: ["Team A"],
+            published_date: "2025-10-22",
+            category: ["cs.IR"],
+            abstract: "We present DeepSeeker, a tool designed to help researchers...",
+            links: { pdf: "#", arxiv: "#", html: "#" },
+        },
+        analysis: {
+            tldr: "用于快速筛选海量论文的轻量级Agent。",
+            tags: { "Agent": "Agent", "Tool": "Tool" },
             motivation: "海量论文筛选效率低。",
             method: "BERT分类器 + 规则引擎。",
             result: "速度提升10倍。",
             conclusion: "适合初筛。",
         },
-        links: { pdf: "#", arxiv: "#", html: "#" },
-        citationCount: 5,
-        year: 2023,
         user_state: {
             paper_id: "p3",
             user_id: "student@uni.edu.cn",

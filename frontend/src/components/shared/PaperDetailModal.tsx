@@ -39,7 +39,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, onClo
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [paper, onNext, onPrev, onClose]);
 
-    if (!paper) return null;
+    if (!paper?.meta) return null;
 
     return (
         <div

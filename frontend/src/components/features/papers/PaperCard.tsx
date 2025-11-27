@@ -42,6 +42,11 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
         return () => window.removeEventListener('click', closeMenu);
     }, [showFeedbackMenu]);
 
+    if (!paper?.meta) {
+        console.warn('PaperCard received invalid paper data:', paper);
+        return null;
+    }
+
     // Helper to get tags keys
     const tags = paper.analysis?.tags ? Object.keys(paper.analysis.tags) : [];
 

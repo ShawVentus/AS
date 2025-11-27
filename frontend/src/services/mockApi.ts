@@ -45,7 +45,7 @@ export const MockPaperAPI = {
     },
     getPaperDetail: async (id: string) => {
         await delay(300);
-        const paper = MOCK_PAPERS.find(p => p.id === id);
+        const paper = MOCK_PAPERS.find(p => p.meta.id === id);
         if (!paper) throw new Error('Paper not found');
         return paper;
     },

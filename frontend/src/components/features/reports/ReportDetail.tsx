@@ -19,7 +19,7 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
         PaperAPI.getPapers().then(setPapers).catch(console.error);
     }, []);
 
-    const activePapers = hoveredRefIds.map(id => papers.find(p => p.meta.id === id)).filter(Boolean);
+    const activePapers = hoveredRefIds.map(id => papers.find(p => p?.meta?.id === id)).filter(Boolean);
 
     const handleSendEmail = async () => {
         const email = prompt("请输入接收邮箱:");

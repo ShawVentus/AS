@@ -8,6 +8,7 @@ import { PaperCard } from './components/features/papers/PaperCard';
 import { SettingsPage } from './components/features/settings/SettingsPage';
 import { PaperDetailModal } from './components/shared/PaperDetailModal';
 import { Heatmap } from './components/shared/Heatmap';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { USER_PROFILE as DEFAULT_PROFILE, MOCK_PAPERS as DEFAULT_PAPERS } from './data/mockData';
 import type { Report, Paper, UserProfile } from './types';
 import { UserAPI, PaperAPI } from './services/api';
@@ -127,7 +128,7 @@ function App() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-10">
             {recommendations.map(p => (
-              <PaperCard key={p.id} paper={p} onOpenDetail={(paper) => setModalPaper(paper)} />
+              <PaperCard key={p.meta?.id || Math.random()} paper={p} onOpenDetail={(paper) => setModalPaper(paper)} />
             ))}
           </div>
         </div>
@@ -158,7 +159,9 @@ function App() {
 
       <main className="flex-1 h-full overflow-hidden relative">
         <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
-          {renderContent()}
+          <ErrorBoundary>
+            {renderContent()}
+          </ErrorBoundary>
         </div>
       </main>
 

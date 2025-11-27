@@ -40,7 +40,7 @@ export const PaperList: React.FC<PaperListProps> = () => {
 
     const handleNextPaper = () => {
         if (!modalPaper) return;
-        const currentIndex = filteredPapers.findIndex(p => p.id === modalPaper.id);
+        const currentIndex = filteredPapers.findIndex(p => p.meta?.id === modalPaper.meta?.id);
         if (currentIndex !== -1 && currentIndex < filteredPapers.length - 1) {
             setModalPaper(filteredPapers[currentIndex + 1]);
         } else if (currentIndex === filteredPapers.length - 1) {
@@ -51,7 +51,7 @@ export const PaperList: React.FC<PaperListProps> = () => {
 
     const handlePrevPaper = () => {
         if (!modalPaper) return;
-        const currentIndex = filteredPapers.findIndex(p => p.id === modalPaper.id);
+        const currentIndex = filteredPapers.findIndex(p => p.meta?.id === modalPaper.meta?.id);
         if (currentIndex !== -1 && currentIndex > 0) {
             setModalPaper(filteredPapers[currentIndex - 1]);
         } else if (currentIndex === 0) {
@@ -95,7 +95,7 @@ export const PaperList: React.FC<PaperListProps> = () => {
             {/* Paper Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
                 {filteredPapers.map(p => (
-                    <PaperCard key={p.id} paper={p} onOpenDetail={handleOpenDetail} />
+                    <PaperCard key={p.meta?.id || Math.random()} paper={p} onOpenDetail={handleOpenDetail} />
                 ))}
             </div>
 
