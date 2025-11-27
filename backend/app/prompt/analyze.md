@@ -12,10 +12,12 @@
 - "conclusion": "结论/未来方向 (中文)",
 
 
-并根据 abstract与comment （若有）中的信息生成tags，tags 一般是是否公开code、主页、dataset、所中会议等，如果是公开code、主页、dataset就存储其url，如果是会议就存储会议名称。如果还有其他有价值的信息，也自定义tag并输出。
-例如："tags": {{"code":"code的url", "主页":"主页的url", "dataset":"dataset的url", "会议":"会议名称"}}
+并根据 abstract与comment （若有）中的信息生成tags，tags 一般是是否公开code、主页、dataset、所中会议等，如果是公开code、github、huggingface、dataset就存储其url，如果是会议就存储会议名称。如果还有其他有价值的信息，也自定义tag并输出。
+例如："tags": {{"code":"code的url", "github":"github的url", "dataset":"dataset的url", "accepted":"会议名称"}}
 不要无中生有，严格根据abstract与comment 的实际内容生成tags。
 tags 字段本质上是对用户除了论文本身信息外，更有价值的内容，如果有公开的资源，读者可更好了解、复现此论文。如果本文中了会议，本文也更有阅读的价值。
+对于所中会议or期刊：
+判断该论文是否已被顶级会议或期刊正式接收。 注意区分 "Submitted to"（未接收）、"Under review"（未接收）和 "Accepted/To appear"（已接收）。 如果是Workshop（研讨会）论文，请明确标注为 "Workshop"，不要混淆为主会论文。 输出标准化会议名称（如 "CVPR 2024"）。如果未接收则不需要输出此字段。
 
 返回格式要求：
 请仅返回一个 JSON 对象，不要包含任何其他文本。格式如下：

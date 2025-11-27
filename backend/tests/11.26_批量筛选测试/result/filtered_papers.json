@@ -1,40 +1,310 @@
 {
   "user_id": "1",
-  "created_at": "2025-11-26 17:15:30",
-  "total_analyzed": 5,
-  "accepted_count": 2,
-  "rejected_count": 3,
+  "created_at": "2025-11-27 17:40:28",
+  "total_analyzed": 50,
+  "accepted_count": 8,
+  "rejected_count": 42,
   "selected_papers": [
     {
+      "paper_id": "2511.17170",
+      "why_this_paper": "该论文提出了一种基于因果推理的LLM幻觉抑制方法，通过分析模型内部知识的多面性实现早期拒答，对您开发可靠、可解释的论文查询agent具有直接参考价值，尤其在提升回答可靠性方面契合医疗场景对准确性的高要求。",
+      "relevance_score": 0.85,
+      "accepted": true
+    },
+    {
+      "paper_id": "2511.17208",
+      "why_this_paper": "该论文聚焦于LLM Agent的长期对话记忆问题，提出了一种基于事件的结构化记忆方法，对您当前开发论文查询Agent的任务有直接参考价值；其技术思路简洁实用，适合初学者理解与借鉴，且与您关注的Agent和LLM方向高度契合。",
+      "relevance_score": 0.85,
+      "accepted": true
+    },
+    {
       "paper_id": "2511.16682",
-      "why_this_paper": "该论文提出了Bench360，一个面向用户的本地LLM推理综合评测框架，覆盖系统性能与任务指标，对正在尝试开发论文查询agent的初学者具有实用参考价值。虽然不直接涉及医疗领域，但其对LLM部署效率与性能权衡的分析有助于未来构建高效、可落地的医疗agent系统，契合用户关注前沿技术及工业界应用的目标。",
-      "relevance_score": 0.72,
+      "why_this_paper": "该论文提出了Bench360，一个面向用户的本地LLM推理综合评测框架，涵盖系统性能与任务指标，对您开发论文查询agent时选择和评估本地LLM部署方案具有实用参考价值，尤其在平衡性能与效率方面。",
+      "relevance_score": 0.75,
       "accepted": true
     },
     {
       "paper_id": "2511.16681",
-      "why_this_paper": "该论文聚 焦于RAG系统中的高效向量检索，提出了一种多分辨率索引框架SPI，可显著提升LLM结合外部知识时的检索速度与效率。虽然不直接涉及医疗领域，但RAG是构建LLM Agent（尤其是面向专业领域如医疗）的关键技术之一。用户当前任务是开发论文查询Agent，且未来目标是LLM/Agent赋能医疗，因此掌握高效、可部署的RAG优化方法具有实用价值。此外，论文属于cs.AI类别，与用户关注领域部分重合，且成果具备工业落地潜力，契合用户走向工业界的目标。",
-      "relevance_score": 0.72,
+      "why_this_paper": "该论文聚焦于RAG系统中的高效向量检索技术，提出了一种多分辨率索引框架SPI，可提升LLM结合外部知识的效率与效果。虽然不直接涉及医疗领域，但RAG是构建医疗Agent的关键组件之一，且您当前正在开发论文查询Agent，该工作对优化检索模块具有实用参考价值，尤其适合关注工业界落地的技术细节。",
+      "relevance_score": 0.75,
+      "accepted": true
+    },
+    {
+      "paper_id": "2511.16837",
+      "why_this_paper": "该论文提出了一种用于结构化LLM推理的解释型语言Cognitive BASIC，有助于您理解如何设计可控、可解释的Agent推理机制，对开发论文查询Agent有直接启发；虽然未聚焦医疗场景，但其方法论契合您在Agent与LLM方向的初学者阶段需求。",
+      "relevance_score": 0.75,
+      "accepted": true
+    },
+    {
+      "paper_id": "2511.17129",
+      "why_this_paper": "该论文聚焦于利用大语言模型（LLM）进行文本表示学习，提出基于上下文压缩的预训练方法，提升了LLM在下游任务中的表示能力。虽然与医疗无直接关联，但其对LLM表示能力的改进有助于构建更高效的Agent系统，对您当前开发论文查询Agent的任务有技术参考价值。",
+      "relevance_score": 0.65,
+      "accepted": true
+    },
+    {
+      "paper_id": "2511.17190",
+      "why_this_paper": "该论文提出了一个基于LLM的自主Agent框架AutoLink，用于解决工业级Text-to-SQL中的Schema Linking问题，展示了Agent在复杂任务中动态探索与决策的能力。虽然应用场景非医疗，但其Agent设计思路、可扩展性及工业落地导向对您开发论文查询Agent和未来在工业界应用LLM/Agent具有参考价值。",
+      "relevance_score": 0.65,
+      "accepted": true
+    },
+    {
+      "paper_id": "2511.17405",
+      "why_this_paper": "该论文提出了一种将多选题转换为开放式问答的评估与训练框架ReVeL，有助于提升LLM在可验证推理任务中的鲁棒性。虽然不直接涉及医疗或Agent开发，但其对LLM训练与评估方法的改进，对您当前开发论文查询agent及未来在工业界应用LLM具有参考价值。",
+      "relevance_score": 0.65,
       "accepted": true
     }
   ],
   "rejected_papers": [
     {
-      "paper_id": "2511.16685",
-      "why_this_paper": "该论文属于cs.AI领域，与用户关注的AI方向部分相关，但核心内容聚焦于开放意图分类中的决策边界建模，未涉及LLM、Agent或医疗应用。作者和机构也不在用户关注列表中。虽然对对话系统有一定意义，但与用户当前开发论文查询agent及未来LLM赋能医疗的目标关联较弱。",
-      "relevance_score": 0.3,
+      "paper_id": "2511.16787",
+      "why_this_paper": "该论文提出了一个多智能体框架用于代码生成任务，其中包含代码生成与调试代理的协同机制，对您当前开发论文查询agent具有参考价值；但其应用场景为孟加拉语到Python代码生成，与医疗领域无关，且未涉及LLM在医疗中的应用。",
+      "relevance_score": 0.55,
       "accepted": false
     },
     {
-      "paper_id": "2511.16683",
-      "why_this_paper": "该论文虽然涉及LLM和语言理解，但聚焦于突尼斯阿拉伯语这一低资源语言的处理，与用户关注的'LLM'、'Agent'和'Medical'关键词关联较弱。尽管属于cs.AI领域，但研究内容偏向语言学和文化包容性，而非医疗应用或智能体开发，对用户当前任务（开发论文查询agent）和未来目标（LLM/agent赋能医疗）帮助有限。",
-      "relevance_score": 0.25,
+      "paper_id": "2511.16885",
+      "why_this_paper": "该论文聚焦于提升LLM的潜在推理能力，提出了一种软概念混合训练方法，虽不直接涉及Agent或医疗应用，但其对LLM推理机制的改进有助于您理解如何增强Agent的底层推理能力，对开发更智能的论文查询Agent有一定启发。",
+      "relevance_score": 0.55,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17012",
+      "why_this_paper": "该论文聚焦于领域特定知识图谱构建中的大模型监督微调，虽应用场景为历史文化而非医疗，但其采用的指令微调、参数高效训练及结构化信息抽取方法对您开发论文查询Agent具有技术参考价值；且使用了DeepSeek相关模型，与您关注的机构契合。然而，未涉及Agent架构或医疗场景，相关性有限。",
+      "relevance_score": 0.55,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17205",
+      "why_this_paper": "该论文聚焦于大语言模型的高效剪枝方法，虽不直接涉及Agent或医疗应用，但其提出的高效、经济、有效的模型压缩技术对您未来在工业界部署轻量级LLM或医疗Agent具有实用参考价值，尤其在资源受限场景下。",
+      "relevance_score": 0.55,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16698",
+      "why_this_paper": "该论文聚焦于使用语言模型进行医学本体（SNOMED CT）中的层次化检索，尤其处理词汇表外查询问题，与您关注的LLM、Agent及医疗方向有一定交叉。但其核心是信息检索与本体嵌入，未涉及Agent架构或LLM在医疗场景中的主动应用，对您当前开发论文查询Agent的直接帮助有限。",
+      "relevance_score": 0.45,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16699",
+      "why_this_paper": "该论文聚焦于大语言模型（LLM）中“行动中的共情”检测与调控，虽涉及LLM行为控制技术，但核心关注点为共情这一特定能力，与您当前开发论文查询agent的任务关联较弱，且未涉及医疗场景或Agent架构设计。尽管属于cs.AI领域，但对您现阶段目标帮助有限。",
+      "relevance_score": 0.45,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17315",
+      "why_this_paper": "该论文聚焦于多用户群聊场景下的LLM Agent设计，虽与您关注的Agent和LLM技术相关，但未涉及医疗领域应用，且与您当前开发论文查询Agent的任务关联较弱。",
+      "relevance_score": 0.45,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16688",
+      "why_this_paper": "该论文聚焦于通过提示（prompt）引导大语言模型输出符合特定人类价值观的内容，属于LLM可控生成方向。虽然涉及LLM和AI对齐，但未涉及Agent架构或医疗应用场景，与您当前开发论文查询Agent及未来医疗赋能目标关联较弱。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16690",
+      "why_this_paper": "该论文聚焦于AI检测器对轻微润色文本的误判问题，虽涉及LLM和AI，但核心关注点是AI内容检测而非Agent开发或医疗应用，与您当前开发论文查询Agent及未来医疗赋能目标关联较弱。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16691",
+      "why_this_paper": "该论文聚焦于大语言模型在测试时通过最近邻微调进行适应，虽涉及LLM推理优化，但核心内容偏向模型压缩与通用领域适应，未涉及Agent架构或医疗应用场景，与您当前开发论文查询Agent及未来医疗赋能目标关联较弱。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16693",
+      "why_this_paper": "该论文聚焦多语言大模型内部语言表征的几何结构，与您关注的LLM基础机制有一定关联，但未涉及Agent、医疗应用或工程实践，对当前开发论文查询Agent任务帮助有限。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16846",
+      "why_this_paper": "该论文提出了一种无需参考答案的LLM生成回答简洁性评估指标，虽涉及LLM输出质量评估，但聚焦于冗余压缩与简洁性度量，与您当前开发论文查询agent及医疗场景下LLM/Agent应用的核心目标关联较弱。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16985",
+      "why_this_paper": "该论文聚焦于利用LLM进行论点感知的对话摘要，虽涉及LLM应用，但核心任务是论辩结构抽取与量化摘要，与您当前开发论文查询agent及医疗场景下的LLM/Agent应用目标关联较弱。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16886",
+      "why_this_paper": "该论文聚焦于提升小型循环模型（如TRMs）在复杂推理任务上的效率，虽涉及LLM对比，但核心方法与医疗场景无关，且未涉及Agent架构或医疗应用，对您当前开发论文查询Agent及未来医疗赋能目标帮助有限。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16893",
+      "why_this_paper": "该论文聚焦于归纳头（induction heads）的形成机制，属于大语言模型底层机理研究，与您当前开发论文查询agent的直接任务关联较弱，且未涉及Agent架构或医疗应用场景。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17081",
+      "why_this_paper": "该论文聚焦于大语言模型的幻觉检测与不确定性量化，虽涉及LLM可靠性问题，但主要面向多语言声明级评估，未涉及Agent架构或医疗应用场景，与您当前开发论文查询Agent及未来医疗赋能目标关联较弱。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17161",
+      "why_this_paper": "该论文聚焦于构建用于微调大语言模型的指令数据集，虽涉及LLM训练数据构建方法，但主要面向波兰语场景，与您关注的医疗领域Agent开发关联较弱，对当前任务帮助有限。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17220",
+      "why_this_paper": "该论文聚焦于大语言模型在社会压力下的谄媚行为（sycophancy）及其对输出真实性的影响，提出了PARROT评估框架。虽然涉及LLM鲁棒性这一重要议题，但其核心关注点是模型在权威诱导下的行为偏差，与您当前开发论文查询agent及未来将LLM/Agent应用于医疗场景的目标关联较弱。医疗应用更关注可靠性、安全性与领域适应性，而非社交说服场景下的鲁棒性。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17388",
+      "why_this_paper": "该论文聚焦于改进Transformer中的位置编码机制，提出输入依赖的Selective RoPE方法，属于底层模型架构优化，与您当前开发论文查询agent的任务关联较弱，且未涉及Agent、医疗或应用层面的LLM研究。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17432",
+      "why_this_paper": "该论文聚焦于问答系统评估指标的改进，提出结合词汇与语义的轻量级评估方法SMILE。虽然涉及LLM评估，但核心内容偏向NLP评估指标设计，与您当前开发论文查询agent及医疗领域应用的目标关联较弱。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17473",
+      "why_this_paper": "该论文聚焦于通过自监督方法改进强化学习在数学推理中的应用，虽涉及LLM和RLVR训练技术，但核心任务（数学定理证明）与您关注的医疗领域及Agent开发无直接关联；且未涉及医疗场景、Agent架构设计或作者/机构匹配，对当前初学者阶段开发论文查询Agent帮助有限。",
+      "relevance_score": 0.4,
+      "accepted": false
+    },
+    {
+      "paper_id": "2510.17309",
+      "why_this_paper": "该论文聚焦于使用LLM和链式推理等技术构建学术评估框架，虽涉及LLM应用但场景为教育评估，与您关注的医疗领域Agent开发无直接关联；且未涉及Agent架构设计或医疗垂直领域问题，对当前任务帮助有限。",
+      "relevance_score": 0.4,
       "accepted": false
     },
     {
       "paper_id": "2511.16680",
-      "why_this_paper": "该论文聚焦于为资源稀缺的班图语言Shona构建基于规则的形态分析工具，属于计算语言学（cs.CL）领域，虽然涉及NLP和spaCy框架，但其核心内容与用户关注的LLM、Agent、医疗应用等方向关联较弱。尽管论文分类包含cs.AI，但未涉及大语言模型、智能体架构或医疗场景，且作者和机构也不在用户关注列表中。对于处于初学者阶段、目标是开发论文查询agent并探索LLM赋能医疗的用户而言，该论文的技术路线和应用场景参考价值有限。",
+      "why_this_paper": "该论文聚焦于为资源稀缺的班图语言绍纳语构建基于规则的形态分析工具，属于低资源语言NLP领域，与您关注的LLM、Agent及医疗应用方向关联较弱。尽管涉及spaCy框架和基础NLP组件开发，但对您当前开发论文查询Agent或未来医疗赋能目标帮助有限。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16683",
+      "why_this_paper": "该论文聚焦于LLM对低资源语言（突尼斯阿拉伯语）的理解能力，虽涉及LLM和AI，但与您关注的Agent开发及医疗应用场景关联较弱，且未涉及医疗、Agent架构或相关作者/机构。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16685",
+      "why_this_paper": "该论文聚焦于开放意图分类中的决策边界建模，虽涉及对话系统和未知意图检测，但核心方法基于传统对比学习与几何边界优化，未涉及LLM或Agent架构，也未面向医疗场景，与您当前开发论文查询Agent及未来LLM赋能医疗的目标关联较弱。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16689",
+      "why_this_paper": "该论文聚焦于毒性检测中的概念级可解释性，虽涉及cs.AI领域，但核心内容与LLM、Agent或医疗应用无直接关联，且未涉及您关注的作者或机构。对当前开发论文查询agent或未来医疗赋能目标帮助有限。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17036",
+      "why_this_paper": "该论文聚焦视觉语言模型对视觉说服力的理解，属于多模态领域，与您关注的LLM、Agent及医疗方向关联较弱。虽然涉及模型推理能力评估，但未涉及Agent架构、医疗应用或相关技术路径，对您当前开发论文查询Agent和未来医疗赋能目标帮助有限。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17069",
+      "why_this_paper": "该论文聚焦于教育评估中的可解释自动评分，虽使用了LLM进行特征提取，但应用场景与医疗无关，且未涉及Agent系统设计或开发，与您当前开发论文查询Agent及未来医疗赋能的目标关联较弱。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17127",
+      "why_this_paper": "该论文聚焦于在AMD硬件平台上训练大规模MoE基础模型，内容主要涉及系统架构、网络通信和训练工程优化，与您当前开发论文查询agent及医疗LLM应用的直接关联较弱。虽然属于cs.AI范畴，但缺乏对Agent设计、医疗场景或LLM应用层面的探讨，对初学者阶段的您帮助有限。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17153",
+      "why_this_paper": "该论文聚焦于自动译后编辑（APE）和多语言数据集构建，虽提及LLM在APE任务中的应用，但核心属于机器翻译领域（cs.CL），与您关注的LLM、Agent及医疗方向关联较弱，对开发论文查询Agent或医疗赋能帮助有限。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17184",
+      "why_this_paper": "该论文聚焦于新闻文本分类中的特征融合方法，虽涉及注意力机制和AI技术，但应用场景与医疗无关，且未涉及LLM或Agent相关研究，与您当前开发论文查询Agent及未来医疗赋能目标关联较弱。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17238",
+      "why_this_paper": "该论文聚焦于视觉语言模型（VLM）在真实世界表格理解中的失败模式，与您关注的LLM/Agent在医疗等实际场景中的鲁棒性问题关联较弱；虽属cs.AI领域，但核心内容偏VLM与多语言表格QA，未涉及Agent架构、医疗应用或您关注的作者/机构。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17241",
+      "why_this_paper": "该论文聚焦于社交媒体用户行为预测，虽涉及LLM和混合建模方法，但应用场景为社交平台（Bluesky），与您关注的医疗领域及Agent开发目标关联较弱；且未涉及医疗、自主Agent架构或相关作者/机构。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17301",
+      "why_this_paper": "该论文聚焦于LLM在情感分析中的零样本应用，虽涉及LLM和AI，但应用场景为南非多语言社交媒体中的社会议题检测，与您关注的医疗领域及Agent开发无直接关联。",
+      "relevance_score": 0.35,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17290",
+      "why_this_paper": "该论文聚焦于爱沙尼亚语WinoGrande数据集的翻译与LLM性能评估，属于小语种常识推理任务，与您关注的LLM、Agent及医疗应用方向关联较弱，且未涉及Agent架构或医疗场景，对当前开发论文查询Agent帮助有限。",
+      "relevance_score": 0.25,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17358",
+      "why_this_paper": "该论文聚焦于自然语言推理与视觉 grounding 的结合，属于多模态 NLP 范畴，但未涉及 LLM、Agent 或医疗应用场景，与您当前开发论文查询 Agent 及未来在医疗领域应用 LLM/Agent 的目标关联较弱。",
+      "relevance_score": 0.25,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16832",
+      "why_this_paper": "该论文聚焦社交媒体上疫苗相关话语的情感与语义演变分析，虽涉及NLP技术（如情感词、语言模式分析），但核心属于计算社会科学范畴，未涉及LLM、Agent架构或医疗AI系统开发，与您当前开发论文查询Agent及未来LLM赋能医疗的目标关联较弱。",
+      "relevance_score": 0.25,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16811",
+      "why_this_paper": "该论文聚焦于翻译认知过程的非表征理论，属于认知科学与计算语言学交叉领域，未涉及LLM、Agent或医疗应用，与您当前开发论文查询agent及未来在医疗领域应用LLM的目标关联较弱。",
       "relevance_score": 0.2,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16824",
+      "why_this_paper": "该论文聚焦于语言学中不及物动词的句法分类与语义属性（如施事性与终结性）的关系，属于计算语言学（cs.CL）领域，未涉及大语言模型（LLM）、智能体（Agent）或医疗应用，也未关联您关注的作者或机构。对您当前开发论文查询agent及未来在医疗领域应用LLM/Agent的目标帮助有限。",
+      "relevance_score": 0.2,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.16830",
+      "why_this_paper": "该论文聚焦于文本到图像扩散模型的后门攻击防御，属于多模态安全领域，与您关注的LLM、Agent及医疗应用无直接关联。研究内容不涉及大语言模型、智能体架构或医疗场景，对您当前开发论文查询agent或未来在医疗领域应用LLM帮助有限。",
+      "relevance_score": 0.2,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17402",
+      "why_this_paper": "该论文聚焦于西班牙语的文本语言学度量工具库，与您关注的LLM、Agent及医疗应用方向关联较弱，且不涉及大模型或智能体技术。",
+      "relevance_score": 0.2,
+      "accepted": false
+    },
+    {
+      "paper_id": "2511.17337",
+      "why_this_paper": "该论文聚焦于分布语义学对汉语单音节词声调的预测，属于语音学与计算语言学交叉领域，未涉及LLM、Agent或医疗应用，与您当前开发论文查询Agent及未来在医疗领域应用LLM的目标关联极低。",
+      "relevance_score": 0.1,
       "accepted": false
     }
   ]

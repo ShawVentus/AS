@@ -27,7 +27,7 @@ class TestFilterRealData(unittest.TestCase):
     # 输出文件
     OUTPUT_FILE = os.path.join(OUTPUT_DIR, "filtered_papers.json")
     # 测试论文数量限制
-    PAPER_LIMIT = 5 
+    PAPER_LIMIT = 50
 
     def setUp(self):
         # 确保输出目录存在

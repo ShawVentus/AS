@@ -127,24 +127,25 @@ def test_api_enrichment(raw_items):
     
     # 2. 批量处理
     items_to_process = raw_items[:TEST_BATCH_SIZE]
+    print(f"🚀 开始批量处理 {len(items_to_process)} 篇论文...")
     
-    for i, raw_item in enumerate(items_to_process, 1):
-        print(f"\n[{i}/{len(items_to_process)}] 🔄 正在处理论文 ID: {raw_item['id']} ...")
+    try:
+        # 使用 batch_process_items 替代逐个处理
+        enriched_results = pipeline.batch_process_items(items_to_process, mock_spider)
         
-        try:
-            # process_item 会修改传入的 item，所以我们传入一个副本
-            item_to_process = raw_item.copy()
-            enriched_item = pipeline.process_item(item_to_process, mock_spider)
-            enriched_results.append(dict(enriched_item))
+        # 简单验证结果
+        success_count = 0
+        for item in enriched_results:
+            if item.get('title'):
+                success_count += 1
+                # 只打印前几个成功的，避免刷屏
+                if success_count <= 5:
+                    print(f"   ✅ 获取成功: {item.get('title')[:50]}...")
+        
+        print(f"📊 批量处理完成: 成功获取 {success_count}/{len(items_to_process)} 篇详情")
             
-            # 简单验证
-            if enriched_item.get('title'):
-                print(f"   ✅ 获取成功: {enriched_item.get('title')[:50]}...")
-            else:
-                print("   ❌ 获取失败: 标题为空")
-                
-        except Exception as e:
-            print(f"   ❌ 处理出错: {e}")
+    except Exception as e:
+        print(f"   ❌ 批量处理出错: {e}")
 
     # 3. 保存结果
     if enriched_results:
