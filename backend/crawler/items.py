@@ -6,9 +6,8 @@ class PaperItem(scrapy.Item):
     authors = scrapy.Field()
     published_date = scrapy.Field()
     category = scrapy.Field()
-    abstract = scrapy.Field() # [NEW] 摘要
-    # tldr = scrapy.Field() # [REMOVED]
-    # details = scrapy.Field() # [REMOVED]
-    links = scrapy.Field() # pdf、arxiv、html链接
-    comment = scrapy.Field() # 论文备注/评论
-    # citation_count = scrapy.Field() # 不需要初始化
+    abstract = scrapy.Field()
+    links = scrapy.Field()
+    comment = scrapy.Field()
+    # details 字段在 Stage 1 不需要填充，留给 Stage 3
+    # status 字段在 Pipeline 中处理

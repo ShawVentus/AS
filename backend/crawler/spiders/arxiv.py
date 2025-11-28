@@ -68,23 +68,43 @@ class ArxivSpider(scrapy.Spider):
             # 结构: <div class="list-subjects">
             # <span class="primary-subject">Primary (cs.XX)</span>; Secondary (cs.YY)
             # </div>
-            subjects_text = dd.xpath('.//div[contains(@class, "list-subjects")]').get()
-            # 使用正则提取括号内的分类代码，如 (cs.CV)
-            # 排除 primary-subject 标签本身，只提取内容
+            subjects_div = dd.xpath('.//div[contains(@class, "list-subjects")]')
+            
+            # 提取主类别 (Primary Subject)
+            primary_subject_text = subjects_div.xpath('.//span[@class="primary-subject"]/text()').get()
+            primary_category = None
+            
+            if primary_subject_text:
+                # 从 "Computer Vision and Pattern Recognition (cs.CV)" 提取 "cs.CV"
+                match = re.search(r'\(([^\)]+)\)', primary_subject_text)
+                if match:
+                    primary_category = match.group(1)
+            
+            # 提取所有分类标签（包括主类别和次类别）
+            subjects_text = subjects_div.get()
             all_tags = []
             if subjects_text:
-                # 简单粗暴：在整个 div 文本中查找 (xxx.XX) 格式
-                # 比如 (cs.CV), (math.OT), (eess.IV)
+                # 提取所有括号内的分类代码，如 (cs.CV), (math.OT), (eess.IV)
                 found_tags = re.findall(r'\(([\w\.-]+)\)', subjects_text)
-                # 使用 dict.fromkeys 保留顺序去重 (set 会打乱顺序)
+                # 使用 dict.fromkeys 保留顺序去重
                 all_tags = list(dict.fromkeys(found_tags))
             
-            # 确保当前分类在 tags 中 (如果没抓取到)
-            if current_category not in all_tags:
-                all_tags.append(current_category)
+            # 确保主类别在 tags 列表的第一位
+            if primary_category and primary_category not in all_tags:
+                all_tags.insert(0, primary_category)
+            elif primary_category and primary_category in all_tags:
+                # 将主类别移到第一位
+                all_tags.remove(primary_category)
+                all_tags.insert(0, primary_category)
+
+            # [UPDATED] 过滤：只要任意一个分类在目标类别中就保留
+            # 检查 all_tags 和 target_categories 是否有交集
+            if not any(tag in self.target_categories for tag in all_tags):
+                print(f"DEBUG: Skipping {arxiv_id} - no matching categories in {all_tags}")
+                continue
 
             # 构建基础数据项 (仅包含ID和分类列表)
-            # 详细信息将由 ArxivApiPipeline 通过 API 获取
+            # 详细信息将由 Stage 2 通过 API 获取
             item = PaperItem()
             item["id"] = arxiv_id
             item["category"] = all_tags 

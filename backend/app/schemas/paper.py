@@ -31,7 +31,7 @@ class RawPaperMetadata(BaseModel):
     title: str
     authors: List[str]
     published_date: str
-    category: List[str]  # 保持为列表，插入数据库时取第一个作为主分类
+    category: List[str]  # 存储所有分类
     abstract: str
     links: PaperLinks
     comment: Optional[str] = None

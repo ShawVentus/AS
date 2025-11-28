@@ -13,7 +13,13 @@ import { USER_PROFILE as DEFAULT_PROFILE, MOCK_PAPERS as DEFAULT_PAPERS } from '
 import type { Report, Paper, UserProfile } from './types';
 import { UserAPI, PaperAPI } from './services/api';
 
+import { useAuth } from './contexts/AuthContext';
+import { Login } from './components/auth/Login';
+import { Register } from './components/auth/Register';
+
 function App() {
+    const { user, loading } = useAuth();
+    const [showRegister, setShowRegister] = useState(false);
     const [currentView, setCurrentView] = useState('dashboard');
     const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
     const [recommendations, setRecommendations] = useState<Paper[]>(DEFAULT_PAPERS.slice(0, 2));
@@ -24,6 +30,8 @@ function App() {
     const [latestReport, setLatestReport] = useState<Report | null>(null);
 
     React.useEffect(() => {
+        if (!user) return; // Don't fetch if not logged in
+
         const fetchData = async () => {
             try {
                 const profile = await UserAPI.getProfile();
@@ -41,7 +49,19 @@ function App() {
             }
         };
         fetchData();
-    }, []);
+    }, [user]); // Depend on user
+
+    if (loading) {
+        return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Loading...</div>;
+    }
+
+    if (!user) {
+        return showRegister ? (
+            <Register onLoginClick={() => setShowRegister(false)} />
+        ) : (
+            <Login onRegisterClick={() => setShowRegister(true)} />
+        );
+    }
 
     const handleNavigateToPaper = (paperId: string | null) => {
         if (!paperId) {
