@@ -1,3 +1,7 @@
+### 2025-11-29 20:28:44
+完全移除模拟数据
+完善初始化流程与用户画像初始化
+
 ### 2025-11-29 14:34:38
 完善公共论文分析功能，根据status判断论文状态，将completed状态的论文分析后更新到数据库中设置状态为analyzed
 
@@ -25,7 +29,7 @@
 
 ```bash
 # 一次性完成两个阶段
-conda activate scout
+conda activate arxivscout
 cd backend
 
 # Stage 1: 抓取 ID 和分类 (约 20-30 秒)

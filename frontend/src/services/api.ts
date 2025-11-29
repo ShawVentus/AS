@@ -4,6 +4,18 @@ import { supabase } from './supabase';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
+export class ApiError extends Error {
+    status: number;
+    statusText: string;
+
+    constructor(status: number, statusText: string, message?: string) {
+        super(message || `API Error: ${status} ${statusText}`);
+        this.status = status;
+        this.statusText = statusText;
+        this.name = 'ApiError';
+    }
+}
+
 async function fetchJSON<T>(url: string, options: RequestInit = {}): Promise<T> {
     // 1. 获取当前 Session Token
     const { data: { session } } = await supabase.auth.getSession();
@@ -21,11 +33,11 @@ async function fetchJSON<T>(url: string, options: RequestInit = {}): Promise<T> 
     if (response.status === 401) {
         // Token 过期或无效，可以在这里处理登出逻辑
         // window.location.href = '/login'; 
-        throw new Error('Unauthorized');
+        throw new ApiError(401, 'Unauthorized');
     }
 
     if (!response.ok) {
-        throw new Error(`API 错误: ${response.statusText}`);
+        throw new ApiError(response.status, response.statusText);
     }
     return response.json();
 }
@@ -60,6 +72,10 @@ export const RealUserAPI = {
     updateFeedback: (userId: string, feedbacks: UserFeedback[]) => fetchJSON<UserProfile>(`/user/update/feedback?user_id=${userId}`, {
         method: 'POST',
         body: JSON.stringify(feedbacks)
+    }),
+    recordInteraction: (feedback: UserFeedback) => fetchJSON<{ status: string }>('/user/me/interaction', {
+        method: 'POST',
+        body: JSON.stringify(feedback)
     }),
 };
 

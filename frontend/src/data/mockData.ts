@@ -9,16 +9,16 @@ export const USER_PROFILE: UserProfile = {
         nickname: "Scholar_X"
     },
     focus: {
-        domains: ["cs.LG", "cs.AI"],
-        keywords: ["LLM", "Agent", "RAG"],
-        authors: ["Junxian He"],
-        institutions: ["AI2", "DeepSeek"]
+        category: ["cs.LG", "cs.AI"],
+        keywords: ["LLM", "RAG", "Agent"],
+        authors: ["Yann LeCun", "Geoffrey Hinton"],
+        institutions: ["DeepMind", "OpenAI"]
     },
     context: {
-        currentTask: "开发论文查询Agent",
-        futureGoal: "AI赋能医疗",
-        stage: "研究生一年级，刚开始做科研，对于论文的阅读经验较少",
-        purpose: ["Idea", "前沿"],
+        currentTask: "Research on RAG optimization",
+        futureGoal: "Publish a top-tier paper",
+        stage: "phd1",
+        preferences: "寻找灵感, 跟进前沿",
         learningMode: 'basic'
     },
     memory: {

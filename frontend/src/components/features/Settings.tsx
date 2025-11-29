@@ -5,14 +5,15 @@ import type { UserProfile } from '../../types/user';
 import { Avatar } from '../common/Avatar';
 import { TagInput } from '../common/TagInput';
 import { CategorySelector } from '../common/CategorySelector';
-import { Sparkles, Lightbulb, Save, LogOut, User } from 'lucide-react';
+import { ArrowLeft, Sparkles, Lightbulb, Save, LogOut, User } from 'lucide-react';
 
 interface SettingsProps {
     userProfile: UserProfile | null;
     onUpdate: () => void;
+    onBack?: () => void;
 }
 
-export function Settings({ userProfile, onUpdate }: SettingsProps) {
+export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
     if (!userProfile) return null;
 
     const [loading, setLoading] = useState(false);
@@ -24,8 +25,8 @@ export function Settings({ userProfile, onUpdate }: SettingsProps) {
         avatar: '',
         role: '',
         stage: '',
-        purpose: [] as string[],
-        domains: [] as string[],
+        preferences: '',
+        category: [] as string[],
         keywords: [] as string[],
         authors: [] as string[],
         institutions: [] as string[],
@@ -38,8 +39,8 @@ export function Settings({ userProfile, onUpdate }: SettingsProps) {
                 avatar: userProfile.info?.avatar || '',
                 role: userProfile.info?.role || '',
                 stage: userProfile.context?.stage || '',
-                purpose: userProfile.context?.purpose || [],
-                domains: userProfile.focus?.domains || [],
+                preferences: userProfile.context?.preferences || '',
+                category: userProfile.focus?.category || [],
                 keywords: userProfile.focus?.keywords || [],
                 authors: userProfile.focus?.authors || [],
                 institutions: userProfile.focus?.institutions || [],
@@ -60,13 +61,13 @@ export function Settings({ userProfile, onUpdate }: SettingsProps) {
                 },
                 context: {
                     stage: formData.stage,
-                    purpose: formData.purpose,
+                    preferences: formData.preferences,
                     currentTask: userProfile?.context?.currentTask || '',
                     futureGoal: userProfile?.context?.futureGoal || '',
                     learningMode: userProfile?.context?.learningMode || 'basic',
                 },
                 focus: {
-                    domains: formData.domains,
+                    category: formData.category,
                     keywords: formData.keywords,
                     authors: formData.authors,
                     institutions: formData.institutions,
@@ -108,7 +109,17 @@ export function Settings({ userProfile, onUpdate }: SettingsProps) {
     return (
         <div className="p-6 max-w-6xl mx-auto space-y-6 pb-20 animate-in fade-in">
             <div className="flex justify-between items-center mb-2">
-                <h1 className="text-2xl font-bold text-white">设置</h1>
+                <div className="flex items-center gap-4">
+                    {onBack && (
+                        <button
+                            onClick={onBack}
+                            className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                        >
+                            <ArrowLeft size={24} />
+                        </button>
+                    )}
+                    <h1 className="text-2xl font-bold text-white">设置</h1>
+                </div>
                 <div className="flex items-center gap-3">
                     <button
                         onClick={handleLogout}
@@ -236,8 +247,8 @@ export function Settings({ userProfile, onUpdate }: SettingsProps) {
                 <div className="space-y-8">
                     {/* 1. Category (ArXiv Categories) */}
                     <CategorySelector
-                        selectedCategories={formData.domains}
-                        onChange={categories => setFormData({ ...formData, domains: categories })}
+                        selectedCategories={formData.category}
+                        onChange={categories => setFormData({ ...formData, category: categories })}
                     />
 
                     {/* 2. Keywords */}
@@ -270,4 +281,4 @@ export function Settings({ userProfile, onUpdate }: SettingsProps) {
             </section>
         </div>
     );
-};
+}

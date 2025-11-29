@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { Save, User, Brain, Target, BookOpen, Mail, Hash, X, MessageSquare, Loader2 } from 'lucide-react';
-import { USER_PROFILE } from '../../../data/mockData';
+import { Save, User, Target, BookOpen, Mail, Hash, X, MessageSquare, Loader2 } from 'lucide-react';
 import { UserAPI } from '../../../services/api';
+import type { UserProfile } from '../../../types';
 
-export const SettingsPage = () => {
+interface SettingsPageProps {
+    userProfile: UserProfile | null;
+    onUpdate: () => void;
+}
+
+export const SettingsPage: React.FC<SettingsPageProps> = ({ userProfile, onUpdate }) => {
     const [activeTab, setActiveTab] = useState('memory');
-    const [learningMode, setLearningMode] = useState<'basic' | 'innovation'>(USER_PROFILE.context.learningMode);
     const [nlInput, setNlInput] = useState('');
     const [isUpdatingNL, setIsUpdatingNL] = useState(false);
 
@@ -13,11 +17,10 @@ export const SettingsPage = () => {
         if (!nlInput.trim()) return;
         setIsUpdatingNL(true);
         try {
-            // Mock user ID for now
-            await UserAPI.updateNL(nlInput, 'user_123');
+            await UserAPI.updateProfileNL(nlInput);
             setNlInput('');
-            // In a real app, we would reload the profile here
-            alert('画像已更新 (Mock)');
+            alert('画像已更新');
+            onUpdate();
         } catch (error) {
             console.error('Failed to update profile:', error);
             alert('更新失败');
@@ -25,6 +28,16 @@ export const SettingsPage = () => {
             setIsUpdatingNL(false);
         }
     };
+
+    if (!userProfile) {
+        return (
+            <div className="p-6 max-w-4xl mx-auto animate-in fade-in pb-20">
+                <div className="text-center text-slate-400 py-10">
+                    加载中...
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 max-w-4xl mx-auto animate-in fade-in pb-20">
@@ -76,39 +89,6 @@ export const SettingsPage = () => {
                         </p>
                     </section>
 
-                    {/* Learning Mode */}
-                    <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-                        <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <Brain className="text-cyan-400" size={20} /> 学习模式
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div
-                                onClick={() => setLearningMode('basic')}
-                                className={`cursor-pointer p-4 rounded-lg border transition-all ${learningMode === 'basic' ? 'bg-cyan-950/30 border-cyan-500/50 ring-1 ring-cyan-500/20' : 'bg-slate-950 border-slate-800 hover:border-slate-700'}`}
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className={`font-bold ${learningMode === 'basic' ? 'text-cyan-400' : 'text-slate-200'}`}>基础学习</h3>
-                                    {learningMode === 'basic' && <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.5)]"></span>}
-                                </div>
-                                <p className="text-xs text-slate-400 leading-relaxed">
-                                    适合刚接触新领域的阶段。优先推荐综述、高引用经典论文，帮助快速建立知识体系。
-                                </p>
-                            </div>
-                            <div
-                                onClick={() => setLearningMode('innovation')}
-                                className={`cursor-pointer p-4 rounded-lg border transition-all ${learningMode === 'innovation' ? 'bg-purple-950/30 border-purple-500/50 ring-1 ring-purple-500/20' : 'bg-slate-950 border-slate-800 hover:border-slate-700'}`}
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className={`font-bold ${learningMode === 'innovation' ? 'text-purple-400' : 'text-slate-200'}`}>创新发现</h3>
-                                    {learningMode === 'innovation' && <span className="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(192,132,252,0.5)]"></span>}
-                                </div>
-                                <p className="text-xs text-slate-400 leading-relaxed">
-                                    适合寻找Idea的阶段。优先推荐最新预印本、跨领域交叉研究，激发创新灵感。
-                                </p>
-                            </div>
-                        </div>
-                    </section>
-
                     {/* Focus Areas */}
                     <section className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
                         <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
@@ -118,13 +98,13 @@ export const SettingsPage = () => {
                         <div className="space-y-6">
                             <div>
                                 <h3 className="text-sm font-medium text-slate-300 mb-3 flex items-center gap-2">
-                                    <span className="w-1 h-4 bg-emerald-500 rounded-full"></span> 领域 (Domains)
+                                    <span className="w-1 h-4 bg-emerald-500 rounded-full"></span> 关注领域 (Category)
                                     <span className="text-xs text-slate-500 font-normal ml-auto">论文检索页面</span>
                                 </h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {USER_PROFILE.focus.domains.map(domain => (
-                                        <span key={domain} className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-slate-300 flex items-center gap-2">
-                                            {domain} <button className="text-slate-500 hover:text-red-400"><X size={12} /></button>
+                                    {(userProfile.focus?.category || []).map(cat => (
+                                        <span key={cat} className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-slate-300 flex items-center gap-2">
+                                            {cat} <button className="text-slate-500 hover:text-red-400"><X size={12} /></button>
                                         </span>
                                     ))}
                                     <button className="px-3 py-1.5 border border-dashed border-slate-700 rounded text-sm text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors">+ 添加领域</button>
@@ -137,7 +117,7 @@ export const SettingsPage = () => {
                                     <span className="text-xs text-slate-500 font-normal ml-auto">论文筛选依据</span>
                                 </h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {USER_PROFILE.focus.keywords.map(kw => (
+                                    {(userProfile.focus?.keywords || []).map(kw => (
                                         <span key={kw} className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded text-sm text-slate-300 flex items-center gap-2">
                                             {kw} <button className="text-slate-500 hover:text-red-400"><X size={12} /></button>
                                         </span>
@@ -176,7 +156,13 @@ export const SettingsPage = () => {
                         <div className="flex items-start gap-8">
                             <div className="flex flex-col items-center gap-3">
                                 <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-slate-700 bg-slate-800">
-                                    <img src={USER_PROFILE.info.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                    {userProfile.info?.avatar ? (
+                                        <img src={userProfile.info.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-500">
+                                            <User size={48} />
+                                        </div>
+                                    )}
                                 </div>
                                 <button className="text-xs text-cyan-400 hover:text-cyan-300">更换头像</button>
                             </div>
@@ -186,13 +172,13 @@ export const SettingsPage = () => {
                                     <label className="block text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
                                         <Hash size={12} /> 昵称
                                     </label>
-                                    <input type="text" defaultValue={USER_PROFILE.info.name} className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none" />
+                                    <input type="text" defaultValue={userProfile.info?.name || ''} className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-slate-500 mb-1 flex items-center gap-1">
                                         <Mail size={12} /> 邮箱地址
                                     </label>
-                                    <input type="email" defaultValue={USER_PROFILE.info.email} className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none" />
+                                    <input type="email" defaultValue={userProfile.info?.email || ''} className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-slate-200 focus:border-cyan-500 focus:outline-none" />
                                 </div>
                             </div>
                         </div>

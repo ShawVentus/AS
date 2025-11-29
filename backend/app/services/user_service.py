@@ -1,5 +1,7 @@
 from typing import List, Optional
 import json
+import os
+from fastapi import HTTPException
 from app.schemas.user import UserProfile, UserInfo, UserFeedback, Focus, Context, Memory
 from app.services.mock_data import USER_PROFILE
 from app.core.database import get_db
@@ -34,7 +36,7 @@ class UserService:
         """
         检查并创建默认用户 (如果不存在)。
         
-        用于 MVP 阶段的单用户模式。如果用户不存在，会创建用户记录并初始化默认画像。
+        用于 MVP 阶段的单用户模式。如果用户不存在，会创建用户记录并初始化空白画像。
 
         Args:
             None
@@ -53,15 +55,34 @@ class UserService:
             response = self.db.table("users").insert(user_data).execute()
             user_id = response.data[0]["id"]
             
-            # 使用模拟数据创建初始画像
-            profile_data = {
+            # 创建空白画像（让前端 Onboarding 填充）
+            # 使用邮箱前缀作为临时名称，避免空字符串导致 Avatar 组件问题
+            temp_name = DEFAULT_EMAIL.split('@')[0] if '@' in DEFAULT_EMAIL else "User"
+            empty_profile = {
                 "user_id": user_id,
-                "info": USER_PROFILE["info"],
-                "focus": USER_PROFILE["focus"],
-                "context": USER_PROFILE["context"],
-                "memory": USER_PROFILE["memory"]
+                "info": {
+                    "id": user_id,
+                    "name": temp_name,
+                    "email": DEFAULT_EMAIL,
+                    "avatar": "",
+                    "role": "researcher"
+                },
+                "focus": {
+                    "category": [],
+                    "keywords": [],
+                    "authors": [],
+                    "institutions": []
+                },
+                "context": {
+                    "preferences": "",
+                    "currentTask": "",
+                    "futureGoal": ""
+                },
+                "memory": {
+                    "user_prompt": []
+                }
             }
-            self.db.table("profiles").insert(profile_data).execute()
+            self.db.table("profiles").insert(empty_profile).execute()
             return user_id
         except Exception as e:
             print(f"Error creating default user: {e}")
@@ -90,19 +111,65 @@ class UserService:
             response = self.db.table("profiles").select("*").eq("user_id", user_id).execute()
             if response.data:
                 data = response.data[0]
+                
+                # --- 数据迁移与清洗逻辑 ---
+                
+                # 1. 清洗 Context
+                context_data = data.get("context", {})
+                # 迁移 purpose (List) -> preferences (str)
+                if "preferences" not in context_data and "purpose" in context_data:
+                    purpose = context_data.pop("purpose")
+                    if isinstance(purpose, list):
+                        context_data["preferences"] = ", ".join(purpose)
+                    elif isinstance(purpose, str):
+                        context_data["preferences"] = purpose
+                
+                # 确保必需字段存在 (Pydantic 会处理默认值，但为了安全起见)
+                # stage 和 learningMode 已被移除，无需处理
+
+                # 2. 清洗 Focus
+                focus_data = data.get("focus", {})
+                # 迁移 domains -> category
+                if "category" not in focus_data and "domains" in focus_data:
+                    focus_data["category"] = focus_data.pop("domains")
+                
+                # --- 构造对象 ---
+                
                 return UserProfile(
-                    info=data["info"],
-                    focus=data["focus"],
-                    context=data["context"],
-                    memory=data["memory"]
+                    info=data.get("info", {}),
+                    focus=focus_data,
+                    context=context_data,
+                    memory=data.get("memory", {})
                 )
             else:
-                # 如果画像缺失则退回模拟数据(由于_create_default_user不应该发生)
-                return UserProfile(**USER_PROFILE)
+                # 数据库中没有该用户的 profile
+                use_mock = os.getenv("USE_MOCK_FALLBACK", "false").lower() == "true"
+                if use_mock:
+                    print(f"Warning: Profile not found for user_id {user_id}, using mock data (USE_MOCK_FALLBACK=true).")
+                    return UserProfile(**USER_PROFILE)
+                else:
+                    # 生产模式：抛出异常，让上层决定如何处理
+                    raise HTTPException(
+                        status_code=404,
+                        detail="User profile not initialized. Please complete onboarding."
+                    )
+        except HTTPException as http_err:
+            # 重新抛出 HTTP 异常（如 404）
+            raise http_err
         except Exception as e:
             print(f"Error fetching profile: {e}")
-            # 出错时退回模拟数据以保持应用运行
-            return UserProfile(**USER_PROFILE)
+            import traceback
+            traceback.print_exc()
+            
+            use_mock = os.getenv("USE_MOCK_FALLBACK", "false").lower() == "true"
+            if use_mock:
+                print("Using mock data due to error (USE_MOCK_FALLBACK=true)")
+                return UserProfile(**USER_PROFILE)
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to retrieve user profile due to server error: {str(e)}"
+                )
 
     def initialize_profile(self, user_info: UserInfo) -> UserProfile:
         """
@@ -137,6 +204,24 @@ class UserService:
         except Exception as e:
             print(f"Error initializing profile: {e}")
             return UserProfile(**USER_PROFILE)
+
+    def is_profile_initialized(self, user_id: str) -> bool:
+        """
+        判断用户是否已完成初始化。
+        
+        Args:
+            user_id (str): 用户 ID
+            
+        Returns:
+            bool: True 表示已初始化，False 表示需要初始化
+        """
+        try:
+            profile = self.get_profile(user_id)
+            # 如果 category 为空列表或不存在，则需要初始化
+            return bool(profile.focus.category)
+        except Exception as e:
+            print(f"Error checking initialization status: {e}")
+            return False
 
     def update_profile_nl(self, user_id: str, feedback_text: str) -> UserProfile:
         """
@@ -251,5 +336,34 @@ class UserService:
             self.db.table("profiles").update(updates).eq("user_id", user_id).execute()
             
         return self.get_profile(user_id)
+
+    def record_interaction(self, user_id: str, feedback: UserFeedback) -> bool:
+        """
+        记录用户与论文的交互 (Read/Like/Dislike)。
+        
+        Args:
+            user_id (str): 用户 ID。
+            feedback (UserFeedback): 反馈对象。
+            
+        Returns:
+            bool: 是否成功记录。
+        """
+        try:
+            # 获取当前画像
+            profile = self.get_profile(user_id)
+            
+            # 添加到 interactions 列表
+            # 简单的追加逻辑，实际应用可能需要去重或更新
+            profile.memory.interactions.append(feedback)
+            
+            # 持久化到数据库
+            self.db.table("profiles").update({
+                "memory": profile.memory.model_dump()
+            }).eq("user_id", user_id).execute()
+            
+            return True
+        except Exception as e:
+            print(f"Error recording interaction: {e}")
+            return False
 
 user_service = UserService()

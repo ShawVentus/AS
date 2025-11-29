@@ -18,39 +18,61 @@ class ArxivSpider(scrapy.Spider):
     name = "arxiv"
     allowed_domains = ["arxiv.org"]
     
+    custom_settings = {
+        "LOG_LEVEL": "INFO",
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        categories = os.getenv("CATEGORIES", "cs.LG,cs.AI")
-        self.target_categories = set(map(str.strip, categories.split(",")))
+        
+        # 🤫 静音 httpx 和 scrapy 的冗余日志，只保留 WARNING 及以上
+        import logging
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        logging.getLogger("scrapy").setLevel(logging.WARNING)
+        
+        categories = os.getenv("CATEGORIES")
+        if not categories:
+            self.target_categories = set()
+        else:
+            self.target_categories = set(map(str.strip, categories.split(",")))
+        
         self.start_urls = [
             f"https://arxiv.org/list/{cat}/new" for cat in self.target_categories
         ]
+        
+        # 统计数据
+        self.stats = {
+            "total_found": 0,
+            "yielded": 0,
+            "skipped_category": 0,
+            "categories_found": set()
+        }
 
     def parse(self, response):
-        print(f"DEBUG: Parsing {response.url}")
-        # 解析新论文列表页面
-        # 结构: <dt> (元数据链接) <dd> (标题、作者等)
+        self.logger.info(f"正在解析页面: {response.url}")
         
         # 获取当前页面的分类
-        # URL格式: https://arxiv.org/list/cs.LG/new
         current_category = response.url.split("/list/")[-1].split("/")[0]
-        print(f"DEBUG: Category {current_category}")
+        self.stats["categories_found"].add(current_category)
         
-        # 提取锚点以过滤论文
+        # 提取锚点
         anchors = []
         for li in response.css("div[id=dlpage] ul li"):
             href = li.css("a::attr(href)").get()
             if href and "item" in href:
                 anchors.append(int(href.split("item")[-1]))
         
-        print(f"DEBUG: Found {len(anchors)} anchors")
-
+        self.logger.debug(f"找到 {len(anchors)} 个锚点")
+        
         dt_elements = response.xpath('//dl[@id="articles"]/dt')
         dd_elements = response.xpath('//dl[@id="articles"]/dd')
         
+        items_to_yield = []
+
         for dt, dd in zip(dt_elements, dd_elements):
+            self.stats["total_found"] += 1
+            
             # 提取ArXiv ID
-            # <a name="item-id-2310.12345"></a>
             paper_anchor = dt.xpath('./a[@name]/@name').get()
             if paper_anchor and "item" in paper_anchor:
                 paper_id_num = int(paper_anchor.split("item")[-1])
@@ -60,9 +82,9 @@ class ArxivSpider(scrapy.Spider):
             arxiv_id_text = dt.xpath('.//a[@title="Abstract"]/text()').get()
             if not arxiv_id_text:
                 continue
-            # 清理 ID: 去除 "arXiv:" 和空白字符
+            
             arxiv_id = arxiv_id_text.replace("arXiv:", "").strip()
-            print(f"DEBUG: Found paper {arxiv_id}")
+            self.logger.debug(f"发现论文: {arxiv_id}")
             
             # 提取所有分类 (Tags)
             # 结构: <div class="list-subjects">
@@ -100,20 +122,65 @@ class ArxivSpider(scrapy.Spider):
             # [UPDATED] 过滤：只要任意一个分类在目标类别中就保留
             # 检查 all_tags 和 target_categories 是否有交集
             if not any(tag in self.target_categories for tag in all_tags):
-                print(f"DEBUG: Skipping {arxiv_id} - no matching categories in {all_tags}")
+                self.logger.debug(f"跳过 {arxiv_id} - 分类不匹配 {all_tags}")
+                self.stats["skipped_category"] += 1
                 continue
 
-            # 构建基础数据项 (仅包含ID和分类列表)
-            # 详细信息将由 Stage 2 通过 API 获取
+            # 构建 Item
             item = PaperItem()
             item["id"] = arxiv_id
             item["category"] = all_tags 
-            
-            # 初始化其他字段为空，避免 Pipeline 报错
             item["title"] = ""
             item["authors"] = []
             item["published_date"] = ""
             item["links"] = {}
             item["comment"] = ""
             
-            yield item
+            items_to_yield.append(item)
+            
+        # 开始写入数据库 (可视化进度)
+        from tqdm import tqdm
+        import sys
+        
+        if items_to_yield:
+            pbar = tqdm(
+                total=len(items_to_yield), 
+                desc=f"Saving {current_category} to DB", 
+                unit="paper",
+                file=sys.stdout,
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]"
+            )
+            
+            for item in items_to_yield:
+                self.stats["yielded"] += 1
+                yield item
+                pbar.update(1)
+                
+            pbar.close()
+        else:
+            self.logger.info(f"No papers found for {current_category} matching criteria.")
+
+    def closed(self, reason):
+        """爬虫关闭时输出总结"""
+        print("\n" + "="*50)
+        print("🔍 ArXiv 爬虫执行总结")
+        print("="*50)
+        print(f"📅 目标分类: {', '.join(self.target_categories)}")
+        print(f"📂 实际扫描分类: {', '.join(self.stats['categories_found'])}")
+        print(f"📄 总共发现论文: {self.stats['total_found']}")
+        print(f"✅ 捕获并提交处理: {self.stats['yielded']}")
+        print(f"🚫 因分类不符跳过: {self.stats['skipped_category']}")
+        
+        # 尝试获取 Pipeline 的统计信息 (如果 Pipeline 更新了 crawler.stats)
+        inserted = self.crawler.stats.get_value('papers/inserted', 0)
+        duplicates = self.crawler.stats.get_value('papers/duplicates', 0)
+        failed = self.crawler.stats.get_value('papers/failed', 0)
+        
+        if inserted or duplicates or failed:
+            print("-" * 30)
+            print("💾 数据库处理结果:")
+            print(f"   🆕 新增入库: {inserted}")
+            print(f"   ♻️ 重复/已存在: {duplicates}")
+            print(f"   ❌ 处理失败: {failed}")
+        
+        print("="*50 + "\n")

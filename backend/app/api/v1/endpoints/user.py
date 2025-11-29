@@ -1,33 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.auth import get_current_user_id
 from app.core.database import get_db
-from app.schemas.user import UserProfile, Focus, UserInfo, Context, Memory
+from app.schemas.user import UserProfile, Focus, UserInfo, Context, Memory, UserFeedback
 
 router = APIRouter()
 
 @router.get("/me", response_model=UserProfile)
 def get_current_user_profile(user_id: str = Depends(get_current_user_id)):
     """获取当前用户画像"""
-    db = get_db()
-    
-    # 查询 profiles 表
-    response = db.table("profiles").select("*").eq("user_id", user_id).single().execute()
-    
-    if not response.data:
-        # 理论上 Trigger 会自动创建，但如果失败或尚未触发，返回 404 或默认空值
-        raise HTTPException(status_code=404, detail="Profile not found")
-        
-    data = response.data
-    
-    # 构造返回数据
-    # 注意: 数据库字段是 info, focus, context, memory
-    
-    return UserProfile(
-        info=UserInfo(**data.get("info", {})),
-        focus=Focus(**data.get("focus", {})),
-        context=Context(**data.get("context", {})),
-        memory=Memory(**data.get("memory", {}))
-    )
+    from app.services.user_service import user_service
+    return user_service.get_profile(user_id)
 
 @router.put("/me/focus", response_model=Focus)
 def update_user_focus(focus: Focus, user_id: str = Depends(get_current_user_id)):
@@ -68,3 +50,26 @@ def update_profile_nl(payload: dict, user_id: str = Depends(get_current_user_id)
     from app.services.user_service import user_service
     # 暂时直接返回当前画像，不进行修改
     return user_service.get_profile(user_id)
+
+@router.get("/me/check-initialization")
+def check_user_initialization(user_id: str = Depends(get_current_user_id)):
+    """
+    检查用户是否已完成初始化
+    
+    Returns:
+        dict: {"initialized": bool}
+    """
+    from app.services.user_service import user_service
+    is_initialized = user_service.is_profile_initialized(user_id)
+    return {"initialized": is_initialized}
+
+@router.post("/me/interaction")
+def record_user_interaction(feedback: UserFeedback, user_id: str = Depends(get_current_user_id)):
+    """
+    记录用户交互 (Read/Like/Dislike)
+    """
+    from app.services.user_service import user_service
+    success = user_service.record_interaction(user_id, feedback)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to record interaction")
+    return {"status": "success"}

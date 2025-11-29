@@ -5,7 +5,6 @@ import os
 from app.schemas.report import Report
 from app.schemas.paper import PersonalizedPaper
 from app.schemas.user import UserProfile
-from app.services.mock_data import MOCK_REPORTS
 from app.services.llm_service import llm_service
 from app.utils.email_sender import email_sender
 from app.core.database import get_db

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { FileText, Target, Brain } from 'lucide-react';
+import { supabase } from './services/supabase';
 import { Header } from './components/layout/Header';
 import { ReportDetail } from './components/features/reports/ReportDetail';
 import { ReportList } from './components/features/reports/ReportList';
 import { PaperList } from './components/features/papers/PaperList';
 import { PaperCard } from './components/features/papers/PaperCard';
-import { SettingsPage } from './components/features/settings/SettingsPage';
 import { PaperDetailModal } from './components/shared/PaperDetailModal';
 import { Heatmap } from './components/shared/Heatmap';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
@@ -44,26 +44,70 @@ function App() {
             try {
                 setDataLoading(true);
 
-                // Parallel data fetching
-                const [profile, recs, reports] = await Promise.all([
-                    UserAPI.getProfile(),
-                    PaperAPI.getRecommendations(),
-                    import('./services/api').then(m => m.ReportAPI.getReports())
+                // Parallel data fetching with individual error handling for profile
+                const [profileResult, recs, reports] = await Promise.all([
+                    UserAPI.getProfile().catch(err => ({ error: err })),
+                    PaperAPI.getRecommendations().catch(() => []),
+                    import('./services/api').then(m => m.ReportAPI.getReports()).catch(() => [])
                 ]);
 
-                setUserProfile(profile);
+                // Handle Profile Result
+                if ('error' in profileResult) {
+                    const error = profileResult.error as any;
+                    const errorStatus = error?.response?.status || error?.status;
+
+                    if (errorStatus === 404) {
+                        console.log("Profile not found, redirecting to onboarding");
+                        setCurrentView('onboarding');
+                        // Set a temporary empty profile to allow rendering if needed, 
+                        // though renderContent handles null profile for onboarding now.
+                    } else {
+                        throw error; // Re-throw other errors to be caught by outer catch
+                    }
+                } else {
+                    const profile = profileResult as UserProfile;
+                    setUserProfile(profile);
+
+                    // Check if profile is initialized (has focus category)
+                    if (!profile.focus?.category || profile.focus.category.length === 0) {
+                        setCurrentView('onboarding');
+                    }
+                }
+
                 setRecommendations(recs.slice(0, 3));
 
                 if (reports && reports.length > 0) {
                     setLatestReport(reports[0]);
                 }
-
-                // Check if profile is initialized (has focus domains)
-                if (!profile.focus?.domains || profile.focus.domains.length === 0) {
-                    setCurrentView('onboarding');
-                }
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Failed to fetch data:", error);
+
+                // 处理不同类型的错误
+                const errorStatus = error?.response?.status || error?.status;
+                const errorMessage = error?.message || '';
+
+                if (errorStatus === 404) {
+                    // API 返回 404 - Profile 不存在
+                    console.log("Profile not found, redirecting to onboarding");
+                    setCurrentView('onboarding');
+                } else if (errorStatus === 401) {
+                    // 401 Unauthorized - Token 失效
+                    console.log("Session expired, logging out");
+                    supabase.auth.signOut();
+                    // AuthContext should handle the user state update
+                } else if (error?.name === 'TypeError' && errorMessage.includes('fetch')) {
+                    // 网络错误
+                    console.error("Network error: Unable to connect to server");
+                    // TODO: 显示网络错误提示
+                } else if (errorStatus >= 500) {
+                    // 服务器错误
+                    console.error("Server error:", errorStatus);
+                    // TODO: 显示服务器错误页面
+                } else {
+                    // 其他未知错误
+                    console.error("Critical error fetching initial data:", error);
+                    // TODO: 显示通用错误页面
+                }
             } finally {
                 // Add a small delay to prevent flickering on fast connections
                 // and ensure the loading animation is seen
@@ -101,17 +145,40 @@ function App() {
     };
 
     const renderContent = () => {
-        if (!userProfile) return null;
+        console.log("renderContent called. currentView:", currentView, "userProfile:", userProfile);
 
+        // 1. Onboarding view should be rendered regardless of userProfile status
+        // This must be checked BEFORE the null check for userProfile
         if (currentView === 'onboarding') {
+            console.log("Rendering Onboarding component");
             return <Onboarding
                 onComplete={() => {
-                    setCurrentView('dashboard');
+                    console.log("Onboarding complete, switching to dashboard");
                     // Refresh profile
-                    UserAPI.getProfile().then(setUserProfile);
+                    UserAPI.getProfile()
+                        .then((profile) => {
+                            setUserProfile(profile);
+                            setCurrentView('dashboard');
+                        })
+                        .catch((err) => {
+                            console.error("Failed to refresh profile after onboarding:", err);
+                            // If failed, stay on onboarding or show error?
+                            // For now, maybe retry or show alert
+                            alert("初始化失败，请重试");
+                        });
                 }}
-                initialName={userProfile.info.name}
+                initialName={userProfile?.info?.name}
             />;
+        }
+
+        // 2. For all other views, userProfile is strictly required
+        if (!userProfile) {
+            console.log("userProfile is null, showing LoadingScreen inside renderContent");
+            return (
+                <div className="flex items-center justify-center h-full">
+                    <LoadingScreen />
+                </div>
+            );
         }
 
         if (currentView === 'settings') {
@@ -120,6 +187,7 @@ function App() {
                 onUpdate={() => {
                     UserAPI.getProfile().then(setUserProfile);
                 }}
+                onBack={() => setCurrentView('dashboard')}
             />;
         }
 

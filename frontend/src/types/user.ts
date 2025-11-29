@@ -12,8 +12,8 @@ export interface UserInfo {
 }
 
 export interface Focus {
-    /** 关注领域列表 */
-    domains: string[];
+    /** 关注领域列表 (arXiv Category) */
+    category: string[];
     /** 关注关键词列表 */
     keywords: string[];
     /** 关注作者列表 */
@@ -27,19 +27,26 @@ export interface Context {
     currentTask: string;
     /** 未来目标 */
     futureGoal: string;
-    /** 当前阶段 (如: 研一, 博士) */
-    stage: string;
-    /** 阅读目的 */
-    purpose: string[];
-    /** 学习模式: 基础模式 | 创新模式 */
-    learningMode: 'basic' | 'innovation';
+    /** 研究偏好 (自然语言描述) */
+    preferences: string;
+}
+
+export interface UserFeedback {
+    /** 论文ID */
+    paper_id: string;
+    /** 动作类型: read | like | dislike */
+    action_type: 'read' | 'like' | 'dislike';
+    /** 原因 (可选) */
+    reason?: string;
+    /** 时间戳 */
+    timestamp?: string;
 }
 
 export interface Memory {
-    /** 已读论文ID列表 */
-    readPapers: string[];
-    /** 不感兴趣论文ID列表 */
-    dislikedPapers: string[];
+    /** 用户历史提示词 */
+    user_prompt: string[];
+    /** 用户交互记录 */
+    interactions: UserFeedback[];
 }
 
 export interface UserProfile {
@@ -51,15 +58,6 @@ export interface UserProfile {
     context: Context;
     /** 记忆/历史 */
     memory: Memory;
-}
-
-export interface UserFeedback {
-    /** 论文ID */
-    paper_id: string;
-    /** 是否喜欢 */
-    is_like: boolean;
-    /** 原因 (可选) */
-    reason?: string;
 }
 
 export interface NaturalLanguageInput {

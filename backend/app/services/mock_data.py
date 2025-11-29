@@ -12,7 +12,7 @@ USER_PROFILE = {
         "nickname": "Shaw"
     },
     "focus": {
-        "domains": ["cs.LG", "cs.AI"],
+        "category": ["cs.LG", "cs.AI"],
         "keywords": ["LLM", "Agent", "Medical"],
         "authors": ["Junxian He"],
         "institutions": ["AI2", "DeepSeek"]
@@ -21,7 +21,8 @@ USER_PROFILE = {
         "currentTask": "尝试独立开发论文查询agent",
         "futureGoal": "agent/LLM赋能医疗",
         "stage": "初学者",
-        "purpose": ["关注前沿技术发展", "未来准备走工业界"]
+        "preferences": "关注前沿技术发展, 未来准备走工业界",
+        "learningMode": "basic"
     },
     "memory": {
         "readPapers": [],

@@ -40,15 +40,24 @@ class SupabasePipeline:
             # on_conflict="id": 指定冲突字段
             # ignore_duplicates=True: 如果 ID 已存在，则忽略本次写入（保留旧数据，不覆盖）
             # 这样可以保证如果数据库里已经有了（无论是 pending 还是 completed），都不会被这个简单的 Stage 1 数据覆盖
-            self.db.table("papers").upsert(
+            response = self.db.table("papers").upsert(
                 data, 
                 on_conflict="id", 
                 ignore_duplicates=True
             ).execute()
             
-            spider.logger.debug(f"Paper {item['id']} stored (Stage 1).")
+            # 统计逻辑
+            if response.data:
+                # 返回了数据，说明插入成功
+                spider.crawler.stats.inc_value('papers/inserted')
+                spider.logger.debug(f"Paper {item['id']} stored (Stage 1).")
+            else:
+                # 未返回数据，说明是重复项被忽略
+                spider.crawler.stats.inc_value('papers/duplicates')
+                spider.logger.debug(f"Paper {item['id']} ignored (Duplicate).")
             
         except Exception as e:
+            spider.crawler.stats.inc_value('papers/failed')
             spider.logger.error(f"Error saving paper {item['id']}: {e}")
             
         return item
