@@ -23,6 +23,16 @@ export const MockUserAPI = {
         console.log(`[Mock] Updated feedback for ${userId}:`, feedbacks);
         return USER_PROFILE;
     },
+    updateProfile: async (data: Partial<UserProfile>) => {
+        await delay(500);
+        console.log(`[Mock] Updated profile:`, data);
+        return { ...USER_PROFILE, ...data };
+    },
+    updateProfileNL: async (text: string) => {
+        await delay(500);
+        console.log(`[Mock] Updated NL profile: ${text}`);
+        return USER_PROFILE;
+    },
 };
 
 export const MockPaperAPI = {

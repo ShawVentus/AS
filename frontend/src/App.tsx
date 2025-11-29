@@ -9,7 +9,7 @@ import { SettingsPage } from './components/features/settings/SettingsPage';
 import { PaperDetailModal } from './components/shared/PaperDetailModal';
 import { Heatmap } from './components/shared/Heatmap';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { USER_PROFILE as DEFAULT_PROFILE, MOCK_PAPERS as DEFAULT_PAPERS } from './data/mockData';
+import { LoadingScreen } from './components/common/LoadingScreen';
 import type { Report, Paper, UserProfile } from './types';
 import { UserAPI, PaperAPI } from './services/api';
 
@@ -17,42 +17,66 @@ import { useAuth } from './contexts/AuthContext';
 import { Login } from './components/auth/Login';
 import { Register } from './components/auth/Register';
 
+import { Onboarding } from './components/features/Onboarding';
+import { Settings } from './components/features/Settings';
+
 function App() {
     const { user, loading } = useAuth();
     const [showRegister, setShowRegister] = useState(false);
     const [currentView, setCurrentView] = useState('dashboard');
-    const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_PROFILE);
-    const [recommendations, setRecommendations] = useState<Paper[]>(DEFAULT_PAPERS.slice(0, 2));
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [recommendations, setRecommendations] = useState<Paper[]>([]);
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
     const [modalPaper, setModalPaper] = useState<Paper | null>(null);
-
     const [latestReport, setLatestReport] = useState<Report | null>(null);
 
+    // Data loading state
+    const [dataLoading, setDataLoading] = useState(true);
+
     React.useEffect(() => {
-        if (!user) return; // Don't fetch if not logged in
+        if (!user) {
+            setDataLoading(false);
+            return;
+        }
 
         const fetchData = async () => {
             try {
-                const profile = await UserAPI.getProfile();
-                setUserProfile(profile);
-                const recs = await PaperAPI.getRecommendations();
-                setRecommendations(recs.slice(0, 3)); // Show 3 recommendations
+                setDataLoading(true);
 
-                // Fetch latest report
-                const reports = await import('./services/api').then(m => m.ReportAPI.getReports());
+                // Parallel data fetching
+                const [profile, recs, reports] = await Promise.all([
+                    UserAPI.getProfile(),
+                    PaperAPI.getRecommendations(),
+                    import('./services/api').then(m => m.ReportAPI.getReports())
+                ]);
+
+                setUserProfile(profile);
+                setRecommendations(recs.slice(0, 3));
+
                 if (reports && reports.length > 0) {
                     setLatestReport(reports[0]);
                 }
+
+                // Check if profile is initialized (has focus domains)
+                if (!profile.focus?.domains || profile.focus.domains.length === 0) {
+                    setCurrentView('onboarding');
+                }
             } catch (error) {
                 console.error("Failed to fetch data:", error);
+            } finally {
+                // Add a small delay to prevent flickering on fast connections
+                // and ensure the loading animation is seen
+                setTimeout(() => {
+                    setDataLoading(false);
+                }, 800);
             }
         };
         fetchData();
-    }, [user]); // Depend on user
+    }, [user]);
 
     if (loading) {
-        return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Loading...</div>;
+        return <LoadingScreen />;
     }
 
     if (!user) {
@@ -61,6 +85,11 @@ function App() {
         ) : (
             <Login onRegisterClick={() => setShowRegister(true)} />
         );
+    }
+
+    // Show loading screen while fetching initial data
+    if (dataLoading && !userProfile) {
+        return <LoadingScreen />;
     }
 
     const handleNavigateToPaper = (paperId: string | null) => {
@@ -72,6 +101,28 @@ function App() {
     };
 
     const renderContent = () => {
+        if (!userProfile) return null;
+
+        if (currentView === 'onboarding') {
+            return <Onboarding
+                onComplete={() => {
+                    setCurrentView('dashboard');
+                    // Refresh profile
+                    UserAPI.getProfile().then(setUserProfile);
+                }}
+                initialName={userProfile.info.name}
+            />;
+        }
+
+        if (currentView === 'settings') {
+            return <Settings
+                userProfile={userProfile}
+                onUpdate={() => {
+                    UserAPI.getProfile().then(setUserProfile);
+                }}
+            />;
+        }
+
         if (currentView === 'reports' && selectedReport) {
             return <ReportDetail
                 report={selectedReport}
@@ -80,13 +131,11 @@ function App() {
             />;
         }
 
-        if (currentView === 'settings') return <SettingsPage />;
-
         if (currentView === 'dashboard') {
             return (
                 <div className="p-6 max-w-5xl mx-auto animate-in fade-in">
                     <h1 className="text-xl font-bold text-white mb-1">早安，{userProfile.info.name}</h1>
-                    <p className="text-xs text-slate-500 mb-6">今日有 3 篇新论文可能相关。</p>
+                    <p className="text-xs text-slate-500 mb-6">今日有 {recommendations.length} 篇新论文可能相关。</p>
 
                     {/* Today's Report Push */}
                     {latestReport && (
@@ -171,11 +220,15 @@ function App() {
 
     return (
         <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500/30 selection:text-cyan-100 overflow-hidden">
-            <Header
-                currentView={currentView}
-                setCurrentView={setCurrentView}
-                userProfile={userProfile}
-            />
+            {/* Hide Header on Onboarding */}
+            {currentView !== 'onboarding' && (
+                <Header
+                    currentView={currentView}
+                    setCurrentView={setCurrentView}
+                    userProfile={userProfile}
+                    isLoading={dataLoading}
+                />
+            )}
 
             <main className="flex-1 h-full overflow-hidden relative">
                 <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">

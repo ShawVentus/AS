@@ -1,6 +1,6 @@
 from typing import List, Optional
 import json
-from app.schemas.user import UserProfile, UserInfo, UserFeedback, Focus, Status, Memory
+from app.schemas.user import UserProfile, UserInfo, UserFeedback, Focus, Context, Memory
 from app.services.mock_data import USER_PROFILE
 from app.core.database import get_db
 
@@ -58,7 +58,7 @@ class UserService:
                 "user_id": user_id,
                 "info": USER_PROFILE["info"],
                 "focus": USER_PROFILE["focus"],
-                "status": USER_PROFILE["status"],
+                "context": USER_PROFILE["context"],
                 "memory": USER_PROFILE["memory"]
             }
             self.db.table("profiles").insert(profile_data).execute()
@@ -67,23 +67,25 @@ class UserService:
             print(f"Error creating default user: {e}")
             raise e
 
-    def get_profile(self) -> UserProfile:
+    def get_profile(self, user_id: Optional[str] = None) -> UserProfile:
         """
         获取当前用户的完整画像。
         
-        如果用户不存在，会自动创建默认用户。如果数据库中画像缺失，会返回模拟数据。
+        如果提供了 user_id，则直接查询该用户的画像。
+        如果未提供，则尝试使用默认用户（兼容旧逻辑）。
 
         Args:
-            None
+            user_id (Optional[str]): 用户 ID。
 
         Returns:
-            UserProfile: 用户画像对象，包含基本信息、关注点、上下文和记忆。
+            UserProfile: 用户画像对象。
         """
         try:
-            user_id = self._get_user_id(DEFAULT_EMAIL)
             if not user_id:
-                # 如果数据库中没有用户,从模拟数据创建默认用户
-                user_id = self._create_default_user()
+                user_id = self._get_user_id(DEFAULT_EMAIL)
+                if not user_id:
+                    # 如果数据库中没有用户,从模拟数据创建默认用户
+                    user_id = self._create_default_user()
             
             response = self.db.table("profiles").select("*").eq("user_id", user_id).execute()
             if response.data:
@@ -91,7 +93,7 @@ class UserService:
                 return UserProfile(
                     info=data["info"],
                     focus=data["focus"],
-                    status=data["status"],
+                    context=data["context"],
                     memory=data["memory"]
                 )
             else:
@@ -211,35 +213,43 @@ class UserService:
 
         return profile
 
-    def update_profile(self, profile_data: dict) -> UserProfile:
+    def update_profile(self, user_id: str, profile_data: dict) -> UserProfile:
         """
-        通用画像更新方法。
+        更新用户画像。
         
-        支持部分更新，例如只更新 info 或 focus 字段。
-
         Args:
-            profile_data (dict): 包含要更新字段的字典。
+            user_id (str): 用户 ID。
+            profile_data (dict): 包含要更新字段的字典 (info, focus, context)。
 
         Returns:
             UserProfile: 更新后的完整用户画像。
         """
-        # 获取当前画像
-        profile = self.get_profile()
+        # 获取当前画像 (确保存在)
+        current_profile = self.get_profile(user_id)
         
-        # 更新字段
+        updates = {}
+        
+        # 更新 Info
         if 'info' in profile_data:
-            # 深度更新info
-            current_info = profile.info.model_dump()
+            current_info = current_profile.info.dict()
             current_info.update(profile_data['info'])
-            profile.info = UserInfo(**current_info)
+            updates['info'] = current_info
             
-        # 持久化到数据库
-        uid = self._get_user_id(DEFAULT_EMAIL)
-        if uid:
-            self.db.table("profiles").update({
-                "info": profile.info.model_dump()
-            }).eq("user_id", uid).execute()
+        # 更新 Focus
+        if 'focus' in profile_data:
+            current_focus = current_profile.focus.dict()
+            current_focus.update(profile_data['focus'])
+            updates['focus'] = current_focus
             
-        return profile
+        # 更新 Context
+        if 'context' in profile_data:
+            current_context = current_profile.context.dict()
+            current_context.update(profile_data['context'])
+            updates['context'] = current_context
+
+        if updates:
+            self.db.table("profiles").update(updates).eq("user_id", user_id).execute()
+            
+        return self.get_profile(user_id)
 
 user_service = UserService()

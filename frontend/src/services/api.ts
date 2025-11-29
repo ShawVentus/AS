@@ -17,7 +17,7 @@ async function fetchJSON<T>(url: string, options: RequestInit = {}): Promise<T> 
     };
 
     const response = await fetch(`${API_BASE}${url}`, { ...options, headers });
-    
+
     if (response.status === 401) {
         // Token 过期或无效，可以在这里处理登出逻辑
         // window.location.href = '/login'; 
@@ -40,6 +40,14 @@ export const RealUserAPI = {
         method: 'PUT',
         body: JSON.stringify(info)
     }),
+    updateProfile: (data: Partial<UserProfile>) => fetchJSON<UserProfile>('/user/me', {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
+    updateProfileNL: (text: string) => fetchJSON<UserProfile>('/user/me/nl', {
+        method: 'POST',
+        body: JSON.stringify({ text })
+    }),
     // 保留旧接口兼容性或标记为废弃
     initialize: (userInfo: UserInfo) => fetchJSON<UserProfile>('/user/initialize', {
         method: 'POST',
@@ -59,7 +67,8 @@ export const RealPaperAPI = {
     getPapers: () => fetchJSON<Paper[]>('/papers/'),
     fetchPapers: (limit: number = 100) => fetchJSON<Paper[]>(`/papers/fetch?limit=${limit}`, { method: 'POST' }),
     getDailyPapers: () => fetchJSON<Paper[]>('/papers/daily'),
-    getRecommendations: () => fetchJSON<Paper[]>('/papers/recommendations'),
+    getRecommendations: (date?: string) => fetchJSON<Paper[]>(`/papers/recommendations${date ? `?date=${date}` : ''}`),
+    getPaperCalendar: (year: number, month: number) => fetchJSON<string[]>(`/papers/calendar?year=${year}&month=${month}`),
     getPaperDetail: (id: string) => fetchJSON<Paper>(`/papers/${id}`),
     getAnalysis: (id: string) => fetchJSON<PaperAnalysis>(`/papers/${id}/analysis`),
     submitFeedback: (id: string, feedback: any) => fetchJSON(`/papers/${id}/feedback`, {

@@ -7,6 +7,8 @@ export interface UserInfo {
     avatar: string;
     /** 昵称 */
     nickname: string;
+    /** 角色 */
+    role?: string;
 }
 
 export interface Focus {

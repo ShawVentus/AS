@@ -41,7 +41,7 @@ class QwenService:
             completion = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant. Return only JSON."},
+                    {"role": "system", "content": self.read_prompt("system.md")},
                     {"role": "user", "content": prompt},
                 ],
                 response_format={"type": "json_object"} # 强制JSON格式(如果支持),或仅依赖提示词
@@ -78,12 +78,12 @@ class QwenService:
             print(f"JSON Decode Error in filter: {response}")
             return {"is_relevant": False, "score": 0, "reason": "Parse Error"}
 
-    def analyze_paper(self, paper: Dict, comment: str = "") -> Dict[str, Any]:
+    def analyze_paper(self, abstract: str, comment: str = "") -> Dict[str, Any]:
         """
         使用 LLM 分析论文详情，提取关键信息 (Public Analysis)。
 
         Args:
-            paper (Dict): 包含论文信息的字典 (如 abstract)。
+            abstract (str): 论文摘要。
             comment (str): 论文的评论/备注信息 (用于辅助生成 tags)。
 
         Returns:
@@ -93,7 +93,7 @@ class QwenService:
         template = self.read_prompt("analyze.md")
         
         prompt = template.format(
-            abstract=paper.get("abstract", ""),
+            abstract=abstract,
             comment=comment
         )
         

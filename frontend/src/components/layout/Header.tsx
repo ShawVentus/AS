@@ -7,19 +7,18 @@ import {
     Bell,
     Search
 } from 'lucide-react';
+import { Avatar } from '../common/Avatar';
+import { Skeleton } from '../common/Skeleton';
+import type { UserProfile } from '../../types';
 
 interface HeaderProps {
     currentView: string;
     setCurrentView: (view: string) => void;
-    userProfile?: {
-        info: {
-            name: string;
-            role?: string;
-        }
-    };
+    userProfile?: UserProfile | null;
+    isLoading?: boolean;
 }
 
-export function Header({ currentView, setCurrentView, userProfile }: HeaderProps) {
+export function Header({ currentView, setCurrentView, userProfile, isLoading }: HeaderProps) {
     const menuItems = [
         { id: 'dashboard', label: '主页', icon: LayoutDashboard },
         { id: 'reports', label: '研报', icon: FileText },
@@ -87,17 +86,31 @@ export function Header({ currentView, setCurrentView, userProfile }: HeaderProps
                 </button>
 
                 <div className="flex items-center gap-3 pl-2">
-                    <div className="text-right hidden sm:block">
-                        <div className="text-sm font-medium text-white">
-                            {userProfile?.info.name || 'User'}
-                        </div>
-                        <div className="text-[10px] text-slate-500 uppercase tracking-wider">
-                            {userProfile?.info.role || 'Researcher'}
-                        </div>
-                    </div>
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-sm font-bold text-white ring-2 ring-slate-900 cursor-pointer hover:ring-slate-700 transition-all">
-                        {userProfile?.info.name?.[0]?.toUpperCase() || 'U'}
-                    </div>
+                    {isLoading || !userProfile ? (
+                        <>
+                            <div className="text-right hidden sm:block">
+                                <Skeleton variant="text" width={80} className="mb-1" />
+                                <Skeleton variant="text" width={60} />
+                            </div>
+                            <Skeleton variant="circle" width={40} height={40} />
+                        </>
+                    ) : (
+                        <>
+                            <div className="text-right hidden sm:block">
+                                <div className="text-sm font-medium text-white">
+                                    {userProfile.info.name || 'User'}
+                                </div>
+                                <div className="text-[10px] text-slate-500 uppercase tracking-wider">
+                                    {userProfile.info.role || 'Researcher'}
+                                </div>
+                            </div>
+                            <Avatar
+                                name={userProfile.info.name || 'User'}
+                                avatarUrl={userProfile.info.avatar}
+                                onClick={() => setCurrentView('settings')}
+                            />
+                        </>
+                    )}
                 </div>
             </div>
         </header>

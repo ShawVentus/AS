@@ -57,23 +57,19 @@ def analyze_paper_content(paper: Dict[str, Any]) -> Dict[str, Any]:
         Dict[str, Any]: 分析结果字典 (对应 PaperAnalysis 模型)。
     """
     try:
-        # 1. 读取 Prompt 模板
-        template = llm_service.read_prompt("analyze.md")
-        
-        # 2. 格式化 Prompt
-        # 确保 comment 不为 None
+        # 3. 调用 LLM
+        # 这里的 paper 参数其实是 paper_dict，包含 abstract 和 comment
+        abstract = paper.get("abstract", "")
         comment = paper.get("comment") or ""
         
-        prompt = template.format(
-            abstract=paper.get("abstract", ""),
-            comment=comment
-        )
+        # 直接调用 llm_service.analyze_paper，不再需要手动格式化 prompt
+        # 注意：llm_service.analyze_paper 内部会读取 analyze.md 并格式化
+        return llm_service.analyze_paper(abstract, comment)
         
-        # 3. 调用 LLM
-        response_str = llm_service.call_llm(prompt)
-        
-        # 4. 解析结果
-        return json.loads(response_str)
+        # 4. 解析结果 (llm_service.analyze_paper 已返回字典)
+        # return json.loads(response_str) 
+        # 上面的 return 已经返回了结果，这里不需要做任何事，或者直接删除后续代码
+        pass
         
     except Exception as e:
         print(f"Error analyzing paper content {paper.get('id')}: {e}")

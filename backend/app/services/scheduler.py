@@ -74,17 +74,12 @@ class SchedulerService:
         try:
             # --- Step 1: Public Analysis (公共分析) ---
             print("--- Step 1: Public Analysis ---")
-            # 获取尚未分析的论文 (details 为空 或 motivation 为空)
-            # 为安全起见,获取最近的论文(最近2天)
-            response = self.db.table("papers").select("*").order("created_at", desc=True).limit(50).execute()
+            # 获取尚未分析的论文 (status 为 completed)
+            response = self.db.table("papers").select("*").eq("status", "completed").execute()
             raw_papers = response.data
             
             papers_to_analyze = []
             for p in raw_papers:
-                # 检查是否已分析 (简单检查 details 字段)
-                if p.get("details") and p["details"].get("motivation"):
-                    continue
-                
                 # 构造 PersonalizedPaper (analysis=None, user_state=None)
                 # 注意: 这里我们需要先构造 RawPaperMetadata
                 meta_data = {
@@ -126,7 +121,7 @@ class SchedulerService:
             state_response = self.db.table("user_paper_states").select("paper_id").eq("user_id", user_id).execute()
             processed_paper_ids = {s['paper_id'] for s in state_response.data} if state_response.data else set()
             
-            new_papers = []
+            papers_to_filter = []
             for p in raw_papers:
                 if p['id'] in processed_paper_ids:
                     continue

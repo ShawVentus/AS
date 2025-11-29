@@ -4,35 +4,35 @@ from pydantic import BaseModel
 class UserInfo(BaseModel):
     """用户信息模型"""
     id: Optional[str] = None
-    name: str
+    name: str = ""
     email: str
-    avatar: str
-    nickname: str
+    avatar: str = ""
+    nickname: str = ""
 
 class Focus(BaseModel):
     """用户关注领域模型"""
-    domains: List[str]
-    keywords: List[str]
-    authors: List[str]
-    institutions: List[str]
+    domains: List[str] = []
+    keywords: List[str] = []
+    authors: List[str] = []
+    institutions: List[str] = []
 
-class Status(BaseModel):
+class Context(BaseModel):
     """用户状态模型"""
-    currentTask: str
-    futureGoal: str
-    stage: str
-    purpose: List[str]
+    currentTask: str = ""
+    futureGoal: str = ""
+    stage: str = ""
+    purpose: List[str] = []
 
 class Memory(BaseModel):
     """用户记忆模型"""
-    readPapers: List[str]
-    dislikedPapers: List[str]
+    readPapers: List[str] = []
+    dislikedPapers: List[str] = []
 
 class UserProfile(BaseModel):
     """用户画像总模型"""
     info: UserInfo
     focus: Focus
-    status: Status
+    context: Context
     memory: Memory
 
 class UserFeedback(BaseModel):

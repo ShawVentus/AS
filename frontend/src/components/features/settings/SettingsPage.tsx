@@ -72,7 +72,7 @@ export const SettingsPage = () => {
                             </button>
                         </div>
                         <p className="mt-2 text-xs text-slate-500">
-                            Agent 会分析您的输入，自动调整关注领域、关键词和短期目标。
+                            Agent 会分析您的输入，自动更新关注类别、关键词等信息。
                         </p>
                     </section>
 

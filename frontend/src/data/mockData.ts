@@ -17,7 +17,7 @@ export const USER_PROFILE: UserProfile = {
     context: {
         currentTask: "开发论文查询Agent",
         futureGoal: "AI赋能医疗",
-        stage: "研一",
+        stage: "研究生一年级，刚开始做科研，对于论文的阅读经验较少",
         purpose: ["Idea", "前沿"],
         learningMode: 'basic'
     },

@@ -1,4 +1,5 @@
 from typing import List, Optional
+from datetime import datetime, timedelta
 import json
 import subprocess
 import os
@@ -268,9 +269,9 @@ class PaperService:
         """
         from app.utils.paper_analysis_utils import analyze_paper_content
 
-        # Check if already analyzed
-        if paper.analysis and paper.analysis.motivation:
-             return None
+        # Check if already analyzed (Optional, relying on scheduler to pass pending papers)
+        # if paper.analysis and paper.analysis.motivation:
+        #      return None
 
         # 准备数据: 仅使用 meta
         paper_dict = paper.meta.model_dump()
@@ -279,21 +280,12 @@ class PaperService:
         analysis_dict = analyze_paper_content(paper_dict)
         
         if analysis_dict:
-            # Update Public Metadata (papers table) - Flattened structure
-            # DB structure: tldr, tags (json), details (json)
-            
-            # Construct details json
-            details_json = {
-                "motivation": analysis_dict.get("motivation", ""),
-                "method": analysis_dict.get("method", ""),
-                "result": analysis_dict.get("result", ""),
-                "conclusion": analysis_dict.get("conclusion", "")
-            }
+            # Update Public Metadata (papers table)
+            # Store all 6 fields in 'details' jsonb and update status to 'completed'
             
             update_data = {
-                "tldr": analysis_dict.get("tldr", ""),
-                "tags": analysis_dict.get("tags", {}),
-                "details": details_json
+                "details": analysis_dict,
+                "status": "analyzed"
             }
             
             try:
@@ -367,19 +359,76 @@ class PaperService:
             print(f"Error fetching paper {paper_id}: {e}")
             return None
 
-    def get_recommendations(self, user_id: str) -> List[PersonalizedPaper]:
+    def get_paper_dates(self, user_id: str, year: int, month: int) -> List[str]:
         """
-        获取用户的推荐论文列表 (即已被标记为 accepted=True 的论文)。
+        获取指定月份中存在已接受论文的日期列表。
 
         Args:
             user_id (str): 用户 ID。
+            year (int): 年份。
+            month (int): 月份。
+
+        Returns:
+            List[str]: 日期字符串列表 (YYYY-MM-DD)。
+        """
+        try:
+            # 构建日期范围
+            start_date = f"{year}-{month:02d}-01"
+            if month == 12:
+                end_date = f"{year + 1}-01-01"
+            else:
+                end_date = f"{year}-{month + 1:02d}-01"
+
+            # 查询 user_paper_states
+            # 筛选条件: user_id, accepted=True, created_at 在范围内
+            response = self.db.table("user_paper_states") \
+                .select("created_at") \
+                .eq("user_id", user_id) \
+                .eq("accepted", True) \
+                .gte("created_at", start_date) \
+                .lt("created_at", end_date) \
+                .execute()
+
+            if not response.data:
+                return []
+
+            # 提取日期并去重
+            dates = set()
+            for item in response.data:
+                # created_at 是 ISO 格式 (e.g., 2023-11-29T10:00:00+00:00)
+                # 截取前 10 位作为日期
+                date_str = item["created_at"][:10]
+                dates.add(date_str)
+
+            return sorted(list(dates))
+        except Exception as e:
+            print(f"Error fetching paper dates: {e}")
+            return []
+
+    def get_recommendations(self, user_id: str, date: Optional[str] = None) -> List[PersonalizedPaper]:
+        """
+        获取用户的推荐论文列表 (即已被标记为 accepted=True 的论文)。
+        支持按日期筛选。
+
+        Args:
+            user_id (str): 用户 ID。
+            date (Optional[str]): 筛选日期 (YYYY-MM-DD)。如果为 None，则返回所有。
 
         Returns:
             List[PersonalizedPaper]: 推荐的论文列表。
         """
         try:
             # 1. Get states where accepted=True
-            state_resp = self.db.table("user_paper_states").select("*").eq("user_id", user_id).eq("accepted", True).execute()
+            query = self.db.table("user_paper_states").select("*").eq("user_id", user_id).eq("accepted", True)
+            
+            if date:
+                # 筛选指定日期的记录 (created_at >= date AND created_at < date + 1 day)
+                # 注意：这里假设 date 是 YYYY-MM-DD 格式
+                next_day = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+                query = query.gte("created_at", date).lt("created_at", next_day)
+            
+            state_resp = query.execute()
+            
             if not state_resp.data:
                 return []
             

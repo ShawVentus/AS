@@ -7,6 +7,7 @@ interface RegisterProps {
 
 export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +22,11 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
       const { error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            username,
+          },
+        },
       });
 
       if (error) throw error;
@@ -55,7 +61,7 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
     <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
       <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-lg p-8 shadow-xl">
         <h2 className="text-2xl font-bold text-white mb-6 text-center">注册 Arxiv Scout</h2>
-        
+
         {error && (
           <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded mb-4 text-sm">
             {error}
@@ -63,6 +69,18 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
         )}
 
         <form onSubmit={handleRegister} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-1">用户名</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              required
+              placeholder="如何称呼您？"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">邮箱</label>
             <input
@@ -73,7 +91,7 @@ export const Register: React.FC<RegisterProps> = ({ onLoginClick }) => {
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">密码</label>
             <input

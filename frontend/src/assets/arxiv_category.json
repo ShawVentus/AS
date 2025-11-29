@@ -1,0 +1,670 @@
+[
+    {
+        "MainCategory_EN": "Physics",
+        "MainCategory_ZH": "物理学",
+        "Subcategories": [
+            {
+                "Name": "Astrophysics of Galaxies(astro-ph.GA)",
+                "Abbreviation": "astro-ph.GA"
+            },
+            {
+                "Name": "Cosmology and Nongalactic Astrophysics(astro-ph.CO)",
+                "Abbreviation": "astro-ph.CO"
+            },
+            {
+                "Name": "Earth and Planetary Astrophysics(astro-ph.EP)",
+                "Abbreviation": "astro-ph.EP"
+            },
+            {
+                "Name": "High Energy Astrophysical Phenomena(astro-ph.HE)",
+                "Abbreviation": "astro-ph.HE"
+            },
+            {
+                "Name": "Instrumentation and Methods for Astrophysics(astro-ph.IM)",
+                "Abbreviation": "astro-ph.IM"
+            },
+            {
+                "Name": "Solar and Stellar Astrophysics(astro-ph.SR)",
+                "Abbreviation": "astro-ph.SR"
+            },
+            {
+                "Name": "Disordered Systems and Neural Networks(cond-mat.dis-nn)",
+                "Abbreviation": "cond-mat.dis-nn"
+            },
+            {
+                "Name": "Materials Science(cond-mat.mtrl-sci)",
+                "Abbreviation": "cond-mat.mtrl-sci"
+            },
+            {
+                "Name": "Mesoscale and Nanoscale Physics(cond-mat.mes-hall)",
+                "Abbreviation": "cond-mat.mes-hall"
+            },
+            {
+                "Name": "Other Condensed Matter(cond-mat.other)",
+                "Abbreviation": "cond-mat.other"
+            },
+            {
+                "Name": "Quantum Gases(cond-mat.quant-gas)",
+                "Abbreviation": "cond-mat.quant-gas"
+            },
+            {
+                "Name": "Soft Condensed Matter(cond-mat.soft)",
+                "Abbreviation": "cond-mat.soft"
+            },
+            {
+                "Name": "Statistical Mechanics(cond-mat.stat-mech)",
+                "Abbreviation": "cond-mat.stat-mech"
+            },
+            {
+                "Name": "Strongly Correlated Electrons(cond-mat.str-el)",
+                "Abbreviation": "cond-mat.str-el"
+            },
+            {
+                "Name": "Superconductivity(cond-mat.supr-con)",
+                "Abbreviation": "cond-mat.supr-con"
+            },
+            {
+                "Name": "General Relativity and Quantum Cosmology(gr-qc)",
+                "Abbreviation": "gr-qc"
+            },
+            {
+                "Name": "High Energy Physics - Experiment(hep-ex)",
+                "Abbreviation": "hep-ex"
+            },
+            {
+                "Name": "High Energy Physics - Lattice(hep-lat)",
+                "Abbreviation": "hep-lat"
+            },
+            {
+                "Name": "High Energy Physics - Phenomenology(hep-ph)",
+                "Abbreviation": "hep-ph"
+            },
+            {
+                "Name": "High Energy Physics - Theory(hep-th)",
+                "Abbreviation": "hep-th"
+            },
+            {
+                "Name": "Mathematical Physics(math-ph)",
+                "Abbreviation": "math-ph"
+            },
+            {
+                "Name": "Adaptation and Self-Organizing Systems(nlin.AO)",
+                "Abbreviation": "nlin.AO"
+            },
+            {
+                "Name": "Cellular Automata and Lattice Gases(nlin.CG)",
+                "Abbreviation": "nlin.CG"
+            },
+            {
+                "Name": "Chaotic Dynamics(nlin.CD)",
+                "Abbreviation": "nlin.CD"
+            },
+            {
+                "Name": "Exactly Solvable and Integrable Systems(nlin.ES)",
+                "Abbreviation": "nlin.ES"
+            },
+            {
+                "Name": "Pattern Formation and Solitons(nlin.PS)",
+                "Abbreviation": "nlin.PS"
+            },
+            {
+                "Name": "Nuclear Experiment(nucl-ex)",
+                "Abbreviation": "nucl-ex"
+            },
+            {
+                "Name": "Nuclear Theory(nucl-th)",
+                "Abbreviation": "nucl-th"
+            },
+            {
+                "Name": "Accelerator Physics(physics.acc-ph)",
+                "Abbreviation": "physics.acc-ph"
+            },
+            {
+                "Name": "Applied Physics(physics.app-ph)",
+                "Abbreviation": "physics.app-ph"
+            },
+            {
+                "Name": "Atmospheric and Oceanic Physics(physics.ao-ph)",
+                "Abbreviation": "physics.ao-ph"
+            },
+            {
+                "Name": "Atomic and Molecular Clusters(physics.atm-clus)",
+                "Abbreviation": "physics.atm-clus"
+            },
+            {
+                "Name": "Atomic Physics(physics.atom-ph)",
+                "Abbreviation": "physics.atom-ph"
+            },
+            {
+                "Name": "Biological Physics(physics.bio-ph)",
+                "Abbreviation": "physics.bio-ph"
+            },
+            {
+                "Name": "Chemical Physics(physics.chem-ph)",
+                "Abbreviation": "physics.chem-ph"
+            },
+            {
+                "Name": "Classical Physics(physics.class-ph)",
+                "Abbreviation": "physics.class-ph"
+            },
+            {
+                "Name": "Computational Physics(physics.comp-ph)",
+                "Abbreviation": "physics.comp-ph"
+            },
+            {
+                "Name": "Data Analysis, Statistics and Probability(physics.data-an)",
+                "Abbreviation": "physics.data-an"
+            },
+            {
+                "Name": "Fluid Dynamics(physics.flu-dyn)",
+                "Abbreviation": "physics.flu-dyn"
+            },
+            {
+                "Name": "General Physics(physics.gen-ph)",
+                "Abbreviation": "physics.gen-ph"
+            },
+            {
+                "Name": "Geophysics(physics.geo-ph)",
+                "Abbreviation": "physics.geo-ph"
+            },
+            {
+                "Name": "History and Philosophy of Physics(physics.hist-ph)",
+                "Abbreviation": "physics.hist-ph"
+            },
+            {
+                "Name": "Instrumentation and Detectors(physics.ins-det)",
+                "Abbreviation": "physics.ins-det"
+            },
+            {
+                "Name": "Medical Physics(physics.med-ph)",
+                "Abbreviation": "physics.med-ph"
+            },
+            {
+                "Name": "Optics(physics.optics)",
+                "Abbreviation": "physics.optics"
+            },
+            {
+                "Name": "Physics and Society(physics.soc-ph)",
+                "Abbreviation": "physics.soc-ph"
+            },
+            {
+                "Name": "Physics Education(physics.ed-ph)",
+                "Abbreviation": "physics.ed-ph"
+            },
+            {
+                "Name": "Plasma Physics(physics.plasm-ph)",
+                "Abbreviation": "physics.plasm-ph"
+            },
+            {
+                "Name": "Popular Physics(physics.pop-ph)",
+                "Abbreviation": "physics.pop-ph"
+            },
+            {
+                "Name": "Space Physics(physics.space-ph)",
+                "Abbreviation": "physics.space-ph"
+            },
+            {
+                "Name": "Quantum Physics(quant-ph)",
+                "Abbreviation": "quant-ph"
+            }
+        ]
+    },
+    {
+        "MainCategory_EN": "Mathematics",
+        "MainCategory_ZH": "数学",
+        "Subcategories": [
+            {
+                "Name": "Algebraic Geometry(math.AG)",
+                "Abbreviation": "math.AG"
+            },
+            {
+                "Name": "Algebraic Topology(math.AT)",
+                "Abbreviation": "math.AT"
+            },
+            {
+                "Name": "Analysis of PDEs(math.AP)",
+                "Abbreviation": "math.AP"
+            },
+            {
+                "Name": "Category Theory(math.CT)",
+                "Abbreviation": "math.CT"
+            },
+            {
+                "Name": "Classical Analysis and ODEs(math.CA)",
+                "Abbreviation": "math.CA"
+            },
+            {
+                "Name": "Combinatorics(math.CO)",
+                "Abbreviation": "math.CO"
+            },
+            {
+                "Name": "Commutative Algebra(math.AC)",
+                "Abbreviation": "math.AC"
+            },
+            {
+                "Name": "Complex Variables(math.CV)",
+                "Abbreviation": "math.CV"
+            },
+            {
+                "Name": "Differential Geometry(math.DG)",
+                "Abbreviation": "math.DG"
+            },
+            {
+                "Name": "Dynamical Systems(math.DS)",
+                "Abbreviation": "math.DS"
+            },
+            {
+                "Name": "Functional Analysis(math.FA)",
+                "Abbreviation": "math.FA"
+            },
+            {
+                "Name": "General Mathematics(math.GM)",
+                "Abbreviation": "math.GM"
+            },
+            {
+                "Name": "General Topology(math.GT)",
+                "Abbreviation": "math.GT"
+            },
+            {
+                "Name": "Geometric Topology(math.GT)",
+                "Abbreviation": "math.GT"
+            },
+            {
+                "Name": "Group Theory(math.GR)",
+                "Abbreviation": "math.GR"
+            },
+            {
+                "Name": "History and Overview(math.HO)",
+                "Abbreviation": "math.HO"
+            },
+            {
+                "Name": "Information Theory(math.IT)",
+                "Abbreviation": "math.IT"
+            },
+            {
+                "Name": "K-Theory and Homology(math.KT)",
+                "Abbreviation": "math.KT"
+            },
+            {
+                "Name": "Logic(math.LO)",
+                "Abbreviation": "math.LO"
+            },
+            {
+                "Name": "Mathematical Physics(math.MP)",
+                "Abbreviation": "math.MP"
+            },
+            {
+                "Name": "Metric Geometry(math.MG)",
+                "Abbreviation": "math.MG"
+            },
+            {
+                "Name": "Number Theory(math.NT)",
+                "Abbreviation": "math.NT"
+            },
+            {
+                "Name": "Numerical Analysis(math.NA)",
+                "Abbreviation": "math.NA"
+            },
+            {
+                "Name": "Operator Algebras(math.OA)",
+                "Abbreviation": "math.OA"
+            },
+            {
+                "Name": "Optimization and Control(math.OC)",
+                "Abbreviation": "math.OC"
+            },
+            {
+                "Name": "Probability(math.PR)",
+                "Abbreviation": "math.PR"
+            },
+            {
+                "Name": "Quantum Algebra(math.QA)",
+                "Abbreviation": "math.QA"
+            },
+            {
+                "Name": "Representation Theory(math.RT)",
+                "Abbreviation": "math.RT"
+            },
+            {
+                "Name": "Rings and Algebras(math.RA)",
+                "Abbreviation": "math.RA"
+            },
+            {
+                "Name": "Spectral Theory(math.SP)",
+                "Abbreviation": "math.SP"
+            },
+            {
+                "Name": "Statistics Theory(stat.TH)",
+                "Abbreviation": "stat.TH"
+            },
+            {
+                "Name": "Symplectic Geometry(math.SG)",
+                "Abbreviation": "math.SG"
+            }
+        ]
+    },
+    {
+        "MainCategory_EN": "Computer Science",
+        "MainCategory_ZH": "计算机科学",
+        "Subcategories": [
+            {
+                "Name": "Artificial Intelligence(cs.AI)",
+                "Abbreviation": "cs.AI"
+            },
+            {
+                "Name": "Computation and Language(cs.CL)",
+                "Abbreviation": "cs.CL"
+            },
+            {
+                "Name": "Computational Complexity(cs.CC)",
+                "Abbreviation": "cs.CC"
+            },
+            {
+                "Name": "Computational Engineering, Finance, and Science(cs.CE)",
+                "Abbreviation": "cs.CE"
+            },
+            {
+                "Name": "Computational Geometry(cs.CG)",
+                "Abbreviation": "cs.CG"
+            },
+            {
+                "Name": "Computer Science and Game Theory(cs.GT)",
+                "Abbreviation": "cs.GT"
+            },
+            {
+                "Name": "Computer Vision and Pattern Recognition(cs.CV)",
+                "Abbreviation": "cs.CV"
+            },
+            {
+                "Name": "Computers and Society(cs.CY)",
+                "Abbreviation": "cs.CY"
+            },
+            {
+                "Name": "Cryptography and Security(cs.CR)",
+                "Abbreviation": "cs.CR"
+            },
+            {
+                "Name": "Data Structures and Algorithms(cs.DS)",
+                "Abbreviation": "cs.DS"
+            },
+            {
+                "Name": "Databases(cs.DB)",
+                "Abbreviation": "cs.DB"
+            },
+            {
+                "Name": "Digital Libraries(cs.DL)",
+                "Abbreviation": "cs.DL"
+            },
+            {
+                "Name": "Discrete Mathematics(cs.DM)",
+                "Abbreviation": "cs.DM"
+            },
+            {
+                "Name": "Distributed, Parallel, and Cluster Computing(cs.DC)",
+                "Abbreviation": "cs.DC"
+            },
+            {
+                "Name": "Emerging Technologies(cs.ET)",
+                "Abbreviation": "cs.ET"
+            },
+            {
+                "Name": "Formal Languages and Automata Theory(cs.FL)",
+                "Abbreviation": "cs.FL"
+            },
+            {
+                "Name": "General Literature(cs.GL)",
+                "Abbreviation": "cs.GL"
+            },
+            {
+                "Name": "Graphics(cs.GR)",
+                "Abbreviation": "cs.GR"
+            },
+            {
+                "Name": "Hardware Architecture(cs.AR)",
+                "Abbreviation": "cs.AR"
+            },
+            {
+                "Name": "Human-Computer Interaction(cs.HC)",
+                "Abbreviation": "cs.HC"
+            },
+            {
+                "Name": "Information Retrieval(cs.IR)",
+                "Abbreviation": "cs.IR"
+            },
+            {
+                "Name": "Information Theory(cs.IT)",
+                "Abbreviation": "cs.IT"
+            },
+            {
+                "Name": "Logic in Computer Science(cs.LO)",
+                "Abbreviation": "cs.LO"
+            },
+            {
+                "Name": "Machine Learning(cs.LG)",
+                "Abbreviation": "cs.LG"
+            },
+            {
+                "Name": "Mathematical Software(cs.MS)",
+                "Abbreviation": "cs.MS"
+            },
+            {
+                "Name": "Multiagent Systems(cs.MA)",
+                "Abbreviation": "cs.MA"
+            },
+            {
+                "Name": "Multimedia(cs.MM)",
+                "Abbreviation": "cs.MM"
+            },
+            {
+                "Name": "Networking and Internet Architecture(cs.NI)",
+                "Abbreviation": "cs.NI"
+            },
+            {
+                "Name": "Neural and Evolutionary Computing(cs.NE)",
+                "Abbreviation": "cs.NE"
+            },
+            {
+                "Name": "Numerical Analysis(cs.NA)",
+                "Abbreviation": "cs.NA"
+            },
+            {
+                "Name": "Operating Systems(cs.OS)",
+                "Abbreviation": "cs.OS"
+            },
+            {
+                "Name": "Other Computer Science(cs.OH)",
+                "Abbreviation": "cs.OH"
+            },
+            {
+                "Name": "Performance(cs.PF)",
+                "Abbreviation": "cs.PF"
+            },
+            {
+                "Name": "Programming Languages(cs.PL)",
+                "Abbreviation": "cs.PL"
+            },
+            {
+                "Name": "Robotics(cs.RO)",
+                "Abbreviation": "cs.RO"
+            },
+            {
+                "Name": "Social and Information Networks(cs.SI)",
+                "Abbreviation": "cs.SI"
+            },
+            {
+                "Name": "Software Engineering(cs.SE)",
+                "Abbreviation": "cs.SE"
+            },
+            {
+                "Name": "Sound(cs.SD)",
+                "Abbreviation": "cs.SD"
+            },
+            {
+                "Name": "Symbolic Computation(cs.SC)",
+                "Abbreviation": "cs.SC"
+            },
+            {
+                "Name": "Systems and Control(cs.SY)",
+                "Abbreviation": "cs.SY"
+            }
+        ]
+    },
+    {
+        "MainCategory_EN": "Quantitative Biology",
+        "MainCategory_ZH": "定量生物学",
+        "Subcategories": [
+            {
+                "Name": "Biomolecules(q-bio.BM)",
+                "Abbreviation": "q-bio.BM"
+            },
+            {
+                "Name": "Cell Behavior(q-bio.CB)",
+                "Abbreviation": "q-bio.CB"
+            },
+            {
+                "Name": "Genomics(q-bio.GN)",
+                "Abbreviation": "q-bio.GN"
+            },
+            {
+                "Name": "Molecular Networks(q-bio.MN)",
+                "Abbreviation": "q-bio.MN"
+            },
+            {
+                "Name": "Neurons and Cognition(q-bio.NC)",
+                "Abbreviation": "q-bio.NC"
+            },
+            {
+                "Name": "Other Quantitative Biology(q-bio.OT)",
+                "Abbreviation": "q-bio.OT"
+            },
+            {
+                "Name": "Populations and Evolution(q-bio.PE)",
+                "Abbreviation": "q-bio.PE"
+            },
+            {
+                "Name": "Quantitative Methods(q-bio.QM)",
+                "Abbreviation": "q-bio.QM"
+            },
+            {
+                "Name": "Subcellular Processes(q-bio.SC)",
+                "Abbreviation": "q-bio.SC"
+            },
+            {
+                "Name": "Tissues and Organs(q-bio.TO)",
+                "Abbreviation": "q-bio.TO"
+            }
+        ]
+    },
+    {
+        "MainCategory_EN": "Quantitative Finance",
+        "MainCategory_ZH": "量化金融",
+        "Subcategories": [
+            {
+                "Name": "Computational Finance(q-fin.CP)",
+                "Abbreviation": "q-fin.CP"
+            },
+            {
+                "Name": "Economics(q-fin.EC)",
+                "Abbreviation": "q-fin.EC"
+            },
+            {
+                "Name": "General Finance(q-fin.GN)",
+                "Abbreviation": "q-fin.GN"
+            },
+            {
+                "Name": "Mathematical Finance(q-fin.MF)",
+                "Abbreviation": "q-fin.MF"
+            },
+            {
+                "Name": "Portfolio Management(q-fin.PM)",
+                "Abbreviation": "q-fin.PM"
+            },
+            {
+                "Name": "Pricing of Securities(q-fin.PR)",
+                "Abbreviation": "q-fin.PR"
+            },
+            {
+                "Name": "Risk Management(q-fin.RM)",
+                "Abbreviation": "q-fin.RM"
+            },
+            {
+                "Name": "Statistical Finance(q-fin.ST)",
+                "Abbreviation": "q-fin.ST"
+            },
+            {
+                "Name": "Trading and Market Microstructure(q-fin.TR)",
+                "Abbreviation": "q-fin.TR"
+            }
+        ]
+    },
+    {
+        "MainCategory_EN": "Statistics",
+        "MainCategory_ZH": "统计学",
+        "Subcategories": [
+            {
+                "Name": "Applications(stat.AP)",
+                "Abbreviation": "stat.AP"
+            },
+            {
+                "Name": "Computation(stat.CO)",
+                "Abbreviation": "stat.CO"
+            },
+            {
+                "Name": "Machine Learning(stat.ML)",
+                "Abbreviation": "stat.ML"
+            },
+            {
+                "Name": "Methodology(stat.ME)",
+                "Abbreviation": "stat.ME"
+            },
+            {
+                "Name": "Other Statistics(stat.OT)",
+                "Abbreviation": "stat.OT"
+            },
+            {
+                "Name": "Statistics Theory(stat.TH)",
+                "Abbreviation": "stat.TH"
+            }
+        ]
+    },
+    {
+        "MainCategory_EN": "Electrical Engineering and Systems Science",
+        "MainCategory_ZH": "电气工程与系统科学",
+        "Subcategories": [
+            {
+                "Name": "Audio and Speech Processing(eess.AS)",
+                "Abbreviation": "eess.AS"
+            },
+            {
+                "Name": "Image and Video Processing(eess.IV)",
+                "Abbreviation": "eess.IV"
+            },
+            {
+                "Name": "Signal Processing(eess.SP)",
+                "Abbreviation": "eess.SP"
+            },
+            {
+                "Name": "Systems and Control(eess.SY)",
+                "Abbreviation": "eess.SY"
+            }
+        ]
+    },
+    {
+        "MainCategory_EN": "Economics",
+        "MainCategory_ZH": "经济学",
+        "Subcategories": [
+            {
+                "Name": "Econometrics(econ.EM)",
+                "Abbreviation": "econ.EM"
+            },
+            {
+                "Name": "General Economics(econ.GN)",
+                "Abbreviation": "econ.GN"
+            },
+            {
+                "Name": "Theoretical Economics(econ.TH)",
+                "Abbreviation": "econ.TH"
+            }
+        ]
+    }
+]

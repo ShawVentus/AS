@@ -17,7 +17,7 @@ USER_PROFILE = {
         "authors": ["Junxian He"],
         "institutions": ["AI2", "DeepSeek"]
     },
-    "status": {
+    "context": {
         "currentTask": "尝试独立开发论文查询agent",
         "futureGoal": "agent/LLM赋能医疗",
         "stage": "初学者",
