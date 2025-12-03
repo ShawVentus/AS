@@ -1,6 +1,6 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, Query, Depends
-from app.schemas.paper import PersonalizedPaper, PaperAnalysis
+from fastapi import APIRouter, HTTPException, Query, Depends, Body
+from app.schemas.paper import PersonalizedPaper, PaperAnalysis, PaperFeedbackRequest
 from app.services.paper_service import paper_service
 from app.services.user_service import user_service
 from app.core.auth import get_current_user_id
@@ -25,9 +25,24 @@ async def fetch_papers(limit: int = 100, user_id: str = Depends(get_current_user
 
 @router.get("/daily", response_model=List[PersonalizedPaper])
 async def get_daily_papers(user_id: str = Depends(get_current_user_id)):
-    profile = user_service.get_profile(user_id) 
-    papers = paper_service.get_papers(user_id)
-    return paper_service.filter_papers(papers, profile)
+    profile = user_service.get_profile(user_id)
+    
+    # 1. 根据用户关注的类别获取候选论文
+    candidates = paper_service.get_papers_by_categories(
+        categories=profile.focus.category, 
+        user_id=user_id,
+        limit=50 # 每次处理 50 篇
+    )
+    
+    # 2. 如果没有候选论文 (或者都已处理过)，尝试获取一些最新的 (兜底)
+    if not candidates:
+        # 这里可以选择是否要兜底，或者直接返回空
+        # 为了用户体验，如果完全没有新论文，可能需要触发爬虫或者返回空
+        # 暂时返回空，由前端提示
+        return []
+
+    # 3. 使用 LLM 过滤
+    return paper_service.filter_papers(candidates, profile)
 
 @router.get("/{paper_id}/analysis", response_model=PaperAnalysis)
 async def analyze_paper(paper_id: str, user_id: str = Depends(get_current_user_id)):
@@ -45,6 +60,19 @@ async def get_paper_detail(paper_id: str, user_id: str = Depends(get_current_use
     return paper
 
 @router.post("/{paper_id}/feedback")
-async def submit_paper_feedback(paper_id: str):
-    # 模拟反馈提交
+async def submit_paper_feedback(
+    paper_id: str, 
+    feedback_data: PaperFeedbackRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    success = paper_service.update_user_feedback(
+        user_id=user_id,
+        paper_id=paper_id,
+        liked=feedback_data.liked,
+        feedback=feedback_data.feedback
+    )
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="反馈提交失败")
+        
     return {"status": "success", "message": "反馈已收到"}

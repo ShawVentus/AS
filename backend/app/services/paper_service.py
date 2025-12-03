@@ -56,6 +56,90 @@ class PaperService:
 
         return PersonalizedPaper(meta=meta, analysis=analysis, user_state=user_state)
 
+    def get_papers_by_categories(self, categories: List[str], user_id: str, limit: int = 50) -> List[PersonalizedPaper]:
+        """
+        根据用户关注的类别获取候选论文。
+        排除已在 user_paper_states 中存在的论文。
+
+        Args:
+            categories (List[str]): 用户关注的类别列表。
+            user_id (str): 用户 ID。
+            limit (int): 限制数量。
+
+        Returns:
+            List[PersonalizedPaper]: 候选论文列表。
+        """
+        try:
+            if not categories:
+                return []
+
+            # 1. 获取用户已有的 paper_ids (避免重复推荐)
+            existing_states = self.db.table("user_paper_states").select("paper_id").eq("user_id", user_id).execute()
+            existing_ids = [row['paper_id'] for row in existing_states.data] if existing_states.data else []
+
+            # 2. 查询符合类别的论文
+            # 使用 overlaps (数组重叠) 匹配类别
+            # 注意: Supabase (PostgREST) 的 overlaps 语法是 cs (contains) 或 cd (contained by) 或 ov (overlap)
+            # 这里假设 category 字段是 text[] 类型
+            query = self.db.table("papers").select("*").overlaps("category", categories).order("created_at", desc=True).limit(limit)
+            
+            # 排除已存在的
+            if existing_ids:
+                # not_in 过滤器
+                # query = query.not_.in_("id", existing_ids) # Supabase Python client 语法可能略有不同，通常是 .not_in
+                # 简单起见，如果不支持复杂链式，可以在内存中过滤，或者分批查询
+                # 尝试使用 filter
+                pass 
+
+            response = query.execute()
+            papers_data = response.data if response.data else []
+
+            # 内存过滤 (为了保险起见，或者如果 not_in 语法有问题)
+            candidates = []
+            for p in papers_data:
+                if p['id'] not in existing_ids:
+                    # 构造默认状态 (None)
+                    candidates.append(self._merge_paper_state(p, None))
+            
+            return candidates
+
+        except Exception as e:
+            print(f"Error fetching papers by categories: {e}")
+            return []
+
+    def update_user_feedback(self, user_id: str, paper_id: str, liked: Optional[bool], feedback: Optional[str]) -> bool:
+        """
+        更新用户对论文的反馈 (Like/Dislike, Reason)。存储到数据库对应字段中
+
+        Args:
+            user_id (str): 用户 ID。
+            paper_id (str): 论文 ID。
+            liked (Optional[bool]): 是否喜欢。
+            feedback (Optional[str]): 反馈内容。
+
+        Returns:
+            bool: 是否更新成功。
+        """
+        try:
+            # 构造更新数据
+            update_data = {
+                "user_id": user_id,
+                "paper_id": paper_id,
+                # 仅更新非空字段，或者全部更新？通常是 patch 更新
+            }
+            if liked is not None:
+                update_data["user_liked"] = liked
+            if feedback is not None:
+                update_data["user_feedback"] = feedback
+            
+            # 使用 upsert，确保如果记录不存在也能创建 (虽然理论上应该先有 filter 记录)
+            # 但为了健壮性，如果用户直接对某篇未 filter 的论文操作 (极少情况)，也能记录
+            self.db.table("user_paper_states").upsert(update_data).execute()
+            return True
+        except Exception as e:
+            print(f"Error updating user feedback: {e}")
+            return False
+
     def get_papers(self, user_id: str) -> List[PersonalizedPaper]:
         """
         从数据库获取所有论文，并附加指定用户的状态信息。

@@ -67,7 +67,7 @@ class PaperAnalysis(BaseModel):
 class UserPaperState(BaseModel):
     """用户个性化状态"""
     paper_id: str
-    user_id: str
+    user_id: str # 用于确保仅对应用户可以访问
     
     # --- 推荐引擎生成 (LLM) ---
     why_this_paper: str # 针对该用户的推荐理由，必须要有
@@ -113,3 +113,8 @@ class FilterResponse(BaseModel):
 # Deprecated but kept for compatibility if needed, or remove
 class PaperMetadata(BaseModel):
     pass
+
+class PaperFeedbackRequest(BaseModel):
+    """用户反馈请求模型"""
+    liked: Optional[bool] = None
+    feedback: Optional[str] = None

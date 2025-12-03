@@ -16,4 +16,8 @@ env/
 node_modules/
 dist/
 .DS_Store
+
+# Else
+Latex/
 OpenResourceRepo
+.claude
