@@ -231,12 +231,13 @@ class PaperService:
             # 局部导入以避免循环依赖
             from app.services.user_service import user_service
             profile = user_service.get_profile(user_id)
+            print(f"Start processing pending papers for user: {profile.info.name}")
             
             # 2. 获取候选论文
             # 使用用户关注的类别
             categories = profile.focus.category
             if not categories:
-                print(f"User {user_id} has no focus categories.")
+                print(f"User {profile.info.name} ({user_id}) has no focus categories.")
                 # 返回空结果
                 from app.schemas.paper import FilterResponse
                 from datetime import datetime
@@ -250,11 +251,15 @@ class PaperService:
                     rejected_papers=[]
                 )
 
-            # 获取未处理的论文 (limit 可调整，这里设为 50)
-            papers = self.get_papers_by_categories(categories, user_id, limit=50)
+            # 获取未处理的论文
+            papers = self.get_papers_by_categories(categories, user_id)
+            
+            paper_ids = [p.meta.id for p in papers]
+            print(f"Collected Paper IDs for {profile.info.name}: {paper_ids}")
+            print(f"User: {profile.info.name}, Pending Paper Count: {len(papers)}")
             
             if not papers:
-                print(f"No pending papers found for user {user_id} in categories {categories}.")
+                print(f"No pending papers found for user {profile.info.name} ({user_id}) in categories {categories}.")
                 from app.schemas.paper import FilterResponse
                 from datetime import datetime
                 return FilterResponse(
