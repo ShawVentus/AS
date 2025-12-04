@@ -4,8 +4,6 @@ import asyncio
 from unittest.mock import MagicMock, patch
 
 # Add backend directory to sys.path
-# Current file is in backend/tests/
-# We need to add backend/ to sys.path so we can import app
 backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(backend_path)
 
@@ -19,29 +17,64 @@ async def test_get_papers_by_categories():
     # Mock DB
     service.db = MagicMock()
     
-    # Mock existing states (empty)
-    service.db.table.return_value.select.return_value.eq.return_value.execute.return_value.data = []
+    # Mock existing states (simulate user has seen paper_1)
+    service.db.table.return_value.select.return_value.eq.return_value.execute.return_value.data = [{"paper_id": "paper_1"}]
     
-    # Mock papers response
-    mock_paper = {
-        "id": "test_paper_1",
-        "title": "Test Paper",
-        "authors": ["Author A"],
-        "published_date": "2023-01-01",
+    # Mock papers response (return paper_2)
+    mock_paper_2 = {
+        "id": "paper_2",
+        "title": "Test Paper 2",
+        "authors": ["Author B"],
+        "published_date": "2023-01-02",
         "category": ["cs.AI"],
-        "abstract": "Abstract",
+        "abstract": "Abstract 2",
         "links": {"pdf": "", "arxiv": "", "html": ""},
         "comment": ""
     }
-    service.db.table.return_value.select.return_value.overlaps.return_value.order.return_value.limit.return_value.execute.return_value.data = [mock_paper]
+    
+    # Setup chain for query
+    # table -> select -> overlaps -> order -> not_.in_ -> limit -> execute
+    # We need to ensure not_.in_ is called
+    
+    # Mock the chain step by step
+    select_mock = service.db.table.return_value.select.return_value
+    overlaps_mock = select_mock.overlaps.return_value
+    order_mock = overlaps_mock.order.return_value
+    not_in_mock = order_mock.not_.in_.return_value
+    limit_mock = not_in_mock.limit.return_value
+    
+    # Set the return value for the final execute
+    limit_mock.execute.return_value.data = [mock_paper_2]
+    
+    # Also handle the case where not_.in_ might be skipped (if existing_ids was empty, but here we mocked it as present)
+    # But since we mocked existing_ids as present, the code WILL call not_.in_
     
     # Call method
     result = service.get_papers_by_categories(["cs.AI"], "user_123")
     
-    if len(result) == 1 and result[0].meta.id == "test_paper_1":
-        print("✅ Success: Fetched candidate paper.")
+    # Verify upsert was called for the new paper
+    # We expect: service.db.table("user_paper_states").upsert(...).execute()
+    # Check if upsert was called
+    # Note: service.db.table returns the same mock object for all calls
+    table_mock = service.db.table.return_value
+    upsert_calls = table_mock.upsert.call_args_list
+    
+    if upsert_calls:
+        print("[OK] Success: Initial state persistence triggered.")
+        args, _ = upsert_calls[0]
+        print(f"Upsert data: {args[0]}")
     else:
-        print(f"❌ Failed: Expected 1 paper, got {len(result)}")
+        print("[FAIL] Failed: No upsert call detected.")
+        # print("All mock calls:", service.db.mock_calls) # Too verbose
+
+    if len(result) == 1 and result[0].meta.id == "paper_2":
+        print("[OK] Success: Fetched new candidate paper (paper_2).")
+        if result[0].user_state and result[0].user_state.why_this_paper == "Not Filtered":
+             print("[OK] Success: User state initialized correctly.")
+        else:
+             print("[FAIL] Failed: User state not initialized.")
+    else:
+        print(f"[FAIL] Failed: Expected 1 paper, got {len(result)}")
 
 async def test_update_user_feedback():
     print("\n--- Testing update_user_feedback ---")
@@ -53,11 +86,10 @@ async def test_update_user_feedback():
     
     if success:
         # Verify db call
-        # service.db.table("user_paper_states").upsert(...).execute()
         service.db.table.assert_called_with("user_paper_states")
-        print("✅ Success: Feedback update triggered.")
+        print("[OK] Success: Feedback update triggered.")
     else:
-        print("❌ Failed: Update returned False")
+        print("[FAIL] Failed: Update returned False")
 
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()

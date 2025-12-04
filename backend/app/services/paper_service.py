@@ -73,8 +73,12 @@ class PaperService:
             if not categories:
                 return []
 
-            # 1. 获取用户已有的 paper_ids (避免重复推荐)
-            existing_states = self.db.table("user_paper_states").select("paper_id").eq("user_id", user_id).execute()
+            # 1. 获取用户已真正处理过的 paper_ids (排除 "Not Filtered" 状态的论文)
+            existing_states = self.db.table("user_paper_states")\
+                .select("paper_id")\
+                .eq("user_id", user_id)\
+                .neq("why_this_paper", "Not Filtered")\
+                .execute()
             existing_ids = [row['paper_id'] for row in existing_states.data] if existing_states.data else []
 
             # 2. 查询符合类别的论文
@@ -207,6 +211,82 @@ class PaperService:
             print(f"Error crawling: {e}")
             return self.get_papers(user_id)
 
+    def process_pending_papers(self, user_id: str) -> FilterResponse:
+        """
+        处理用户的待处理论文 (Pending Papers)。
+        
+        流程:
+        1. 获取用户画像 (Profile)。
+        2. 根据画像中的关注类别 (Focus.category) 获取候选论文。
+        3. 调用 filter_papers 进行批量筛选 (LLM)。
+        
+        Args:
+            user_id (str): 用户 ID。
+            
+        Returns:
+            FilterResponse: 筛选结果统计。
+        """
+        try:
+            # 1. 获取用户画像
+            # 局部导入以避免循环依赖
+            from app.services.user_service import user_service
+            profile = user_service.get_profile(user_id)
+            
+            # 2. 获取候选论文
+            # 使用用户关注的类别
+            categories = profile.focus.category
+            if not categories:
+                print(f"User {user_id} has no focus categories.")
+                # 返回空结果
+                from app.schemas.paper import FilterResponse
+                from datetime import datetime
+                return FilterResponse(
+                    user_id=user_id,
+                    created_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    total_analyzed=0,
+                    accepted_count=0,
+                    rejected_count=0,
+                    selected_papers=[],
+                    rejected_papers=[]
+                )
+
+            # 获取未处理的论文 (limit 可调整，这里设为 50)
+            papers = self.get_papers_by_categories(categories, user_id, limit=50)
+            
+            if not papers:
+                print(f"No pending papers found for user {user_id} in categories {categories}.")
+                from app.schemas.paper import FilterResponse
+                from datetime import datetime
+                return FilterResponse(
+                    user_id=user_id,
+                    created_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    total_analyzed=0,
+                    accepted_count=0,
+                    rejected_count=0,
+                    selected_papers=[],
+                    rejected_papers=[]
+                )
+
+            # 3. 批量筛选
+            return self.filter_papers(papers, profile)
+
+        except Exception as e:
+            print(f"Error processing pending papers: {e}")
+            import traceback
+            traceback.print_exc()
+            # 返回空结果或抛出异常
+            from app.schemas.paper import FilterResponse
+            from datetime import datetime
+            return FilterResponse(
+                user_id=user_id,
+                created_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                total_analyzed=0,
+                accepted_count=0,
+                rejected_count=0,
+                selected_papers=[],
+                rejected_papers=[]
+            )
+
     def filter_papers(self, papers: List[PersonalizedPaper], user_profile: UserProfile) -> FilterResponse:
         """
         使用 LLM 批量过滤论文 (Personalized Filter)。
@@ -236,11 +316,11 @@ class PaperService:
         user_id = user_profile.info.id
         
         # --- 1. 准备用户上下文 ---
-        # 将用户画像中的 Focus (关注领域/关键词) 和 Status (当前任务/阶段) 提取并序列化
+        # 将用户画像中的 Focus (关注领域/关键词) 和 Context (当前任务/偏好) 提取并序列化
         # 目的：减少传递给 LLM 的 Token 数，仅保留筛选决策所需的核心信息
         profile_context = {
             "focus": user_profile.focus.model_dump(),
-            "status": user_profile.status.model_dump()
+            "context": user_profile.context.model_dump()
         }
         profile_str = json.dumps(profile_context, ensure_ascii=False, indent=2)
 

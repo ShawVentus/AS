@@ -27,12 +27,12 @@ async def fetch_papers(limit: int = 100, user_id: str = Depends(get_current_user
 async def get_daily_papers(user_id: str = Depends(get_current_user_id)):
     profile = user_service.get_profile(user_id)
     
-    # 1. 根据用户关注的类别获取候选论文
-    candidates = paper_service.get_papers_by_categories(
-        categories=profile.focus.category, 
-        user_id=user_id,
-        limit=50 # 每次处理 50 篇
-    )
+    # 1. 同步用户私有库 (Sync)
+    sync_log = paper_service.get_papers_by_categories(user_id=user_id)
+    print(f"[Daily Sync] {sync_log}")
+    
+    # 2. 获取待处理的候选论文 (Pending)
+    candidates = paper_service.get_pending_papers(user_id=user_id, limit=50)
     
     # 2. 如果没有候选论文 (或者都已处理过)，尝试获取一些最新的 (兜底)
     if not candidates:

@@ -1,0 +1,6 @@
+测试时间: 2025-12-04 15:33:58.974291
+测试函数: get_papers_by_categories
+输入 User ID: 03985519-8f62-48bb-a3ff-f9bae5481a0f
+------------------------------
+输出日志:
+User tsingxiii@gmail.com updated 0 new papers.
