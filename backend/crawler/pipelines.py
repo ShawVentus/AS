@@ -40,7 +40,7 @@ class SupabasePipeline:
             # on_conflict="id": 指定冲突字段
             # ignore_duplicates=True: 如果 ID 已存在，则忽略本次写入（保留旧数据，不覆盖）
             # 这样可以保证如果数据库里已经有了（无论是 pending 还是 completed），都不会被这个简单的 Stage 1 数据覆盖
-            response = self.db.table("papers").upsert(
+            response = self.db.table("daily_papers").upsert(
                 data, 
                 on_conflict="id", 
                 ignore_duplicates=True

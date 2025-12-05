@@ -7,7 +7,7 @@ from app.core.database import get_db
 # 加载环境变量
 load_dotenv()
 
-def fetch_and_update_details():
+def fetch_and_update_details(table_name: str = "papers"):
     """
     Stage 2: 批量获取论文详情并更新到数据库
     """
@@ -21,13 +21,13 @@ def fetch_and_update_details():
         num_retries=5
     )
     
-    print("Starting Stage 2: Batch fetching paper details...")
+    print(f"Starting Stage 2: Batch fetching paper details from {table_name}...")
     
     while True:
         # 1. 从 DB 获取待处理的 ID (status = 'pending')
         # 每次获取 100 个
         try:
-            response = db.table("papers")\
+            response = db.table(table_name)\
                 .select("id")\
                 .eq("status", "pending")\
                 .limit(100)\
@@ -75,7 +75,7 @@ def fetch_and_update_details():
                         "arxiv": paper.entry_id,
                         "html": paper.entry_id.replace("/abs/", "/html/")
                     },
-                    "status": "completed", # 标记为完成
+                    "status": "fetched", # 标记为已获取详情，等待分析
                     # "updated_at": "now()" # Supabase 自动处理或手动添加
                 })
             
@@ -83,7 +83,7 @@ def fetch_and_update_details():
             if updates:
                 # 使用 upsert 更新现有记录
                 # 注意: Supabase-py 的 upsert 默认行为是 update if exists
-                db.table("papers").upsert(updates).execute()
+                db.table(table_name).upsert(updates).execute()
                 print(f"Successfully updated {len(updates)} papers.")
             
             # 4. 处理 API 未找到的论文
@@ -93,7 +93,7 @@ def fetch_and_update_details():
             if missing_ids:
                 print(f"Warning: {len(missing_ids)} papers not found, marking as failed. IDs: {missing_ids}")
                 failed_updates = [{"id": mid, "status": "failed"} for mid in missing_ids]
-                db.table("papers").upsert(failed_updates).execute()
+                db.table(table_name).upsert(failed_updates).execute()
 
         except Exception as e:
             print(f"API or Database Error: {e}")

@@ -44,6 +44,7 @@ class QwenService:
                     {"role": "system", "content": self.read_prompt("system.md")},
                     {"role": "user", "content": prompt},
                 ],
+                temperature=1,
                 response_format={"type": "json_object"} # 强制JSON格式(如果支持),或仅依赖提示词
             )
             return completion.choices[0].message.content

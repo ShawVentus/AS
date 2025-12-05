@@ -15,7 +15,7 @@ class UserService:
 
     def _get_user_id(self, email: str) -> Optional[str]:
         """
-        根据邮箱获取用户 ID。
+        根据邮箱获取用户 ID (从 profiles 表查询)。
 
         Args:
             email (str): 用户的电子邮件地址。
@@ -24,9 +24,11 @@ class UserService:
             Optional[str]: 用户的唯一 ID (UUID)。如果未找到用户，返回 None。
         """
         try:
-            response = self.db.table("users").select("id").eq("email", email).execute()
+            # 直接查 profiles 表中的 info->>email
+            # Supabase JSONB query syntax: info->>email
+            response = self.db.table("profiles").select("user_id").eq("info->>email", email).execute()
             if response.data:
-                return response.data[0]["id"]
+                return response.data[0]["user_id"]
             return None
         except Exception as e:
             print(f"Error getting user ID: {e}")
@@ -50,10 +52,10 @@ class UserService:
             if user_id:
                 return user_id
             
-            # 创建用户
-            user_data = {"email": DEFAULT_EMAIL}
-            response = self.db.table("users").insert(user_data).execute()
-            user_id = response.data[0]["id"]
+            # 创建用户 (仅在 Profiles 表中创建)
+            # 生成一个固定的 UUID 或者随机 UUID
+            import uuid
+            user_id = str(uuid.uuid4())
             
             # 创建空白画像（让前端 Onboarding 填充）
             # 使用邮箱前缀作为临时名称，避免空字符串导致 Avatar 组件问题
@@ -190,6 +192,9 @@ class UserService:
             # 更新画像中的info部分
             # 注意:在实际应用中,我们可能根据输入生成默认的Focus/Context
             # 现在我们只更新info部分
+            
+            # 确保 info 中包含 id
+            user_info.id = user_id
             
             # 获取当前画像以合并
             current_profile = self.get_profile()

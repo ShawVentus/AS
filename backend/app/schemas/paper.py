@@ -13,9 +13,9 @@ class PaperDetails(BaseModel):
 
 class PaperLinks(BaseModel):
     """论文链接模型"""
-    pdf: str
-    arxiv: str
-    html: str
+    pdf: Optional[str] = None
+    arxiv: Optional[str] = None
+    html: Optional[str] = None
 
 class DislikeReason(BaseModel):
     """不感兴趣原因模型"""
@@ -28,12 +28,12 @@ class RawPaperMetadata(BaseModel):
     包含论文的客观事实，不包含 AI 分析结果。
     """
     id: str
-    title: str
-    authors: List[str]
-    published_date: str
+    title: Optional[str] = None
+    authors: Optional[List[str]] = None
+    published_date: Optional[str] = None
     category: List[str]  # 存储所有分类
-    abstract: str
-    links: PaperLinks
+    abstract: Optional[str] = None
+    links: Optional[PaperLinks] = None
     comment: Optional[str] = None
 
     @field_validator('category', mode='before')

@@ -42,7 +42,7 @@ async def get_daily_papers(user_id: str = Depends(get_current_user_id)):
         return []
 
     # 3. 使用 LLM 过滤
-    return paper_service.filter_papers(candidates, profile)
+    return paper_service.filter_papers(candidates, profile, user_id)
 
 @router.get("/{paper_id}/analysis", response_model=PaperAnalysis)
 async def analyze_paper(paper_id: str, user_id: str = Depends(get_current_user_id)):

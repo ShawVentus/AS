@@ -3,14 +3,30 @@ from datetime import datetime, timedelta
 import json
 import subprocess
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from app.schemas.paper import RawPaperMetadata, UserPaperState, PersonalizedPaper, PaperAnalysis, PaperDetails, PaperLinks, PaperFilter, FilterResponse, FilterResultItem
 from app.schemas.user import UserProfile
 from app.services.llm_service import llm_service
 from app.core.database import get_db
 
+MAX_WORKERS = 5
+
 class PaperService:
     def __init__(self):
         self.db = get_db()
+
+    def clear_daily_papers(self) -> bool:
+        """
+        清空每日更新数据库。
+        """
+        try:
+            # delete all rows
+            self.db.table("daily_papers").delete().neq("id", "00000").execute()
+            return True
+        except Exception as e:
+            print(f"Error clearing daily papers: {e}")
+            return False
 
     def _merge_paper_state(self, paper: dict, state: Optional[dict]) -> PersonalizedPaper:
         """
@@ -56,7 +72,7 @@ class PaperService:
 
         return PersonalizedPaper(meta=meta, analysis=analysis, user_state=user_state)
 
-    def get_papers_by_categories(self, categories: List[str], user_id: str, limit: int = 50) -> List[PersonalizedPaper]:
+    def get_papers_by_categories(self, categories: List[str], user_id: str, limit: int = 1, table_name: str = "papers") -> List[PersonalizedPaper]:
         """
         根据用户关注的类别获取候选论文。
         排除已在 user_paper_states 中存在的论文。
@@ -85,7 +101,7 @@ class PaperService:
             # 使用 overlaps (数组重叠) 匹配类别
             # 注意: Supabase (PostgREST) 的 overlaps 语法是 cs (contains) 或 cd (contained by) 或 ov (overlap)
             # 这里假设 category 字段是 text[] 类型
-            query = self.db.table("papers").select("*").overlaps("category", categories).order("created_at", desc=True).limit(limit)
+            query = self.db.table(table_name).select("*").overlaps("category", categories).order("created_at", desc=True).limit(limit)
             
             # 排除已存在的
             if existing_ids:
@@ -252,7 +268,17 @@ class PaperService:
                 )
 
             # 获取未处理的论文
-            papers = self.get_papers_by_categories(categories, user_id)
+            # 优先从 daily_papers 获取 (当日更新)
+            # 如果 daily_papers 为空 (例如今天没有更新)，则逻辑上应该返回空，或者根据需求去查 papers
+            # 这里按照需求：只关注当日更新
+            
+            # 临时修改 get_papers_by_categories 支持指定表名
+            papers = self.get_papers_by_categories(categories, user_id, table_name="daily_papers")
+            
+            # 如果 daily_papers 没有找到，是否回退到 papers? 
+            # 根据 "减少计算量" 的初衷，应该只处理 daily_papers。
+            # 但为了测试方便，如果 daily_papers 为空，暂时不回退，直接返回空。
+            
             
             paper_ids = [p.meta.id for p in papers]
             print(f"Collected Paper IDs for {profile.info.name}: {paper_ids}")
@@ -273,7 +299,7 @@ class PaperService:
                 )
 
             # 3. 批量筛选
-            return self.filter_papers(papers, profile)
+            return self.filter_papers(papers, profile, user_id)
 
         except Exception as e:
             print(f"Error processing pending papers: {e}")
@@ -292,7 +318,7 @@ class PaperService:
                 rejected_papers=[]
             )
 
-    def filter_papers(self, papers: List[PersonalizedPaper], user_profile: UserProfile) -> FilterResponse:
+    def filter_papers(self, papers: List[PersonalizedPaper], user_profile: UserProfile, user_id: str) -> FilterResponse:
         """
         使用 LLM 批量过滤论文 (Personalized Filter)。
         
@@ -302,7 +328,7 @@ class PaperService:
         3. 并发处理每篇论文：
             a. 检查是否已处理过 (避免重复消耗 Token)。
             b. 将论文元数据 (Meta) 序列化为 JSON 字符串。
-            c. 调用 `filter_single_paper` 工具函数，传入序列化后的画像和论文数据。
+            c. 调用 `_filter_with_retry` 工具函数，传入序列化后的画像和论文数据。
         4. 获取 LLM 结果 (Relevance Score, Reason, Accepted)。
         5. 将结果持久化到数据库 (`user_paper_states` 表) 并更新内存对象。
         6. 构造并返回包含统计信息的 FilterResponse。
@@ -310,35 +336,59 @@ class PaperService:
         Args:
             papers (List[PersonalizedPaper]): 待过滤的论文列表。
             user_profile (UserProfile): 用户画像对象，包含 Focus (关注点) 和 Status (当前任务/阶段)。
+            user_id (str): 用户 ID。
 
         Returns:
             FilterResponse: 包含统计信息和所有处理过的论文结果列表。
         """
-        from concurrent.futures import ThreadPoolExecutor, as_completed
         from app.utils.paper_analysis_utils import filter_single_paper
 
-        # 使用 id 作为 user_id
-        user_id = user_profile.info.id
+        start_time = time.time()
         
         # --- 1. 准备用户上下文 ---
         # 将用户画像中的 Focus (关注领域/关键词) 和 Context (当前任务/偏好) 提取并序列化
         # 目的：减少传递给 LLM 的 Token 数，仅保留筛选决策所需的核心信息
+        
+        # 移除 category 字段，避免传入 LLM
+        focus_dict = user_profile.focus.model_dump()
+        if "category" in focus_dict:
+            del focus_dict["category"]
+            
         profile_context = {
-            "focus": user_profile.focus.model_dump(),
+            "focus": focus_dict,
             "context": user_profile.context.model_dump()
         }
         profile_str = json.dumps(profile_context, ensure_ascii=False, indent=2)
 
-        print(f"Filtering {len(papers)} papers with LLM (Concurrent)...")
+        print(f"Filtering {len(papers)} papers with LLM (Concurrent, Max Workers={MAX_WORKERS})...")
 
         # 结果容器
         selected_papers: List[FilterResultItem] = []
         rejected_papers: List[FilterResultItem] = []
         accepted_count = 0
         rejected_count = 0
+        total_retries = 0
+        processed_count = 0
+        total_papers = len(papers)
+
+        # 内部重试函数
+        def _filter_with_retry(paper_str, profile_str):
+            retries = 0
+            max_retries = 3
+            last_error = None
+            while retries < max_retries:
+                try:
+                    result = filter_single_paper(paper_str, profile_str)
+                    return result, retries
+                except Exception as e:
+                    retries += 1
+                    last_error = e
+                    print(f"Retry {retries}/{max_retries} failed: {e}")
+                    time.sleep(1) # 简单的退避
+            raise last_error
 
         # --- 2. 并发执行 LLM 筛选 ---
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             future_to_paper = {}
             for p in papers:
                 # 优化：如果已经有推荐理由且不是默认值，说明已处理过
@@ -356,6 +406,8 @@ class PaperService:
                     else:
                         rejected_papers.append(item)
                         rejected_count += 1
+                    
+                    processed_count += 1
                     continue
                 
                 # 准备论文数据: 仅使用 meta 部分 (Title, Abstract 等)
@@ -364,14 +416,21 @@ class PaperService:
                 paper_str = json.dumps(paper_dict, ensure_ascii=False, indent=2)
                 
                 # 提交任务到线程池
-                future = executor.submit(filter_single_paper, paper_str, profile_str)
+                future = executor.submit(_filter_with_retry, paper_str, profile_str)
                 future_to_paper[future] = p
 
             # --- 3. 处理筛选结果 ---
             for future in as_completed(future_to_paper):
                 p = future_to_paper[future]
+                processed_count += 1
+                
+                # 进度日志
+                if processed_count % 10 == 0 or processed_count == total_papers:
+                    print(f"Progress: {processed_count}/{total_papers} papers processed...")
+
                 try:
-                    filter_result = future.result()
+                    filter_result, retries = future.result()
+                    total_retries += retries
                     
                     # 构造状态数据字典
                     state_data = {
@@ -406,13 +465,23 @@ class PaperService:
                         rejected_count += 1
 
                 except Exception as e:
-                    print(f"Error filtering paper {p.meta.id}: {e}")
+                    print(f"Error filtering paper {p.meta.id} after retries: {e}")
                     # 发生错误时不计入统计或作为失败处理，这里简单跳过
 
         # --- 4. 排序与构造返回对象 ---
         # 按 relevance_score 降序排列
         selected_papers.sort(key=lambda x: x.relevance_score, reverse=True)
         rejected_papers.sort(key=lambda x: x.relevance_score, reverse=True)
+
+        end_time = time.time()
+        total_time = end_time - start_time
+        
+        # 汇总日志
+        print(f"Filtering Completed.")
+        print(f"Total Time: {total_time:.2f}s")
+        print(f"Total Papers: {total_papers}")
+        print(f"Accepted: {accepted_count}, Rejected: {rejected_count}")
+        print(f"Total Retries: {total_retries}")
 
         from datetime import datetime
         return FilterResponse(
@@ -458,7 +527,16 @@ class PaperService:
             }
             
             try:
-                self.db.table("papers").update(update_data).eq("id", paper.meta.id).execute()
+                # 1. Update daily_papers
+                self.db.table("daily_papers").update(update_data).eq("id", paper.meta.id).execute()
+                
+                # 2. Insert into papers (Public DB)
+                # 需要构造完整的 record
+                full_paper_data = paper.meta.model_dump()
+                full_paper_data.update(update_data)
+                # category 是 list, 需要确保格式正确
+                
+                self.db.table("papers").upsert(full_paper_data).execute()
                 
                 return PaperAnalysis(**analysis_dict)
             except Exception as e:
