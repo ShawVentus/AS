@@ -4,11 +4,13 @@ import type { Paper } from '../../../types';
 
 interface PaperCardProps {
     paper: Paper;
+    index: number;
+    showIndex?: boolean; // 是否显示序号标签，默认 true
     onOpenDetail: (paper: Paper) => void;
     onFeedback?: (paperId: string, isLike: boolean, reason?: string) => void;
 }
 
-export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFeedback }) => {
+export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = true, onOpenDetail, onFeedback }) => {
     const [showFeedbackMenu, setShowFeedbackMenu] = React.useState(false);
     const [feedbackType, setFeedbackType] = React.useState<'like' | 'dislike' | null>(null);
     const [customReason, setCustomReason] = React.useState('');
@@ -47,24 +49,28 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
         return null;
     }
 
-    // Helper to get tags keys
-    const tags = paper.analysis?.tags ? Object.keys(paper.analysis.tags) : [];
+
 
     return (
         <div
-            className="group relative bg-slate-900 border border-slate-800 rounded-xl overflow-visible hover:border-cyan-500/50 hover:shadow-lg hover:shadow-cyan-900/20 transition-all duration-300 cursor-pointer flex flex-col h-full"
+            className="group relative flex flex-col bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl hover:border-cyan-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-900/10 cursor-pointer h-full"
             onClick={() => onOpenDetail(paper)}
         >
+            {/* Index Tag */}
+            {showIndex && (
+                <div className="absolute -top-3 -left-3 w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-lg shadow-indigo-900/20 z-20">
+                    {index}
+                </div>
+            )}
+
             {/* Card Header */}
-            <div className="p-5 pb-0 flex-grow">
-                <div className="flex justify-between items-start mb-3">
-                    <div className="flex gap-2">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-400 border border-cyan-900/50">{paper.meta.category?.[0]}</span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700">{paper.meta.published_date}</span>
-                    </div>
+            <div className="p-5 pb-0 flex-grow relative">
+                {/* Removed Top-Left Info as per request */}
+                <div className="flex justify-between items-start mb-1 pl-8">
+                    {/* Placeholder for spacing if needed, or just margin */}
                 </div>
 
-                <h3 className="text-base font-bold text-white mb-2 leading-snug group-hover:text-cyan-400 transition-colors line-clamp-2">
+                <h3 className="text-lg font-bold text-white mb-2 leading-snug group-hover:text-cyan-400 transition-colors line-clamp-2 mt-1">
                     {paper.meta.title}
                 </h3>
                 <p className="text-xs text-slate-500 mb-4 line-clamp-1">{paper.meta.authors.join(", ")}</p>
@@ -95,13 +101,29 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, onOpenDetail, onFee
 
             {/* Card Footer */}
             <div className="p-4 pt-0 mt-auto flex items-center justify-between border-t border-slate-800/50 pt-3 relative">
-                <div className="flex gap-1.5">
-                    {tags.slice(0, 2).map(tag => (
-                        <span key={tag} className="text-[10px] text-slate-500 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">#{tag}</span>
-                    ))}
-                    {tags.length > 2 && (
-                        <span className="text-[10px] text-slate-600 px-1.5 py-0.5">+{tags.length - 2}</span>
-                    )}
+                <div className="flex flex-col gap-1.5 w-full">
+                    {/* Bottom-Left Info: Score | Date | Category */}
+                    <div className="flex items-center gap-2 text-xs font-medium flex-wrap">
+                        {/* Relevance Score */}
+                        <span className={`${(paper.user_state?.relevance_score || 0) >= 0.7 ? 'text-cyan-400' :
+                            (paper.user_state?.relevance_score || 0) >= 0.4 ? 'text-yellow-400' :
+                                'text-red-400'
+                            }`}>
+                            {(paper.user_state?.relevance_score || 0).toFixed(2)}
+                        </span>
+                        <span className="text-slate-600">|</span>
+                        {/* Published Date */}
+                        <span className="text-slate-400">{paper.meta.published_date}</span>
+                        <span className="text-slate-600">|</span>
+                        {/* Category - Show All */}
+                        <div className="flex gap-1 flex-wrap">
+                            {paper.meta.category?.map(cat => (
+                                <span key={cat} className="text-slate-400">{cat}</span>
+                            ))}
+                        </div>
+                    </div>
+
+
                 </div>
 
                 <div className="flex items-center gap-2">

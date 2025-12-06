@@ -7,7 +7,6 @@ import { ReportList } from './components/features/reports/ReportList';
 import { PaperList } from './components/features/papers/PaperList';
 import { PaperCard } from './components/features/papers/PaperCard';
 import { PaperDetailModal } from './components/shared/PaperDetailModal';
-import { Heatmap } from './components/shared/Heatmap';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LoadingScreen } from './components/common/LoadingScreen';
 import type { Report, Paper, UserProfile } from './types';
@@ -74,6 +73,8 @@ function App() {
                     }
                 }
 
+                // Sort by relevance score descending and take top 3
+                recs.sort((a, b) => (b.user_state?.relevance_score || 0) - (a.user_state?.relevance_score || 0));
                 setRecommendations(recs.slice(0, 3));
 
                 if (reports && reports.length > 0) {
@@ -247,12 +248,7 @@ function App() {
                         ))}
                     </div>
 
-                    <div className="mb-8">
-                        <h2 className="text-sm font-bold text-white mb-3">科研热力图</h2>
-                        <div className="bg-slate-950 border border-slate-800 rounded-lg p-4">
-                            <Heatmap />
-                        </div>
-                    </div>
+                    {/* Heatmap Removed as per request */}
 
                     <div className="flex items-center justify-between mb-3">
                         <h2 className="text-sm font-bold text-white">推荐论文</h2>
@@ -264,8 +260,14 @@ function App() {
                         </button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-10">
-                        {recommendations.map(p => (
-                            <PaperCard key={p.meta?.id || Math.random()} paper={p} onOpenDetail={(paper) => setModalPaper(paper)} />
+                        {recommendations.map((p, idx) => (
+                            <PaperCard
+                                key={p.meta?.id || Math.random()}
+                                paper={p}
+                                index={idx + 1}
+                                showIndex={false} // Hide index tag for recommendations
+                                onOpenDetail={(paper) => setModalPaper(paper)}
+                            />
                         ))}
                     </div>
                 </div>

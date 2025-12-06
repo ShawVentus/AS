@@ -58,8 +58,8 @@ class PaperService:
         if paper.get("details") or paper.get("tldr"):
             details = paper.get("details") or {}
             analysis_data = {
-                "tldr": paper.get("tldr"),
-                "tags": paper.get("tags") or {},
+                "tldr": details.get("tldr"),
+                "tags": details.get("tags") or {},
                 "motivation": details.get("motivation"),
                 "method": details.get("method"),
                 "result": details.get("result"),
@@ -665,8 +665,9 @@ class PaperService:
             List[PersonalizedPaper]: 推荐的论文列表。
         """
         try:
-            # 1. Get states where accepted=True
-            query = self.db.table("user_paper_states").select("*").eq("user_id", user_id).eq("accepted", True)
+            # 1. Get states where why_this_paper is not 'Not Filtered' (meaning it has been analyzed)
+            # Previously filtered by accepted=True, now returning all analyzed papers for frontend filtering
+            query = self.db.table("user_paper_states").select("*").eq("user_id", user_id).neq("why_this_paper", "Not Filtered")
             
             if date:
                 # 筛选指定日期的记录 (created_at >= date AND created_at < date + 1 day)

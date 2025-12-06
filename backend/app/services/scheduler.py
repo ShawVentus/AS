@@ -27,9 +27,12 @@ class SchedulerService:
         Returns:
             None
         """
+        if self.scheduler.running:
+            print("Scheduler is already running.")
+            return
+
         # 安排每日任务在早上8:00执行
         self.scheduler.add_job(self.run_daily_workflow, 'cron', hour=8, minute=0)
-        self.scheduler.start()
         self.scheduler.start()
         print("Scheduler started. Daily job scheduled for 08:00.")
 
