@@ -1,0 +1,139 @@
+import os
+import subprocess
+import sys
+from typing import List, Optional
+from app.core.database import get_db
+from app.services.paper_service import paper_service
+from app.schemas.paper import PersonalizedPaper, RawPaperMetadata
+from crawler.fetch_details import fetch_and_update_details
+
+class WorkflowService:
+    def __init__(self):
+        self.db = get_db()
+
+    def run_crawler(self, categories: Optional[List[str]] = None):
+        """
+        运行 ArXiv 爬虫任务。
+        
+        通过 subprocess 调用 Scrapy 爬虫，抓取最新的论文数据并存入数据库。
+        支持传入类别列表，如果传入则只爬取指定类别。
+
+        Args:
+            categories (Optional[List[str]]): 需要爬取的类别列表。如果不传，爬虫将使用环境变量中的默认配置。
+
+        Returns:
+            None
+        """
+        print("Starting ArXiv Crawler...")
+        try:
+            # cwd should be backend root (where scrapy.cfg is)
+            backend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+            print(f"Running Scrapy in: {backend_root}")
+            
+            cmd = ["scrapy", "crawl", "arxiv"]
+            
+            # 如果有类别参数，通过 -a 传递给 spider
+            if categories:
+                categories_str = ",".join(categories)
+                print(f"Crawling specific categories: {categories_str}")
+                cmd.extend(["-a", f"categories={categories_str}"])
+            
+            subprocess.run(cmd, check=True, cwd=backend_root)
+            print("Crawler finished.")
+            
+        except Exception as e:
+            print(f"Crawler failed: {e}")
+            raise e
+
+    def analyze_public_papers(self):
+        """
+        处理公共论文分析。
+        
+        获取状态为 'fetched' 的新论文，并进行公共分析（如生成 TLDR、提取 Motivation 等）。
+        这些分析结果是通用的，不针对特定用户。
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        print("Starting Public Analysis...")
+        try:
+            print("--- Public Analysis ---")
+            # 获取尚未分析的论文 (status 为 fetched)
+            response = self.db.table("daily_papers").select("*").eq("status", "fetched").execute()
+            raw_papers = response.data
+            
+            papers_to_analyze = []
+            for p in raw_papers:
+                # 构造 PersonalizedPaper (analysis=None, user_state=None)
+                meta_data = {
+                    "id": p["id"],
+                    "title": p["title"],
+                    "authors": p["authors"],
+                    "published_date": p["published_date"],
+                    "category": p["category"],
+                    "abstract": p["abstract"],
+                    "links": p["links"],
+                    "comment": p.get("comment")
+                }
+                meta = RawPaperMetadata(**meta_data)
+                papers_to_analyze.append(PersonalizedPaper(meta=meta, analysis=None, user_state=None))
+            
+            if papers_to_analyze:
+                print(f"Found {len(papers_to_analyze)} papers needing public analysis.")
+                paper_service.batch_analyze_papers(papers_to_analyze)
+            else:
+                print("No papers need public analysis.")
+
+        except Exception as e:
+            print(f"Error in analyze_public_papers: {e}")
+            raise e
+
+    def process_public_papers_workflow(self, categories: Optional[List[str]] = None):
+        """
+        执行公共论文处理工作流。
+        
+        流程：
+        1. 运行爬虫 (run_crawler)
+        2. 获取详情 (fetch_and_update_details)
+        3. 公共分析 (analyze_public_papers)
+        4. 归档 (archive_daily_papers)
+
+        Args:
+            categories (Optional[List[str]]): 需要爬取的类别列表。
+
+        Returns:
+            None
+        """
+        print("🚀 Starting Public Papers Workflow...")
+        
+        try:
+            # 1. Run Crawler
+            print("\n🕷️  Step 1: Running Crawler...")
+            self.run_crawler(categories)
+            
+            # 2. Fetch Details
+            print("\n📥 Step 2: Fetching Details from Arxiv API...")
+            fetch_and_update_details(table_name="daily_papers")
+            
+            # 3. Analyze
+            print("\n🧠 Step 3: Running Public Analysis...")
+            self.analyze_public_papers()
+            
+            # 4. Archive
+            print("\n💾 Step 4: Archiving to Public DB...")
+            if paper_service.archive_daily_papers():
+                print("✅ Archiving completed.")
+            else:
+                print("❌ Archiving failed.")
+                
+            print("🎉 Public Papers Workflow Completed!")
+            
+        except Exception as e:
+            print(f"❌ Public Papers Workflow Failed: {e}")
+            # Re-raise to let caller know it failed
+            raise e
+
+workflow_service = WorkflowService()

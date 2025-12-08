@@ -23,6 +23,7 @@ export interface RawPaperMetadata {
     title: string;
     authors: string[];
     published_date: string;
+    created_at?: string; // 爬取时间
     category: string[];
     abstract: string;
     links: PaperLinks;

@@ -61,5 +61,3 @@ class SupabasePipeline:
             spider.logger.error(f"Error saving paper {item['id']}: {e}")
             
         return item
-
-

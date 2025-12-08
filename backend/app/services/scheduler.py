@@ -7,8 +7,10 @@ from app.core.database import get_db
 from app.services.llm_service import llm_service
 from app.services.report_service import report_service
 from app.services.user_service import user_service
+from app.services.workflow_service import workflow_service
 import httpx
 import re
+from typing import Optional, List
 
 class SchedulerService:
     def __init__(self):
@@ -36,10 +38,17 @@ class SchedulerService:
         self.scheduler.start()
         print("Scheduler started. Daily job scheduled for 08:00.")
 
-    def check_arxiv_update(self) -> bool:
+    def check_arxiv_update(self) -> Optional[List[str]]:
         """
         检查 Arxiv 是否有更新。
         比对 "Showing new listings for" 后的日期字符串。
+        如果更新，则获取所有用户的关注类别并集返回。
+
+        Args:
+            None
+
+        Returns:
+            Optional[List[str]]: 如果有更新，返回需要爬取的类别列表；否则返回 None。
         """
         try:
             # 1. Get current status from Arxiv
@@ -55,14 +64,14 @@ class SchedulerService:
             response = httpx.get(url, headers=headers, timeout=10.0)
             if response.status_code != 200:
                 print(f"Failed to fetch Arxiv page: {response.status_code}")
-                return False
+                return None
                 
             html = response.text
             # Match: <h3>Showing new listings for Friday, 5 December 2024</h3>
             match = re.search(r"Showing new listings for (.*?)</h3>", html)
             if not match:
                 print("Could not find 'Showing new listings for' in HTML.")
-                return False
+                return None
                 
             current_date_str = match.group(1).strip()
             print(f"Arxiv Date: {current_date_str}")
@@ -78,14 +87,45 @@ class SchedulerService:
                     "key": "last_arxiv_update",
                     "value": current_date_str
                 }).execute()
-                return True
+                
+                # 3. Aggregate User Categories
+                print("Aggregating user categories...")
+                try:
+                    # 获取所有用户的 profile
+                    profiles = self.db.table("profiles").select("focus").execute().data
+                    all_categories = set()
+                    
+                    for p in profiles:
+                        focus = p.get("focus", {})
+                        if focus and "category" in focus:
+                            cats = focus["category"]
+                            if isinstance(cats, list):
+                                all_categories.update(cats)
+                            elif isinstance(cats, str):
+                                all_categories.add(cats)
+                    
+                    # 如果没有用户类别，使用默认配置
+                    if not all_categories:
+                        print("No user categories found, using default.")
+                        default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
+                        return [c.strip() for c in default_cats]
+                        
+                    result_categories = list(all_categories)
+                    print(f"Categories to crawl: {result_categories}")
+                    return result_categories
+                    
+                except Exception as e:
+                    print(f"Error aggregating categories: {e}")
+                    # Fallback to default
+                    default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
+                    return [c.strip() for c in default_cats]
             else:
                 print("No update detected.")
-                return False
+                return None
                 
         except Exception as e:
             print(f"Error checking Arxiv update: {e}")
-            return False
+            return None
 
     def run_crawler(self):
         """
@@ -329,29 +369,34 @@ class SchedulerService:
         执行完整的每日工作流。
         
         顺序执行：
-        1. check_arxiv_update(): 检查更新。
-        2. if updated:
+        1. check_arxiv_update(): 检查更新并获取类别。
+        2. if categories:
             a. clear_daily_papers()
-            b. run_crawler()
-            c. process_new_papers()
+            b. workflow_service.process_public_papers_workflow(categories)
+            c. process_personalized_papers()
             d. generate_report_job()
         """
         print("Running daily workflow...")
         
-        # 1. Check Update
-        if self.check_arxiv_update():
-            print("Arxiv updated. Starting workflow...")
+        # 1. Check Update & Get Categories
+        categories = self.check_arxiv_update()
+        
+        if categories:
+            print(f"Arxiv updated. Starting workflow for categories: {categories}")
             
             # 2. Clear Daily DB
             from app.services.paper_service import paper_service
             if paper_service.clear_daily_papers():
                 print("Daily papers cleared.")
             
-            # 3. Crawl
-            self.run_crawler()
-            
-            # 4. Process (Analyze & Filter)
-            self.process_public_papers()
+            # 3. Public Workflow (Crawl -> Fetch -> Analyze -> Archive)
+            try:
+                workflow_service.process_public_papers_workflow(categories)
+            except Exception as e:
+                print(f"Public workflow failed, stopping daily workflow: {e}")
+                return
+
+            # 4. Personalized Filter
             self.process_personalized_papers()
             
             # 5. Report

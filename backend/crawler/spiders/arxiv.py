@@ -30,11 +30,17 @@ class ArxivSpider(scrapy.Spider):
         logging.getLogger("httpx").setLevel(logging.WARNING)
         logging.getLogger("scrapy").setLevel(logging.WARNING)
         
-        categories = os.getenv("CATEGORIES")
-        if not categories:
+        # 优先使用传入的 categories 参数，否则使用环境变量
+        # categories 参数可能是逗号分隔的字符串
+        if hasattr(self, 'categories') and self.categories:
+            categories_str = self.categories
+        else:
+            categories_str = os.getenv("CATEGORIES")
+
+        if not categories_str:
             self.target_categories = set()
         else:
-            self.target_categories = set(map(str.strip, categories.split(",")))
+            self.target_categories = set(map(str.strip, categories_str.split(",")))
         
         self.start_urls = [
             f"https://arxiv.org/list/{cat}/new" for cat in self.target_categories

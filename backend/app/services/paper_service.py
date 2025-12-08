@@ -1,11 +1,11 @@
-from typing import List, Optional
+from typing import List, Optional, Union, Union
 from datetime import datetime, timedelta
 import json
 import subprocess
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from app.schemas.paper import RawPaperMetadata, UserPaperState, PersonalizedPaper, PaperAnalysis, PaperDetails, PaperLinks, PaperFilter, FilterResponse, FilterResultItem
+from app.schemas.paper import RawPaperMetadata, UserPaperState, PersonalizedPaper, PaperAnalysis, PaperDetails, PaperLinks, PaperFilter, FilterResponse, FilterResultItem, PaperExportRequest
 from app.schemas.user import UserProfile
 from app.services.llm_service import llm_service
 from app.core.database import get_db
@@ -28,6 +28,161 @@ class PaperService:
             print(f"Error clearing daily papers: {e}")
             return False
 
+    def archive_daily_papers(self) -> bool:
+        """
+        将 daily_papers 中的数据归档到 papers 表。
+        保留 daily_papers 中的数据。
+        
+        Args:
+            None
+            
+        Returns:
+            bool: 归档是否成功。
+        """
+        print("Starting archiving daily papers to public DB...")
+        try:
+            # 1. 获取所有 daily_papers
+            # 假设数量不大，一次性获取。如果数量大需要分页。
+            response = self.db.table("daily_papers").select("*").execute()
+            daily_papers = response.data
+            
+            if not daily_papers:
+                print("No papers in daily_papers to archive.")
+                return True
+                
+            print(f"Found {len(daily_papers)} papers to archive.")
+            
+            # 2. 批量插入/更新到 papers 表
+            # Supabase upsert
+            res = self.db.table("papers").upsert(daily_papers).execute()
+            
+            print(f"Successfully archived {len(res.data)} papers.")
+            return True
+            
+        except Exception as e:
+            print(f"Error archiving papers: {e}")
+            return False
+
+    def export_papers(self, request: PaperExportRequest) -> Union[str, List[dict]]:
+        """
+        导出论文功能。
+        根据用户请求的条件，从数据库中筛选并导出论文。
+
+        Args:
+            request (PaperExportRequest): 导出请求对象，包含筛选条件。
+                - user_id: 用户ID
+                - date_start: 开始日期（必填，格式：YYYY-MM-DD）
+                - date_end: 结束日期（必填，格式：YYYY-MM-DD）
+                - limit: 导出数量限制
+                - format: 输出格式（markdown/json）
+                - min_score: 最低相关性评分（可选）
+
+        Returns:
+            str | List[dict]: 如果格式为 markdown，返回字符串；如果为 json，返回字典列表。
+        """
+        try:
+            print(f"开始导出论文: user_id={request.user_id}, 日期范围={request.date_start} 至 {request.date_end}")
+            
+            # 1. 构建查询 user_paper_states（时间范围为必填）
+            query = (self.db.table("user_paper_states")
+                    .select("*")
+                    .eq("user_id", request.user_id)
+                    .gte("created_at", request.date_start)
+                    .lte("created_at", f"{request.date_end} 23:59:59"))
+
+            # 评分筛选（可选）
+            if request.min_score is not None:
+                query = query.gte("relevance_score", request.min_score)
+
+            # 排序并限制数量
+            query = query.order("relevance_score", desc=True).limit(request.limit)
+            
+            # 执行查询
+            response = query.execute()
+            states = response.data
+            
+            if not states:
+                print("未找到符合条件的论文")
+                return "" if request.format == "markdown" else []
+
+            print(f"找到 {len(states)} 篇符合条件的论文")
+            paper_ids = [s["paper_id"] for s in states]
+            
+            # 2. 获取 papers 详情
+            papers_resp = self.db.table("papers").select("*").in_("id", paper_ids).execute()
+            papers_map = {p["id"]: p for p in papers_resp.data}
+
+            # 3. 合并数据
+            results = []
+            for state in states:
+                p_data = papers_map.get(state["paper_id"])
+                if not p_data:
+                    print(f"⚠️  警告: 在 papers 表中未找到论文 ID: {state['paper_id']}，跳过")
+                    continue
+                
+                # 合并信息（仅输出需要的字段）
+                paper_info = {
+                    "id": p_data.get("id"),
+                    "title": p_data.get("title"),
+                    "authors": p_data.get("authors"),
+                    "published_date": p_data.get("published_date"),
+                    "abstract": p_data.get("abstract"),
+                    "comment": p_data.get("comment"),
+                    "why_this_paper": state.get("why_this_paper"),
+                }
+                results.append(paper_info)
+            
+            print(f"成功导出 {len(results)} 篇论文")
+            
+            # 4. 格式化输出
+            if request.format == "json":
+                return results
+            else:
+                return self._format_as_markdown(results)
+
+        except Exception as e:
+            print(f"导出论文时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return "" if request.format == "markdown" else []
+
+    def _format_as_markdown(self, papers: List[dict]) -> str:
+        """
+        将论文列表格式化为 Markdown 文本。
+
+        Args:
+            papers (List[dict]): 论文信息列表。
+
+        Returns:
+            str: Markdown 格式的文本。
+        """
+        md_lines = []
+        for i, p in enumerate(papers, 1):
+            # 添加空值保护
+            title = p.get('title') or '无标题'
+            paper_id = p.get('id') or '未知'
+            authors = p.get('authors', [])
+            if isinstance(authors, list) and authors:
+                authors_str = ', '.join(authors)
+            else:
+                authors_str = '未知作者'
+            
+            why_this_paper = p.get('why_this_paper') or '无推荐理由'
+            abstract = p.get('abstract') or '无摘要'
+            
+            md_lines.append(f"## {i}. {title}")
+            md_lines.append(f"**ID**: {paper_id}")
+            md_lines.append(f"**作者**: {authors_str}")
+            md_lines.append(f"**推荐理由**: {why_this_paper}")
+            md_lines.append(f"**摘要**: {abstract}")
+            
+            # comment 是可选字段
+            if p.get('comment'):
+                md_lines.append(f"**备注**: {p.get('comment')}")
+            
+            md_lines.append("---")
+        return "\n".join(md_lines)
+
     def _merge_paper_state(self, paper: dict, state: Optional[dict]) -> PersonalizedPaper:
         """
         辅助方法：将论文元数据与用户状态合并 (构造嵌套结构)。
@@ -45,6 +200,7 @@ class PaperService:
             "title": paper["title"],
             "authors": paper["authors"],
             "published_date": paper["published_date"],
+            "created_at": paper.get("created_at"), # Map created_at
             "category": paper["category"],
             "abstract": paper["abstract"],
             "links": paper["links"],
@@ -370,6 +526,9 @@ class PaperService:
         total_retries = 0
         processed_count = 0
         total_papers = len(papers)
+        
+        # [Batch Update] 收集所有状态数据
+        all_state_data = []
 
         # 内部重试函数
         def _filter_with_retry(paper_str, profile_str):
@@ -443,8 +602,8 @@ class PaperService:
                         "user_feedback": None
                     }
 
-                    # a. 持久化到数据库 (Upsert: 存在则更新，不存在则插入)
-                    self.db.table("user_paper_states").upsert(state_data).execute()
+                    # [Batch Update] 收集数据，不立即写入
+                    all_state_data.append(state_data)
 
                     # b. 更新内存中的论文对象状态 (虽然不再直接返回列表，但更新对象是个好习惯)
                     p.user_state = UserPaperState(**state_data)
@@ -467,6 +626,19 @@ class PaperService:
                 except Exception as e:
                     print(f"Error filtering paper {p.meta.id} after retries: {e}")
                     # 发生错误时不计入统计或作为失败处理，这里简单跳过
+
+        # [Batch Update] 批量写入数据库
+        if all_state_data:
+            print(f"Batch updating {len(all_state_data)} user paper states...")
+            try:
+                # 分批写入，防止一次性包过大
+                batch_size = 100
+                for i in range(0, len(all_state_data), batch_size):
+                    batch = all_state_data[i:i + batch_size]
+                    self.db.table("user_paper_states").upsert(batch).execute()
+                print("Batch update user states completed.")
+            except Exception as e:
+                print(f"Error batch updating user paper states: {e}")
 
         # --- 4. 排序与构造返回对象 ---
         # 按 relevance_score 降序排列
@@ -494,22 +666,20 @@ class PaperService:
             rejected_papers=rejected_papers
         )
 
-    def analyze_paper(self, paper: PersonalizedPaper) -> Optional[PaperAnalysis]:
+    def analyze_paper(self, paper: PersonalizedPaper) -> Optional[dict]:
         """
         使用 LLM 对单篇论文进行深度分析 (Public Analysis)。
         仅当论文尚未分析 (analysis 为空) 时执行。
+        
+        [Modified] 仅返回需要更新的数据字典，不操作数据库。
 
         Args:
             paper (PersonalizedPaper): 待分析的论文对象。
 
         Returns:
-            Optional[PaperAnalysis]: 分析结果对象，如果分析失败或已存在则返回 None。
+            Optional[dict]: 需要更新到 daily_papers 的数据字典 (包含 id, details, status)。
         """
         from app.utils.paper_analysis_utils import analyze_paper_content
-
-        # Check if already analyzed (Optional, relying on scheduler to pass pending papers)
-        # if paper.analysis and paper.analysis.motivation:
-        #      return None
 
         # 准备数据: 仅使用 meta
         paper_dict = paper.meta.model_dump()
@@ -518,36 +688,20 @@ class PaperService:
         analysis_dict = analyze_paper_content(paper_dict)
         
         if analysis_dict:
-            # Update Public Metadata (papers table)
-            # Store all 6 fields in 'details' jsonb and update status to 'completed'
-            
+            # 构造更新数据
             update_data = {
+                "id": paper.meta.id, # 必须包含 ID
                 "details": analysis_dict,
                 "status": "analyzed"
             }
-            
-            try:
-                # 1. Update daily_papers
-                self.db.table("daily_papers").update(update_data).eq("id", paper.meta.id).execute()
-                
-                # 2. Insert into papers (Public DB)
-                # 需要构造完整的 record
-                full_paper_data = paper.meta.model_dump()
-                full_paper_data.update(update_data)
-                # category 是 list, 需要确保格式正确
-                
-                self.db.table("papers").upsert(full_paper_data).execute()
-                
-                return PaperAnalysis(**analysis_dict)
-            except Exception as e:
-                print(f"Error updating paper metadata: {e}")
-                return None
+            return update_data
             
         return None
 
     def batch_analyze_papers(self, papers: List[PersonalizedPaper]) -> None:
         """
         并发批量分析论文 (Public Analysis)。
+        [Modified] 并发分析后，批量写入 daily_papers 数据库。
 
         Args:
             papers (List[PersonalizedPaper]): 待分析的论文列表。
@@ -566,15 +720,38 @@ class PaperService:
 
         print(f"Analyzing {len(papers_to_analyze)} papers content (Concurrent)...")
         
+        results = []
+        # 保持较高的并发数，因为不再涉及 DB IO，主要是 LLM 网络 IO
         with ThreadPoolExecutor(max_workers=5) as executor:
             future_to_paper = {executor.submit(self.analyze_paper, p): p for p in papers_to_analyze}
             
             for future in as_completed(future_to_paper):
                 p = future_to_paper[future]
                 try:
-                    future.result() 
+                    data = future.result()
+                    if data:
+                        results.append(data)
                 except Exception as e:
                     print(f"Error analyzing paper {p.meta.id}: {e}")
+
+        if not results:
+            print("No analysis results generated.")
+            return
+
+        # 批量写入 (Batch Upsert)
+        print(f"Batch updating {len(results)} papers to daily_papers DB...")
+        try:
+            # 分批写入
+            batch_size = 100
+            for i in range(0, len(results), batch_size):
+                batch = results[i:i + batch_size]
+                self.db.table("daily_papers").upsert(batch).execute()
+            
+            print("Batch update daily_papers completed.")
+            # 注意：papers 表的更新由后续的 archive_daily_papers 统一处理
+            
+        except Exception as e:
+            print(f"Batch update failed: {e}")
 
     def get_paper_by_id(self, paper_id: str, user_id: str) -> Optional[PersonalizedPaper]:
         """

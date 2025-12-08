@@ -109,7 +109,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
                                     {(paper.user_state?.relevance_score || 0).toFixed(2)}
                                 </span>
                                 <span className="text-slate-600">|</span>
-                                <span className="text-slate-400">{paper.meta.published_date}</span>
+                                <span className="text-slate-400">{paper.meta.created_at?.split('T')[0] || paper.meta.published_date}</span>
                                 <span className="text-slate-600">|</span>
                                 <div className="flex gap-1 flex-wrap">
                                     {paper.meta.category?.map(cat => (

@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict
 from pydantic import BaseModel, field_validator
+from datetime import datetime
 
 # --- 基础组件 ---
 
@@ -31,6 +32,7 @@ class RawPaperMetadata(BaseModel):
     title: Optional[str] = None
     authors: Optional[List[str]] = None
     published_date: Optional[str] = None
+    created_at: Optional[str] = None  # 爬取时间
     category: List[str]  # 存储所有分类
     abstract: Optional[str] = None
     links: Optional[PaperLinks] = None
@@ -118,3 +120,62 @@ class PaperFeedbackRequest(BaseModel):
     """用户反馈请求模型"""
     liked: Optional[bool] = None
     feedback: Optional[str] = None
+
+class PaperExportRequest(BaseModel):
+    """
+    论文导出请求模型
+    用于接收前端或定时任务的导出参数。
+    
+    时间范围为必填字段，格式为 YYYY-MM-DD。
+    如需查询单日论文，将 date_start 和 date_end 设置为相同日期。
+    """
+    user_id: str
+    date_start: str  # 必填，格式：YYYY-MM-DD
+    date_end: str    # 必填，格式：YYYY-MM-DD
+    limit: int = 10
+    format: str = "markdown"  # markdown, json
+    min_score: Optional[float] = None
+
+    @field_validator('date_start', 'date_end')
+    @classmethod
+    def validate_date_format(cls, v: str) -> str:
+        """
+        验证日期格式是否为 YYYY-MM-DD。
+        
+        Args:
+            v: 日期字符串
+            
+        Returns:
+            str: 验证通过的日期字符串
+            
+        Raises:
+            ValueError: 日期格式不正确
+        """
+        try:
+            datetime.strptime(v, '%Y-%m-%d')
+            return v
+        except ValueError:
+            raise ValueError(f'日期格式必须为 YYYY-MM-DD，当前值: {v}')
+    
+    @field_validator('date_end')
+    @classmethod
+    def validate_date_range(cls, v: str, info) -> str:
+        """
+        验证日期范围：date_start <= date_end。
+        
+        Args:
+            v: 结束日期
+            info: 包含其他字段的上下文
+            
+        Returns:
+            str: 验证通过的结束日期
+            
+        Raises:
+            ValueError: 日期范围不合法
+        """
+        if 'date_start' in info.data:
+            start = datetime.strptime(info.data['date_start'], '%Y-%m-%d')
+            end = datetime.strptime(v, '%Y-%m-%d')
+            if start > end:
+                raise ValueError(f'开始日期不能晚于结束日期: {info.data["date_start"]} > {v}')
+        return v

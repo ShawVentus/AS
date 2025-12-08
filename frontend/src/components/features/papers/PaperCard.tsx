@@ -112,8 +112,8 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = 
                             {(paper.user_state?.relevance_score || 0).toFixed(2)}
                         </span>
                         <span className="text-slate-600">|</span>
-                        {/* Published Date */}
-                        <span className="text-slate-400">{paper.meta.published_date}</span>
+                        {/* Published Date (Now using Created At) */}
+                        <span className="text-slate-400">{paper.meta.created_at?.split('T')[0] || paper.meta.published_date}</span>
                         <span className="text-slate-600">|</span>
                         {/* Category - Show All */}
                         <div className="flex gap-1 flex-wrap">

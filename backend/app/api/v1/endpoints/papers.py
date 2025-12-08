@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import APIRouter, HTTPException, Query, Depends, Body
-from app.schemas.paper import PersonalizedPaper, PaperAnalysis, PaperFeedbackRequest
+from fastapi.responses import PlainTextResponse
+from app.schemas.paper import PersonalizedPaper, PaperAnalysis, PaperFeedbackRequest, PaperExportRequest
 from app.services.paper_service import paper_service
 from app.services.user_service import user_service
 from app.core.auth import get_current_user_id
@@ -76,3 +77,22 @@ async def submit_paper_feedback(
         raise HTTPException(status_code=500, detail="反馈提交失败")
         
     return {"status": "success", "message": "反馈已收到"}
+
+@router.post("/export")
+async def export_papers(
+    request: PaperExportRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    导出论文接口。
+    支持 Markdown 和 JSON 格式。
+    """
+    # 强制覆盖 user_id 为当前登录用户，防止越权
+    request.user_id = user_id
+    
+    result = paper_service.export_papers(request)
+    
+    if request.format == "markdown":
+        return PlainTextResponse(result)
+    else:
+        return result

@@ -25,12 +25,12 @@ def fetch_and_update_details(table_name: str = "papers"):
     
     while True:
         # 1. 从 DB 获取待处理的 ID (status = 'pending')
-        # 每次获取 100 个
+        # 每次获取 500 个
         try:
             response = db.table(table_name)\
                 .select("id")\
                 .eq("status", "pending")\
-                .limit(100)\
+                .limit(500)\
                 .execute()
         except Exception as e:
             print(f"Error reading database: {e}")
@@ -52,7 +52,7 @@ def fetch_and_update_details(table_name: str = "papers"):
             # 使用 list() 触发生成器执行
             results = list(client.results(search))
             
-            updates = []
+            updates_map = {}
             found_ids = set()
             
             for paper in results:
@@ -62,12 +62,13 @@ def fetch_and_update_details(table_name: str = "papers"):
                 
                 # 构造更新数据
                 # 注意: 必须包含 id 以便 upsert 识别记录
-                updates.append({
+                # 使用字典去重，防止同一批次中出现重复 ID 导致 "ON CONFLICT DO UPDATE command cannot affect row a second time"
+                update_item = {
                     "id": paper_id, 
                     "title": paper.title,
                     "authors": [a.name for a in paper.authors],
                     "published_date": paper.published.strftime("%Y-%m-%d"),
-                    "category": paper.categories, # 更新为 API 返回的完整分类列表
+                    "category": paper.categories or [], # 更新为 API 返回的完整分类列表，确保不为 None
                     "abstract": paper.summary,
                     "comment": paper.comment or "",
                     "links": {
@@ -77,7 +78,10 @@ def fetch_and_update_details(table_name: str = "papers"):
                     },
                     "status": "fetched", # 标记为已获取详情，等待分析
                     # "updated_at": "now()" # Supabase 自动处理或手动添加
-                })
+                }
+                updates_map[paper_id] = update_item
+            
+            updates = list(updates_map.values())
             
             # 3. 批量更新回数据库
             if updates:

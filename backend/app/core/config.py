@@ -19,6 +19,7 @@ class Settings:
 
     # LLM配置
     DASHSCOPE_API_KEY: str = os.getenv("DASHSCOPE_API_KEY", "")
+    ACCESS_KEY: str = os.getenv("ACCESS_KEY", "")
     
     # 邮件配置
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "")

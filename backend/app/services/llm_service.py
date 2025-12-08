@@ -7,6 +7,8 @@ from app.core.config import settings
 class QwenService:
     def __init__(self):
         self.client = OpenAI(
+            # api_key=settings.ACCESS_KEY,
+            # base_url="https://openapi.dp.tech/openapi/v1",
             api_key=settings.DASHSCOPE_API_KEY,
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         )
