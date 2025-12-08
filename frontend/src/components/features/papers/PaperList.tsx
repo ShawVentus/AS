@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Filter, Download, FileText, Calendar as CalendarIcon, X } from 'lucide-react';
 import { PaperAPI } from '../../../services/api';
 import type { Paper } from '../../../types';
@@ -11,9 +11,11 @@ interface PaperListProps {
     onOpenDetail?: (paper: Paper) => void;
     selectedPaper?: Paper | null;
     setSelectedPaper?: (paper: Paper | null) => void;
+    dateFilter?: string | null; // 日期筛选 (YYYY-MM-DD)
+    onClearDateFilter?: () => void; // 清除日期筛选
 }
 
-export const PaperList: React.FC<PaperListProps> = () => {
+export const PaperList: React.FC<PaperListProps> = ({ dateFilter, onClearDateFilter }) => {
     const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
     const [paperDates, setPaperDates] = useState<string[]>([]);
     const [papers, setPapers] = useState<Paper[]>([]);
@@ -57,13 +59,30 @@ export const PaperList: React.FC<PaperListProps> = () => {
         }
     }, []);
 
-    // Fetch papers when date changes
+    // 计算实际使用的日期：优先使用 dateFilter，否则使用 selectedDate
+    const effectiveDate = useMemo(() => {
+        return dateFilter || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined);
+    }, [dateFilter, selectedDate]);
+
+    // 当 dateFilter 传入时，同步更新 selectedDate（用于日历显示）
+    useEffect(() => {
+        if (dateFilter && selectedDate) {
+            const currentDateStr = format(selectedDate, 'yyyy-MM-dd');
+            // 只有不一致时才更新
+            if (currentDateStr !== dateFilter) {
+                setSelectedDate(new Date(dateFilter));
+            }
+        } else if (dateFilter && !selectedDate) {
+            setSelectedDate(new Date(dateFilter));
+        }
+    }, [dateFilter]);
+
+    // Fetch papers when effectiveDate changes
     useEffect(() => {
         const fetchPapers = async () => {
             setLoading(true);
             try {
-                const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined;
-                const fetchedPapers = await PaperAPI.getRecommendations(dateStr);
+                const fetchedPapers = await PaperAPI.getRecommendations(effectiveDate);
 
                 // Default sort by relevance desc
                 fetchedPapers.sort((a, b) => (b.user_state?.relevance_score || 0) - (a.user_state?.relevance_score || 0));
@@ -77,7 +96,7 @@ export const PaperList: React.FC<PaperListProps> = () => {
         };
 
         fetchPapers();
-    }, [selectedDate]);
+    }, [effectiveDate]); // 只依赖 effectiveDate
 
     // Apply filters locally
     useEffect(() => {
@@ -103,6 +122,10 @@ export const PaperList: React.FC<PaperListProps> = () => {
 
     const handleDateSelect = (date: Date | null) => {
         setSelectedDate(date);
+        // 清除 dateFilter，使用手动选择的日期优先
+        if (onClearDateFilter) {
+            onClearDateFilter();
+        }
         if (date) {
             setShowCalendar(false); // Close on selection
         }

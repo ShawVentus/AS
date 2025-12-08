@@ -41,7 +41,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [paper, onNext, onPrev, onClose]);
+    }, [paper]); // 移除回调函数依赖，避免频繁重新绑定
 
     // Reset scroll position when paper changes
     useEffect(() => {
@@ -84,7 +84,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
                 {/* Floating Index Tag */}
                 {index !== undefined && total !== undefined && (
                     <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-indigo-900/20 z-50">
-                        {index}
+                        {index + 1}
                     </div>
                 )}
 
@@ -238,7 +238,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
                         <div className="flex gap-3 items-center text-xs text-slate-500 font-medium">
                             {/* Bottom Left Progress: Just numbers */}
                             {index !== undefined && total !== undefined && (
-                                <span>{index} / {total}</span>
+                                <span>{index + 1} / {total}</span>
                             )}
                         </div>
 

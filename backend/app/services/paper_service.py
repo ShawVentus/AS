@@ -783,6 +783,44 @@ class PaperService:
             print(f"Error fetching paper {paper_id}: {e}")
             return None
 
+    def get_papers_by_ids_with_user(self, paper_ids: List[str], user_id: str) -> List[PersonalizedPaper]:
+        """
+        批量获取论文详情，包含用户状态。
+
+        Args:
+            paper_ids (List[str]): 论文 ID 列表。
+            user_id (str): 用户 ID。
+
+        Returns:
+            List[PersonalizedPaper]: 论文对象列表。
+        """
+        try:
+            if not paper_ids:
+                return []
+
+            # 1. 查询公共论文库
+            response = self.db.table("papers").select("*").in_("id", paper_ids).execute()
+            papers_data = response.data if response.data else []
+            
+            # 2. 查询用户状态
+            states_map = {}
+            if user_id:
+                state_resp = self.db.table("user_paper_states").select("*").in_("paper_id", paper_ids).eq("user_id", user_id).execute()
+                if state_resp.data:
+                    for s in state_resp.data:
+                        states_map[s['paper_id']] = s
+            
+            # 3. 合并
+            results = []
+            for p in papers_data:
+                state = states_map.get(p['id'])
+                results.append(self._merge_paper_state(p, state))
+                
+            return results
+        except Exception as e:
+            print(f"批量获取论文失败: {e}")
+            return []
+
     def get_paper_dates(self, user_id: str, year: int, month: int) -> List[str]:
         """
         获取指定月份中存在已接受论文的日期列表。

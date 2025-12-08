@@ -76,7 +76,8 @@ class ReportService:
             title=llm_result.get("title", "Daily Report"),
             date=datetime.now().strftime("%Y-%m-%d"),
             summary=llm_result.get("summary", ""),
-            content=llm_result.get("content", [])
+            content=llm_result.get("content", []),
+            ref_papers=llm_result.get("ref_papers", [])  # 新增: 提取引用论文列表
         )
         
         # 4. 保存到数据库

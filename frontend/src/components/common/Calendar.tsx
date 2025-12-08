@@ -102,9 +102,6 @@ export const Calendar: React.FC<CalendarProps> = ({ selectedDate, onDateSelect, 
                     className={`h-9 w-9 rounded-full flex items-center justify-center text-sm transition-all ${bgClass} ${textClass}`}
                 >
                     {day}
-                    {hasPaper && !isSelected && !isFuture && (
-                        <div className="absolute bottom-1.5 w-1 h-1 bg-blue-400 rounded-full"></div>
-                    )}
                 </button>
             );
         }
@@ -199,11 +196,7 @@ export const Calendar: React.FC<CalendarProps> = ({ selectedDate, onDateSelect, 
             </div>
 
             {/* Footer / Legend */}
-            <div className="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center px-2">
-                <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                    <div className="w-1.5 h-1.5 rounded-full bg-white"></div>
-                    <span>Has Paper</span>
-                </div>
+            <div className="mt-4 pt-3 border-t border-slate-800 flex justify-end items-center px-2">
                 <button
                     onClick={() => {
                         const today = new Date();

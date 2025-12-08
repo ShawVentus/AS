@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Target, Brain } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { supabase } from './services/supabase';
 import { Header } from './components/layout/Header';
 import { ReportDetail } from './components/features/reports/ReportDetail';
@@ -28,7 +28,10 @@ function App() {
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
     const [modalPaper, setModalPaper] = useState<Paper | null>(null);
+    const [modalPapers, setModalPapers] = useState<Paper[]>([]); // 论文列表上下文
+    const [modalPaperIndex, setModalPaperIndex] = useState(0); // 当前论文索引
     const [latestReport, setLatestReport] = useState<Report | null>(null);
+    const [dateFilter, setDateFilter] = useState<string | null>(null); // 论文列表日期筛选
 
     // Data loading state
     const [dataLoading, setDataLoading] = useState(true);
@@ -75,7 +78,7 @@ function App() {
 
                 // Sort by relevance score descending and take top 3
                 recs.sort((a, b) => (b.user_state?.relevance_score || 0) - (a.user_state?.relevance_score || 0));
-                setRecommendations(recs.slice(0, 3));
+                setRecommendations(recs.slice(0, 6));
 
                 if (reports && reports.length > 0) {
                     setLatestReport(reports[0]);
@@ -137,12 +140,35 @@ function App() {
         return <LoadingScreen />;
     }
 
-    const handleNavigateToPaper = (paperId: string | null) => {
-        if (!paperId) {
+    const handleNavigateToPaper = (paperOrId: string | Paper | null, papersList?: Paper[], filterDate?: string) => {
+        if (!paperOrId) {
             setCurrentView('papers');
+            // 如果提供了日期筛选，设置筛选状态
+            if (filterDate) {
+                setDateFilter(filterDate);
+            }
             return;
         }
-        PaperAPI.getPaperDetail(paperId).then(setModalPaper).catch(console.error);
+
+        if (typeof paperOrId === 'string') {
+            PaperAPI.getPaperDetail(paperOrId).then(paper => {
+                setModalPaper(paper);
+                setModalPapers(papersList || [paper]);
+                setModalPaperIndex(0);
+            }).catch(console.error);
+        } else {
+            // 直接使用缓存的 Paper 对象，避免 API 调用
+            setModalPaper(paperOrId);
+            // 如果提供了论文列表，找到当前论文的索引
+            if (papersList && papersList.length > 0) {
+                setModalPapers(papersList);
+                const index = papersList.findIndex(p => p.meta.id === paperOrId.meta.id);
+                setModalPaperIndex(index >= 0 ? index : 0);
+            } else {
+                setModalPapers([paperOrId]);
+                setModalPaperIndex(0);
+            }
+        }
     };
 
     const renderContent = () => {
@@ -203,13 +229,12 @@ function App() {
         if (currentView === 'dashboard') {
             return (
                 <div className="p-6 max-w-5xl mx-auto animate-in fade-in">
-                    <h1 className="text-xl font-bold text-white mb-1">早安，{userProfile.info.name}</h1>
-                    <p className="text-xs text-slate-500 mb-6">今日有 {recommendations.length} 篇新论文可能相关。</p>
+
 
                     {/* Today's Report Push */}
                     {latestReport && (
                         <div className="mb-8">
-                            <h2 className="text-sm font-bold text-white mb-3">今日报告推送</h2>
+                            <h2 className="text-sm font-bold text-white mb-3">最新报告推送</h2>
                             <div
                                 onClick={() => {
                                     setSelectedReport(latestReport);
@@ -224,7 +249,7 @@ function App() {
                                             {latestReport.title}
                                         </span>
                                         <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
-                                            {latestReport.date}
+                                            {latestReport.createdAt?.split('T')[0] || latestReport.date}
                                         </span>
                                     </div>
                                     <div className="text-xs text-indigo-400 group-hover:translate-x-1 transition-transform">
@@ -238,20 +263,12 @@ function App() {
                         </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-4 mb-8">
-                        {[{ icon: FileText, val: 12, label: '未读报告', col: 'indigo' }, { icon: Target, val: '85%', label: '覆盖率', col: 'cyan' }, { icon: Brain, val: 5, label: 'Idea', col: 'emerald' }].map((s, i) => (
-                            <div key={i} className={`bg-slate-900 border border-slate-800 p-4 rounded-lg flex flex-col items-center justify-center`}>
-                                <s.icon size={20} className={`text-${s.col}-400 mb-1`} />
-                                <div className="text-lg font-bold text-white">{s.val}</div>
-                                <div className="text-[10px] text-slate-500">{s.label}</div>
-                            </div>
-                        ))}
-                    </div>
+
 
                     {/* Heatmap Removed as per request */}
 
                     <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-sm font-bold text-white">推荐论文</h2>
+                        <h2 className="text-sm font-bold text-white">最新相关论文推荐</h2>
                         <button
                             onClick={() => setCurrentView('papers')}
                             className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
@@ -283,6 +300,8 @@ function App() {
                 onOpenDetail={(paper) => setModalPaper(paper)}
                 selectedPaper={selectedPaper}
                 setSelectedPaper={setSelectedPaper}
+                dateFilter={dateFilter}
+                onClearDateFilter={() => setDateFilter(null)}
             />
         }
         return null;
@@ -309,7 +328,26 @@ function App() {
             </main>
 
             {/* Global Modal */}
-            <PaperDetailModal paper={modalPaper} onClose={() => setModalPaper(null)} />
+            <PaperDetailModal
+                paper={modalPaper}
+                index={modalPaperIndex}
+                total={modalPapers.length}
+                onClose={() => {
+                    setModalPaper(null);
+                    setModalPapers([]);
+                    setModalPaperIndex(0);
+                }}
+                onNext={modalPaperIndex < modalPapers.length - 1 ? () => {
+                    const nextIndex = modalPaperIndex + 1;
+                    setModalPaperIndex(nextIndex);
+                    setModalPaper(modalPapers[nextIndex]);
+                } : undefined}
+                onPrev={modalPaperIndex > 0 ? () => {
+                    const prevIndex = modalPaperIndex - 1;
+                    setModalPaperIndex(prevIndex);
+                    setModalPaper(modalPapers[prevIndex]);
+                } : undefined}
+            />
         </div>
     );
 }

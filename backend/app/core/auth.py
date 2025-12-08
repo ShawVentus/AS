@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.database import supabase
@@ -24,3 +25,20 @@ def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(secu
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Authentication failed: {str(e)}",
         )
+
+def get_current_user_id_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Optional[str]:
+    """
+    可选的验证 Supabase JWT。如果验证成功返回 user_id，否则返回 None。
+    不会抛出 401 异常。
+    """
+    if not credentials:
+        return None
+        
+    token = credentials.credentials
+    try:
+        user = supabase.auth.get_user(token)
+        if not user:
+            return None
+        return user.user.id
+    except Exception:
+        return None

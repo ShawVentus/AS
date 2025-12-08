@@ -1,10 +1,10 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, Depends, Body
 from fastapi.responses import PlainTextResponse
 from app.schemas.paper import PersonalizedPaper, PaperAnalysis, PaperFeedbackRequest, PaperExportRequest
 from app.services.paper_service import paper_service
 from app.services.user_service import user_service
-from app.core.auth import get_current_user_id
+from app.core.auth import get_current_user_id, get_current_user_id_optional
 
 router = APIRouter()
 
@@ -20,9 +20,22 @@ async def get_recommendations(date: str = Query(None), user_id: str = Depends(ge
 async def get_papers(user_id: str = Depends(get_current_user_id)):
     return paper_service.get_papers(user_id)
 
-@router.post("/fetch", response_model=List[PersonalizedPaper])
 async def fetch_papers(limit: int = 100, user_id: str = Depends(get_current_user_id)):
     return paper_service.crawl_arxiv_new(user_id, limit)
+
+@router.get("/batch", response_model=List[PersonalizedPaper])
+async def get_papers_by_ids(ids: List[str] = Query(...), user_id: Optional[str] = Depends(get_current_user_id_optional)):
+    """
+    批量获取论文详情。
+
+    Args:
+        ids (List[str]): 论文 ID 列表。
+        user_id (Optional[str]): 当前用户 ID (可选)。如果提供，将返回个性化状态。
+
+    Returns:
+        List[PersonalizedPaper]: 论文对象列表。
+    """
+    return paper_service.get_papers_by_ids_with_user(ids, user_id)
 
 @router.get("/daily", response_model=List[PersonalizedPaper])
 async def get_daily_papers(user_id: str = Depends(get_current_user_id)):
