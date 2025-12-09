@@ -11,15 +11,69 @@ class Settings:
     HOST: str = os.getenv("HOST", "127.0.0.1")
     PORT: int = int(os.getenv("PORT", 8000))
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
 
     # Supabase配置
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
     SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", "")
 
-    # LLM配置
+    # LLM 配置
+    LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "openrouter")
+
+    # OpenRouter 配置
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "qwen/qwen3-max")
+
+    # DashScope 配置
     DASHSCOPE_API_KEY: str = os.getenv("DASHSCOPE_API_KEY", "")
+    DASHSCOPE_MODEL: str = os.getenv("DASHSCOPE_MODEL", "qwen3-max")
+
+    # Bohrium 配置
+    BOHRIUM_API_KEY: str = os.getenv("BOHRIUM_API_KEY", "")
+    BOHRIUM_MODEL: str = os.getenv("BOHRIUM_MODEL", "qwen3-max")
+
+    # 兼容旧配置
     ACCESS_KEY: str = os.getenv("ACCESS_KEY", "")
+
+    def get_llm_config(self) -> dict:
+        """
+        根据环境变量 LLM_PROVIDER 获取对应的 API 配置。
+        
+        Returns:
+            dict: 包含 api_key, base_url, model 的配置字典。
+            
+        Raises:
+            ValueError: 当 LLM_PROVIDER 无效或缺少必要的 API Key 时抛出。
+        """
+        provider = self.LLM_PROVIDER.lower()
+        
+        configs = {
+            "openrouter": {
+                "api_key": self.OPENROUTER_API_KEY,
+                "base_url": "https://openrouter.ai/api/v1",
+                "model": self.OPENROUTER_MODEL,
+            },
+            "dashscope": {
+                "api_key": self.DASHSCOPE_API_KEY,
+                "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                "model": self.DASHSCOPE_MODEL,
+            },
+            "bohrium": {
+                "api_key": self.BOHRIUM_API_KEY or self.ACCESS_KEY,
+                "base_url": "https://openapi.dp.tech/openapi/v1",
+                "model": self.BOHRIUM_MODEL,
+            }
+        }
+        
+        if provider not in configs:
+            raise ValueError(f"无效的 LLM_PROVIDER: {provider}。可选值: {', '.join(configs.keys())}")
+            
+        config = configs[provider]
+        if not config["api_key"]:
+            raise ValueError(f"未设置 {provider} 的 API Key。")
+            
+        return config
     
     # 邮件配置
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "")

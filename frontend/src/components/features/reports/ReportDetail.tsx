@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Brain, Microscope, ArrowRightCircle, Compass, Mail, Loader2 } from 'lucide-react';
+import { ChevronLeft, Brain, Microscope, ArrowRightCircle, Compass, Mail, Loader2, X } from 'lucide-react';
 import type { Report, Paper } from '../../../types';
 import { PaperAPI } from '../../../services/api/paper';
 import { ReportAPI } from '../../../services/api/report';
@@ -17,7 +17,9 @@ interface ReportDetailProps {
 
 export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNavigateToPaper }) => {
     // 状态管理
-    const [hoveredRefIds, setHoveredRefIds] = useState<string[]>([]); // 悬停的引用 ID 列表
+    const [hoveredRefIds, setHoveredRefIds] = useState<string[]>([]); // 实时悬停状态（用于高亮）
+    const [lockedRefIds, setLockedRefIds] = useState<string[]>([]); // 锁定的引用 ID（用于右侧显示）
+    const [viewMode, setViewMode] = useState<'all' | 'preview'>('all'); // 显示模式: 'all' 显示全部, 'preview' 显示预览
     const [hoveredPaperId, setHoveredPaperId] = useState<string | null>(null); // 悬停的论文 ID (右侧)
     const [papers, setPapers] = useState<Paper[]>([]);
     const [loadingPapers, setLoadingPapers] = useState(false);
@@ -44,16 +46,48 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
 
     // 计算当前激活的论文列表
     let activePapers = papers;
-    let isFiltered = false;
-
-    if (hoveredRefIds.length > 0) {
-        activePapers = papers.filter(p => hoveredRefIds.includes(p.meta.id));
-        isFiltered = true;
+    // 根据显示模式过滤论文
+    if (viewMode === 'preview' && lockedRefIds.length > 0) {
+        activePapers = papers.filter(p => lockedRefIds.includes(p.meta.id));
     }
+    // 如果是 'all' 模式，则显示所有论文
 
     // Debug logs
 
+    /**
+     * 处理引用句子悬停进入事件
+     * 
+     * 功能: 更新实时悬停状态，并切换到预览模式锁定当前引用
+     * 
+     * Args:
+     *   refIds (string[]): 引用句子的关联论文ID列表
+     */
+    const handleRefMouseEnter = (refIds: string[]) => {
+        setHoveredRefIds(refIds); // 更新实时悬停状态（用于高亮）
+        setLockedRefIds(refIds); // 锁定引用 ID
+        setViewMode('preview'); // 切换到预览模式
+    };
 
+    /**
+     * 处理引用句子悬停离开事件
+     * 
+     * 功能: 仅清除实时高亮状态，保持右侧预览内容不变
+     */
+    const handleRefMouseLeave = () => {
+        setHoveredRefIds([]); // 清除实时悬停（取消高亮）
+        // 不清除 lockedRefIds，保持预览状态
+    };
+
+    /**
+     * 切换回"全部引用论文"模式
+     * 
+     * 功能: 清除锁定状态，显示所有论文
+     */
+    const handleShowAllPapers = () => {
+        setViewMode('all');
+        setLockedRefIds([]);
+        setHoveredRefIds([]);
+    };
     // 处理引用点击事件 (直接跳转到第一篇论文详情)
     const handleRefClick = (refIds: string[]) => {
         // 找到对应的第一篇论文
@@ -154,8 +188,8 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
                                                             isHovered={frag.refIds.some(id => hoveredRefIds.includes(id))}
                                                             isPaperHovered={hoveredPaperId ? frag.refIds.includes(hoveredPaperId) : false}
                                                             isSelected={false} // 不再使用固定状态，传 false 或移除属性(需改接口)
-                                                            onMouseEnter={setHoveredRefIds}
-                                                            onMouseLeave={() => setHoveredRefIds([])}
+                                                            onMouseEnter={handleRefMouseEnter}
+                                                            onMouseLeave={handleRefMouseLeave}
                                                             onClick={handleRefClick}
                                                         />
                                                     ) : (
@@ -180,8 +214,8 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
                                                         isHovered={frag.refIds.some(id => hoveredRefIds.includes(id))}
                                                         isPaperHovered={hoveredPaperId ? frag.refIds.includes(hoveredPaperId) : false}
                                                         isSelected={false}
-                                                        onMouseEnter={setHoveredRefIds}
-                                                        onMouseLeave={() => setHoveredRefIds([])}
+                                                        onMouseEnter={handleRefMouseEnter}
+                                                        onMouseLeave={handleRefMouseLeave}
                                                         onClick={handleRefClick}
                                                     />
                                                 ) : (
@@ -199,18 +233,34 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
 
             {/* Right Side: Fixed Context Panel */}
             <div className="w-80 border-l border-slate-800 bg-slate-950 hidden lg:flex flex-col">
-                <div className="p-4 border-b border-slate-800 bg-slate-900/30">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                <div className="p-4 border-b border-slate-800 bg-slate-900/30 flex items-center justify-between gap-2">
+                    {/* 左侧：标题按钮 - 点击可切换回全部显示 */}
+                    <button
+                        onClick={handleShowAllPapers}
+                        className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 hover:text-slate-300 transition-colors cursor-pointer flex-1 text-left"
+                        title="点击显示全部引用论文"
+                    >
                         <Microscope size={14} />
-                        {isFiltered ? `关联论文预览 (${activePapers.length})` : `全部引用论文 (${activePapers.length})`}
-                    </h3>
+                        {viewMode === 'preview' ? `关联论文预览 (${activePapers.length})` : `全部引用论文 (${activePapers.length})`}
+                    </button>
+
+                    {/* 右侧：关闭预览按钮（仅在预览模式下显示）*/}
+                    {viewMode === 'preview' && (
+                        <button
+                            onClick={handleShowAllPapers}
+                            className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-slate-300 transition-colors"
+                            title="关闭预览"
+                        >
+                            <X size={14} />
+                        </button>
+                    )}
                 </div>
-                <div className="flex-1 p-4 overflow-y-auto space-y-4">
+                <div className="flex-1 p-4 overflow-y-auto space-y-4 transition-opacity duration-200">
                     {activePapers.length > 0 ? (
                         activePapers.map((activePaper) => (
                             <div key={activePaper!.meta.id}
                                 className={cn(
-                                    "animate-in fade-in slide-in-from-right-2 duration-200 bg-slate-900/50 p-3 rounded border transition-colors cursor-pointer",
+                                    "animate-in fade-in slide-in-from-right-2 duration-300 bg-slate-900/50 p-3 rounded border transition-colors cursor-pointer",
                                     // 高亮样式：如果左侧悬停了该论文的引用，或者鼠标直接悬停在卡片上
                                     (hoveredRefIds.includes(activePaper!.meta.id) || hoveredPaperId === activePaper!.meta.id)
                                         ? "border-cyan-500/50 bg-slate-800/80 shadow-lg shadow-cyan-900/20"

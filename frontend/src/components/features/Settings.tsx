@@ -30,6 +30,8 @@ export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
         keywords: [] as string[],
         authors: [] as string[],
         institutions: [] as string[],
+        email: '',
+        receive_email: true,
     });
 
     useEffect(() => {
@@ -44,6 +46,8 @@ export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
                 keywords: userProfile.focus?.keywords || [],
                 authors: userProfile.focus?.authors || [],
                 institutions: userProfile.focus?.institutions || [],
+                email: userProfile.info?.email || '',
+                receive_email: userProfile.info?.receive_email ?? true,
             });
         }
     }, [userProfile]);
@@ -57,7 +61,8 @@ export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
                     nickname: formData.nickname,
                     avatar: formData.avatar,
                     role: formData.role,
-                    email: userProfile?.info?.email || ''
+                    email: formData.email,
+                    receive_email: formData.receive_email
                 },
                 context: {
                     stage: formData.stage,
@@ -139,13 +144,14 @@ export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
                 </div>
             </div>
 
-            {/* Basic Info Section - Moved to Top */}
+            {/* 基础设置 - 合并基本资料和邮件设置 */}
             <section className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm">
                 <div className="flex items-center gap-2 mb-6 text-slate-400">
                     <User size={20} />
-                    <h2 className="text-lg font-semibold text-white">基本资料</h2>
+                    <h2 className="text-lg font-semibold text-white">基础设置</h2>
                 </div>
                 <div className="flex items-start gap-8">
+                    {/* 左侧：头像上传 */}
                     <div className="flex flex-col items-center gap-3">
                         <div className="relative group cursor-pointer">
                             <input
@@ -197,20 +203,50 @@ export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
                         </div>
                         <span className="text-xs text-slate-500">点击头像更换</span>
                     </div>
-                    <div className="flex-1">
-                        <label className="block text-sm font-medium text-slate-400 mb-1">昵称</label>
-                        <input
-                            type="text"
-                            value={formData.nickname}
-                            onChange={e => setFormData({ ...formData, nickname: e.target.value })}
-                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors"
-                        />
+
+                    {/* 右侧：昵称、邮箱、邮件推送 */}
+                    <div className="flex-1 space-y-4 max-w-md">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-1">昵称</label>
+                            <input
+                                type="text"
+                                value={formData.nickname}
+                                onChange={e => setFormData({ ...formData, nickname: e.target.value })}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-1">接收邮箱</label>
+                            <input
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white focus:border-blue-500 outline-none transition-colors"
+                                placeholder="your@email.com"
+                            />
+                        </div>
+
+                        <div>
+                            <div className="text-sm font-medium text-white">每日报告推送</div>
+                            <div className="text-xs text-slate-500">每天自动发送最新论文报告到您的邮箱</div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={formData.receive_email}
+                                onChange={(e) => setFormData({ ...formData, receive_email: e.target.checked })}
+                                className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                        </label>
                     </div>
                 </div>
-            </section>
+        </div>
+            </section >
 
-            {/* Natural Language Adjustment */}
-            <section className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm">
+        {/* Natural Language Adjustment */ }
+        < section className = "bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm" >
                 <div className="flex items-center gap-2 mb-4 text-blue-400">
                     <Sparkles size={20} />
                     <h2 className="text-lg font-semibold text-white">自然语言调整</h2>
@@ -235,10 +271,10 @@ export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
                 <p className="text-xs text-slate-500 mt-3 ml-1">
                     Agent 会分析您的输入，自动更新关注类别、关键词等信息。
                 </p>
-            </section>
+            </section >
 
-            {/* Focus Areas */}
-            <section className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm">
+        {/* Focus Areas */ }
+        < section className = "bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm" >
                 <div className="flex items-center gap-2 mb-6 text-indigo-400">
                     <Lightbulb size={20} />
                     <h2 className="text-lg font-semibold text-white">关注什么</h2>
@@ -278,7 +314,7 @@ export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
                         addButtonText="添加机构"
                     />
                 </div>
-            </section>
-        </div>
+            </section >
+        </div >
     );
 }

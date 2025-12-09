@@ -183,10 +183,10 @@ class PaperService:
             md_lines.append("---")
         return "\n".join(md_lines)
 
-    def _merge_paper_state(self, paper: dict, state: Optional[dict]) -> PersonalizedPaper:
+    def merge_paper_state(self, paper: dict, state: Optional[dict]) -> PersonalizedPaper:
         """
-        辅助方法：将论文元数据与用户状态合并 (构造嵌套结构)。
-
+        将论文元数据与用户状态合并 (构造嵌套结构)。
+        
         Args:
             paper (dict): 原始论文数据字典。
             state (Optional[dict]): 用户状态数据字典，如果不存在则为 None。
@@ -275,7 +275,7 @@ class PaperService:
             for p in papers_data:
                 if p['id'] not in existing_ids:
                     # 构造默认状态 (None)
-                    candidates.append(self._merge_paper_state(p, None))
+                    candidates.append(self.merge_paper_state(p, None))
             
             return candidates
 
@@ -356,7 +356,7 @@ class PaperService:
                             "user_liked": None,
                             "user_feedback": None
                         }
-                    results.append(self._merge_paper_state(p, state))
+                    results.append(self.merge_paper_state(p, state))
                 except Exception as validation_error:
                     print(f"⚠️ Skipping invalid paper {p.get('id')}: {validation_error}")
             return results
@@ -778,7 +778,7 @@ class PaperService:
                 if state_resp.data:
                     state_data = state_resp.data[0]
             
-            return self._merge_paper_state(paper_data, state_data)
+            return self.merge_paper_state(paper_data, state_data)
         except Exception as e:
             print(f"Error fetching paper {paper_id}: {e}")
             return None

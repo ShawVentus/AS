@@ -9,6 +9,8 @@ export interface UserInfo {
     nickname: string;
     /** 角色 */
     role?: string;
+    /** 是否接收邮件 */
+    receive_email?: boolean;
 }
 
 export interface Focus {

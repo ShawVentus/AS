@@ -18,6 +18,7 @@ import { Register } from './components/auth/Register';
 
 import { Onboarding } from './components/features/Onboarding';
 import { Settings } from './components/features/Settings';
+import { FeedbackPage } from './components/features/FeedbackPage';
 
 function App() {
     const { user, loading } = useAuth();
@@ -303,6 +304,10 @@ function App() {
                 dateFilter={dateFilter}
                 onClearDateFilter={() => setDateFilter(null)}
             />
+        }
+
+        if (currentView === 'feedback') {
+            return <FeedbackPage />;
         }
         return null;
     };

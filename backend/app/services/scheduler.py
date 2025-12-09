@@ -325,9 +325,10 @@ class SchedulerService:
         """
         生成并发送每日报告的任务。
         
-        1. 获取今日相关的论文。
-        2. 调用 ReportService 生成报告。
-        3. 发送邮件通知用户。
+        功能说明：
+        1. 获取所有用户画像。
+        2. 为每个用户获取今日的个性化推荐论文。
+        3. 调用 report_service.generate_daily_report() 生成报告（内部自动发送邮件）。
 
         Args:
             None
@@ -335,34 +336,93 @@ class SchedulerService:
         Returns:
             None
         """
-        print("Generating daily report...")
+        print("开始生成每日报告...")
         try:
-            # 获取今天的相关论文
-            # 在实际应用中,应按日期和相关性过滤
-            # 对于MVP版本,只获取tldr不为"N/A"且最近创建的论文
-            response = self.db.table("papers").select("*").neq("tldr", "N/A").neq("tldr", "").order("created_at", desc=True).limit(20).execute()
-            relevant_papers = response.data
+            # === 1. 获取所有用户 ===
+            profiles_response = self.db.table("profiles").select("*").execute()
+            profiles_data = profiles_response.data
             
-            if not relevant_papers:
-                print("No relevant papers for report.")
+            if not profiles_data:
+                print("未找到任何用户")
                 return
-
-            # 转换为对象
-            from app.schemas.paper import Paper
-            paper_objs = [Paper(**p) for p in relevant_papers]
             
-            user_profile = user_service.get_profile()
+            print(f"找到 {len(profiles_data)} 个用户，开始生成报告...")
             
-            # 生成报告
-            report = report_service.generate_daily_report(paper_objs, user_profile)
-            print(f"Report generated: {report.title}")
-            
-            # 发送邮件
-            report_service.send_email(report, user_profile.info.email)
-            print("Email sent.")
-            
+            # === 2. 遍历每个用户 ===
+            for profile_dict in profiles_data:
+                user_id = profile_dict.get("user_id")
+                if not user_id:
+                    continue
+                
+                try:
+                    # 2.1 获取用户画像（使用 user_service 确保数据清洗）
+                    user_profile = user_service.get_profile(user_id)
+                    
+                    # 检查用户是否开启邮件接收
+                    if not user_profile.info.receive_email:
+                        print(f"用户 {user_profile.info.name} 已关闭邮件接收，跳过")
+                        continue
+                        
+                    print(f"\n处理用户: {user_profile.info.name} ({user_id})")
+                    
+                    # === 3. 获取今日的个性化论文 ===
+                    from datetime import datetime
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    
+                    # 3.1 查询今天筛选的、被接受的论文
+                    states_response = self.db.table("user_paper_states") \
+                        .select("*") \
+                        .eq("user_id", user_id) \
+                        .eq("accepted", True) \
+                        .gte("created_at", f"{today} 00:00:00") \
+                        .order("relevance_score", desc=True) \
+                        .limit(50) \
+                        .execute()
+                    
+                    if not states_response.data:
+                        print(f"用户 {user_id} 今天没有推荐论文，跳过")
+                        continue
+                    
+                    print(f"找到 {len(states_response.data)} 篇推荐论文")
+                    
+                    # === 4. 获取完整论文数据 ===
+                    paper_ids = [s["paper_id"] for s in states_response.data]
+                    papers_response = self.db.table("papers") \
+                        .select("*") \
+                        .in_("id", paper_ids) \
+                        .execute()
+                    papers_data = papers_response.data
+                    
+                    if not papers_data:
+                        print(f"未找到论文详细数据，跳过")
+                        continue
+                    
+                    # === 5. 构建 PersonalizedPaper 对象 ===
+                    from app.services.paper_service import paper_service
+                    
+                    papers = []
+                    state_map = {s["paper_id"]: s for s in states_response.data}
+                    
+                    for p in papers_data:
+                        state_data = state_map.get(p["id"])
+                        # 使用 paper_service 的辅助方法合并数据
+                        paper_obj = paper_service.merge_paper_state(p, state_data)
+                        papers.append(paper_obj)
+                    
+                    # === 6. 生成报告（内部会自动发送邮件）===
+                    report = report_service.generate_daily_report(papers, user_profile)
+                    print(f"✓ 已为用户 {user_profile.info.name} 生成并发送报告: {report.title}")
+                    
+                except Exception as e:
+                    print(f"✗ 为用户 {user_id} 生成报告失败: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    continue
+                    
         except Exception as e:
-            print(f"Error generating report: {e}")
+            print(f"生成报告任务失败: {e}")
+            import traceback
+            traceback.print_exc()
 
     def run_daily_workflow(self):
         """

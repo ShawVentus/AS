@@ -4,15 +4,30 @@ from typing import Dict, Any, Optional
 from openai import OpenAI
 from app.core.config import settings
 
+getenv
+
 class QwenService:
     def __init__(self):
-        self.client = OpenAI(
-            # api_key=settings.ACCESS_KEY,
-            # base_url="https://openapi.dp.tech/openapi/v1",
-            api_key=settings.DASHSCOPE_API_KEY,
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-        )
-        self.model = "qwen3-max"
+        """
+        初始化 QwenService 服务。
+        
+        功能：
+            从配置中加载 LLM 设置，初始化 OpenAI 客户端。
+            支持动态切换 API 源 (OpenRouter, DashScope, Bohrium)。
+        """
+        try:
+            config = settings.get_llm_config()
+            self.client = OpenAI(
+                api_key=config["api_key"],
+                base_url=config["base_url"]
+            )
+            self.model = config["model"]
+            self.provider = settings.LLM_PROVIDER
+            print(f"✓ LLM 服务初始化成功 | 源: {self.provider} | 模型: {self.model}")
+        except Exception as e:
+            print(f"✗ LLM 服务初始化失败: {e}")
+            self.client = None
+            self.model = ""
 
     def read_prompt(self, filename: str) -> str:
         """
@@ -40,6 +55,10 @@ class QwenService:
             str: LLM 返回的 JSON 格式字符串内容。如果调用失败，返回 "{}"。
         """
         try:
+            if not self.client:
+                print("✗ LLM 客户端未初始化，无法执行请求")
+                return "{}"
+
             completion = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -51,7 +70,7 @@ class QwenService:
             )
             return completion.choices[0].message.content
         except Exception as e:
-            print(f"LLM Call Error: {e}")
+            print(f"LLM 调用错误: {e}")
             return "{}"
 
     def filter_paper(self, paper: Dict, user_profile: str) -> Dict[str, Any]:
@@ -78,7 +97,7 @@ class QwenService:
         try:
             return json.loads(response)
         except json.JSONDecodeError:
-            print(f"JSON Decode Error in filter: {response}")
+            print(f"filter 解析 JSON 错误: {response}")
             return {"is_relevant": False, "score": 0, "reason": "Parse Error"}
 
     def analyze_paper(self, abstract: str, comment: str = "") -> Dict[str, Any]:
@@ -104,7 +123,7 @@ class QwenService:
         try:
             return json.loads(response)
         except json.JSONDecodeError:
-            print(f"JSON Decode Error in analyze: {response}")
+            print(f"analyze 解析 JSON 错误: {response}")
             return {}
 
     def generate_report(self, papers: list, user_profile: str) -> Dict[str, Any]:
@@ -135,7 +154,7 @@ class QwenService:
         try:
             return json.loads(response)
         except json.JSONDecodeError:
-            print(f"JSON Decode Error in report: {response}")
+            print(f"report 解析 JSON 错误: {response}")
             return {}
 
 llm_service = QwenService()
