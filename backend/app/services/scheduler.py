@@ -53,8 +53,7 @@ class SchedulerService:
         try:
             # 1. Get current status from Arxiv
             # Default to cs.CL, or get from env
-            category = os.environ.get("CATEGORIES", "cs.CL").split(",")[0]
-            url = f"https://arxiv.org/list/{category}/new"
+            url = f"https://arxiv.org/list/cs/new"
             
             print(f"Checking Arxiv update at {url}...")
             # Use a browser-like header to avoid 403
@@ -358,9 +357,9 @@ class SchedulerService:
                     # 2.1 获取用户画像（使用 user_service 确保数据清洗）
                     user_profile = user_service.get_profile(user_id)
                     
-                    # 检查用户是否开启邮件接收
-                    if not user_profile.info.receive_email:
-                        print(f"用户 {user_profile.info.name} 已关闭邮件接收，跳过")
+                    # 检查用户是否有邮箱
+                    if not user_profile.info.email:
+                        print(f"用户 {user_profile.info.name} 未设置邮箱，跳过")
                         continue
                         
                     print(f"\n处理用户: {user_profile.info.name} ({user_id})")

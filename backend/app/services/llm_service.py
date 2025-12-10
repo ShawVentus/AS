@@ -4,8 +4,6 @@ from typing import Dict, Any, Optional
 from openai import OpenAI
 from app.core.config import settings
 
-getenv
-
 class QwenService:
     def __init__(self):
         """
@@ -68,7 +66,21 @@ class QwenService:
                 temperature=1,
                 response_format={"type": "json_object"} # 强制JSON格式(如果支持),或仅依赖提示词
             )
-            return completion.choices[0].message.content
+            response = completion.choices[0].message.content
+            
+            # 清理可能的 markdown 代码块标记
+            response = response.strip()
+            if response.startswith("```"):
+                # 移除开头的 ```json 或 ```
+                lines = response.split('\n')
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                # 移除结尾的 ```
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                response = '\n'.join(lines)
+            
+            return response.strip()
         except Exception as e:
             print(f"LLM 调用错误: {e}")
             return "{}"

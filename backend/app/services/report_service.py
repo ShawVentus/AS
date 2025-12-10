@@ -157,24 +157,10 @@ class ReportService:
         Returns:
             bool: 是否发送
         """
-        try:
-            if not user_email:
-                return False
+        if not user_email:
+            return False
             
-            # 检查环境变量中的全局开关或白名单（可选）
-            # ...
-            
-            # 检查用户个人设置
-            if user_id:
-                response = self.db.table("profiles").select("info").eq("user_id", user_id).execute()
-                if response.data:
-                    info = response.data[0].get("info", {})
-                    return info.get("receive_email", True) # 默认开启
-            
-            return True
-        except Exception as e:
-            print(f"Error checking email preference: {e}")
-            return True # 异常时默认发送
+        return True
 
     def _log_email_event(self, report_id: str, user_id: str, event_type: str, event_data: Dict = None):
         """

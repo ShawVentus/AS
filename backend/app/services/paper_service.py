@@ -687,7 +687,7 @@ class PaperService:
         # 调用工具函数进行分析
         analysis_dict = analyze_paper_content(paper_dict)
         
-        if analysis_dict:
+        if analysis_dict is not None:
             # 构造更新数据
             update_data = {
                 "id": paper.meta.id, # 必须包含 ID
