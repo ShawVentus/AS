@@ -77,6 +77,11 @@ export const MockPaperAPI = {
         console.log(`[Mock] Feedback for ${id}:`, feedback);
         return { success: true };
     },
+    getPaperCalendar: async (year: number, month: number) => {
+        await delay(300);
+        // Return some mock dates
+        return [`${year}-${String(month).padStart(2, '0')}-01`, `${year}-${String(month).padStart(2, '0')}-15`];
+    },
 };
 
 export const MockReportAPI = {

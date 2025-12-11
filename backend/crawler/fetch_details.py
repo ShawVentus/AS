@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 import os
 import arxiv
 from dotenv import load_dotenv
@@ -67,7 +68,7 @@ def fetch_and_update_details(table_name: str = "papers"):
                     "id": paper_id, 
                     "title": paper.title,
                     "authors": [a.name for a in paper.authors],
-                    "published_date": paper.published.strftime("%Y-%m-%d"),
+                    "published_date": datetime.now().strftime("%Y-%m-%d"),
                     "category": paper.categories or [], # 更新为 API 返回的完整分类列表，确保不为 None
                     "abstract": paper.summary,
                     "comment": paper.comment or "",

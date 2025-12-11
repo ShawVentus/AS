@@ -26,7 +26,7 @@ export const PaperList: React.FC<PaperListProps> = ({ dateFilter, onClearDateFil
 
     // Filter States
     const [showFilterPanel, setShowFilterPanel] = useState(false);
-    const [filterCategory, setFilterCategory] = useState<string | null>(null);
+    const [filterCategories, setFilterCategories] = useState<string[]>([]);
     const [filterRelevanceThreshold, setFilterRelevanceThreshold] = useState<number>(0.7); // Default 0.7
 
     const calendarRef = useRef<HTMLDivElement>(null);
@@ -98,23 +98,30 @@ export const PaperList: React.FC<PaperListProps> = ({ dateFilter, onClearDateFil
         fetchPapers();
     }, [effectiveDate]); // 只依赖 effectiveDate
 
-    // Apply filters locally
-    useEffect(() => {
-        let result = [...papers];
+    // 1. Calculate papers that meet the relevance threshold
+    const relevanceFilteredPapers = useMemo(() => {
+        return papers.filter(p => (p.user_state?.relevance_score || 0) >= filterRelevanceThreshold);
+    }, [papers, filterRelevanceThreshold]);
 
-        // 1. Category Filter
-        if (filterCategory) {
-            result = result.filter(p => p.meta.category?.includes(filterCategory));
+    // 2. Extract unique categories from the relevance-filtered papers
+    const availableCategories = useMemo(() => {
+        const cats = new Set<string>();
+        relevanceFilteredPapers.forEach(p => {
+            p.meta.category?.forEach(c => cats.add(c));
+        });
+        return Array.from(cats).sort();
+    }, [relevanceFilteredPapers]);
+
+    // 3. Apply category filter to get final list
+    useEffect(() => {
+        let result = relevanceFilteredPapers;
+
+        if (filterCategories.length > 0) {
+            result = result.filter(p => p.meta.category?.some(c => filterCategories.includes(c)));
         }
 
-        // 2. Relevance Threshold Filter (Show papers >= threshold)
-        result = result.filter(p => (p.user_state?.relevance_score || 0) >= filterRelevanceThreshold);
-
         setFilteredPapers(result);
-    }, [papers, filterCategory, filterRelevanceThreshold]);
-
-    // Extract unique categories for filter
-    const availableCategories = Array.from(new Set(papers.flatMap(p => p.meta.category || []))).sort();
+    }, [relevanceFilteredPapers, filterCategories]);
 
     const handleMonthChange = (year: number, month: number) => {
         fetchPaperDates(year, month);
@@ -160,8 +167,16 @@ export const PaperList: React.FC<PaperListProps> = ({ dateFilter, onClearDateFil
     };
 
     const resetFilters = () => {
-        setFilterCategory(null);
+        setFilterCategories([]);
         setFilterRelevanceThreshold(0.7); // Reset to default 0.7
+    };
+
+    const toggleCategory = (cat: string) => {
+        setFilterCategories(prev =>
+            prev.includes(cat)
+                ? prev.filter(c => c !== cat)
+                : [...prev, cat]
+        );
     };
 
     return (
@@ -214,13 +229,13 @@ export const PaperList: React.FC<PaperListProps> = ({ dateFilter, onClearDateFil
                 <div className="flex items-center gap-2 relative" ref={filterRef}>
                     <button
                         onClick={() => setShowFilterPanel(!showFilterPanel)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs border transition-colors ${showFilterPanel || filterCategory || filterRelevanceThreshold > 0.7
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs border transition-colors ${showFilterPanel || filterCategories.length > 0 || filterRelevanceThreshold > 0.7
                             ? 'bg-slate-800 text-white border-blue-500 ring-1 ring-blue-500'
                             : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
                             }`}
                     >
                         <Filter size={14} /> 筛选
-                        {(filterCategory || filterRelevanceThreshold > 0.7) && (
+                        {(filterCategories.length > 0 || filterRelevanceThreshold > 0.7) && (
                             <span className="w-2 h-2 rounded-full bg-blue-500 ml-1"></span>
                         )}
                     </button>
@@ -256,22 +271,28 @@ export const PaperList: React.FC<PaperListProps> = ({ dateFilter, onClearDateFil
 
                             {/* Categories */}
                             <div>
-                                <div className="text-xs text-slate-400 mb-2">类别</div>
-                                <div className="max-h-40 overflow-y-auto space-y-1 scrollbar-thin scrollbar-thumb-slate-700">
-                                    {availableCategories.map(cat => (
-                                        <label key={cat} className="flex items-center gap-2 p-1.5 hover:bg-slate-800 rounded cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={filterCategory === cat}
-                                                onChange={() => setFilterCategory(filterCategory === cat ? null : cat)}
-                                                className="rounded border-slate-700 bg-slate-950 text-cyan-500 focus:ring-offset-0 focus:ring-1 focus:ring-cyan-500"
-                                            />
-                                            <span className="text-xs text-slate-300">{cat}</span>
-                                        </label>
-                                    ))}
-                                    {availableCategories.length === 0 && (
-                                        <div className="text-xs text-slate-600 italic">暂无类别</div>
-                                    )}
+                                <div className="text-xs text-slate-400 mb-2">类别 (多选)</div>
+                                <div className="max-h-40 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+                                    <div className="flex flex-wrap gap-2">
+                                        {availableCategories.map(cat => {
+                                            const isSelected = filterCategories.includes(cat);
+                                            return (
+                                                <button
+                                                    key={cat}
+                                                    onClick={() => toggleCategory(cat)}
+                                                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors border ${isSelected
+                                                            ? 'bg-cyan-600 text-white border-cyan-500 shadow-sm shadow-cyan-900/50'
+                                                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-600 hover:text-slate-300'
+                                                        }`}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            );
+                                        })}
+                                        {availableCategories.length === 0 && (
+                                            <div className="text-xs text-slate-600 italic w-full">暂无类别</div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>
