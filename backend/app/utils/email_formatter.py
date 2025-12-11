@@ -114,7 +114,7 @@ class EmailFormatter:
                 f"{idx}. {paper.meta.title}",
                 f"   作者：{', '.join(paper.meta.authors[:3])}{'...' if len(paper.meta.authors) > 3 else ''}",
                 f"   相关性：{paper.user_state.relevance_score if paper.user_state else 'N/A'}",
-                f"   链接：{paper.meta.links.get('arxiv') if paper.meta.links else 'N/A'}",
+                f"   链接：{paper.meta.links.arxiv if paper.meta.links else 'N/A'}",
                 ""
             ])
         

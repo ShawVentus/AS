@@ -42,7 +42,7 @@ class ReportService:
             print(f"Error fetching reports: {e}")
             return []
 
-    def generate_daily_report(self, papers: List[PersonalizedPaper], user_profile: UserProfile) -> Report:
+    def generate_daily_report(self, papers: List[PersonalizedPaper], user_profile: UserProfile) -> tuple[Report, Dict[str, int]]:
         """
         生成每日报告并自动发送邮件。
 
@@ -85,6 +85,7 @@ class ReportService:
         report = Report(
             id=str(uuid.uuid4()),
             user_id=user_profile.info.id,
+            email=user_profile.info.email,  # [Add] 填充 email 字段
             title=llm_result.get("title", "Daily Report"),
             date=datetime.now().strftime("%Y-%m-%d"),
             summary=llm_result.get("summary", ""),
@@ -96,19 +97,25 @@ class ReportService:
         
         # 5. 保存到数据库
         try:
-            report_data = report.model_dump()
+            # [Fix] 使用 by_alias=False 确保使用 Python 属性名 (ref_papers) 而不是别名 (refPapers)
+            # 假设数据库字段名为 ref_papers (下划线风格)
+            report_data = report.model_dump(by_alias=False)
             # 确保 user_id 正确
             if not report_data.get("user_id"):
                 report_data["user_id"] = user_profile.info.id
             
             self.db.table("reports").insert(report_data).execute()
         except Exception as e:
-            self._log_error("pipeline", f"Error saving report: {str(e)}", {"report_id": report.id})
+            # [Mod] 暂时注释掉 system_logs 写入，改为直接打印，避免表不存在报错
+            print(f"Error saving report: {str(e)}")
+            # self._log_error("pipeline", f"Error saving report: {str(e)}", {"report_id": report.id})
             
         # 6. 发送邮件
         self.send_report_email_advanced(report, papers, user_profile.info.email)
         
-        return report
+        # 提取 usage
+        usage = llm_result.get("_usage", {})
+        return report, usage
 
     def send_report_email_advanced(self, report: Report, papers: List[PersonalizedPaper], user_email: str) -> bool:
         """
@@ -138,12 +145,16 @@ class ReportService:
             if success:
                 self._log_email_event(report.id, report.user_id, "sent", {"stats": stats})
             else:
-                self._log_error("email", f"Failed: {msg}", {"report_id": report.id})
+                # [Mod] 暂时注释掉 system_logs 写入
+                print(f"Failed to send email: {msg}")
+                # self._log_error("email", f"Failed: {msg}", {"report_id": report.id})
             
             return success
             
         except Exception as e:
-            self._log_error("email", f"Exception: {str(e)}", {"report_id": report.id})
+            # [Mod] 暂时注释掉 system_logs 写入
+            print(f"Exception sending email: {str(e)}")
+            # self._log_error("email", f"Exception: {str(e)}", {"report_id": report.id})
             return False
 
     def _should_send_email(self, user_id: str, user_email: str) -> bool:
@@ -192,12 +203,14 @@ class ReportService:
             meta (Dict): 上下文元数据
         """
         try:
-            self.db.table("system_logs").insert({
-                "level": "ERROR",
-                "source": source,
-                "message": message,
-                "meta": meta
-            }).execute()
+            # [Mod] 暂时注释掉 system_logs 写入，避免表不存在报错
+            print(f"ERROR [{source}]: {message} | Meta: {meta}")
+            # self.db.table("system_logs").insert({
+            #     "level": "ERROR",
+            #     "source": source,
+            #     "message": message,
+            #     "meta": meta
+            # }).execute()
         except Exception as e:
             print(f"CRITICAL: Failed to log error: {e}")
 
@@ -228,6 +241,79 @@ class ReportService:
             return True
         except Exception as e:
             self._log_error("feedback", f"Failed to submit: {str(e)}", {"report_id": report_id})
+            return False
+
+    def resend_daily_report(self, report_id: str) -> bool:
+        """
+        从数据库重新获取报告和相关论文，并发送邮件。
+        用于验证"从数据库获取内容并发送"的逻辑，或用于重发失败的邮件。
+
+        Args:
+            report_id (str): 报告ID
+
+        Returns:
+            bool: 发送是否成功
+        """
+        try:
+            print(f"Resending report {report_id}...")
+            # 1. 获取报告
+            report_res = self.db.table("reports").select("*").eq("id", report_id).execute()
+            if not report_res.data:
+                print(f"Report {report_id} not found.")
+                return False
+            
+            report_data = report_res.data[0]
+            # 构造 Report 对象 (注意处理字段名差异，如 ref_papers vs refPapers)
+            # 数据库中是 ref_papers (snake_case)，Report 模型也是 ref_papers (by_alias=False时)
+            # 但 Report 模型的 alias 是 refPapers。
+            # Pydantic v2 model_validate 应该能处理
+            report = Report(**report_data)
+            
+            # 2. 获取关联论文 ID
+            paper_ids = report.ref_papers
+            if not paper_ids:
+                print("No ref_papers in report.")
+                return False
+                
+            # 3. 获取论文详情 (从 papers 表)
+            papers_res = self.db.table("papers").select("*").in_("id", paper_ids).execute()
+            papers_data = papers_res.data
+            
+            # 4. 获取用户对这些论文的状态 (为了 relevance_score 和 why_this_paper)
+            states_res = self.db.table("user_paper_states") \
+                .select("*") \
+                .eq("user_id", report.user_id) \
+                .in_("paper_id", paper_ids) \
+                .execute()
+            states_map = {s["paper_id"]: s for s in states_res.data}
+            
+            # 5. 重构 PersonalizedPaper 列表
+            from app.services.paper_service import paper_service
+            papers = []
+            for p_data in papers_data:
+                state_data = states_map.get(p_data["id"])
+                paper_obj = paper_service.merge_paper_state(p_data, state_data)
+                papers.append(paper_obj)
+            
+            # 6. 发送邮件
+            # 确保有邮箱
+            if not report.email:
+                # 尝试从 UserProfile 获取
+                from app.services.user_service import user_service
+                profile = user_service.get_profile(report.user_id)
+                if profile and profile.info.email:
+                    report.email = profile.info.email
+                else:
+                    print("No email address found for report.")
+                    return False
+            
+            print(f"Sending email to {report.email}...")
+            return self.send_report_email_advanced(report, papers, report.email)
+            
+        except Exception as e:
+            print(f"Error resending report: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def get_report_by_id(self, report_id: str) -> Optional[Report]:

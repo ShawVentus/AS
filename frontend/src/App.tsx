@@ -19,6 +19,7 @@ import { Register } from './components/auth/Register';
 import { Onboarding } from './components/features/Onboarding';
 import { Settings } from './components/features/Settings';
 import { FeedbackPage } from './components/features/FeedbackPage';
+import { WorkflowPage } from './features/admin/WorkflowPage';
 
 function App() {
     const { user, loading } = useAuth();
@@ -216,6 +217,7 @@ function App() {
                     UserAPI.getProfile().then(setUserProfile);
                 }}
                 onBack={() => setCurrentView('dashboard')}
+                onNavigate={setCurrentView}
             />;
         }
 
@@ -308,6 +310,10 @@ function App() {
 
         if (currentView === 'feedback') {
             return <FeedbackPage />;
+        }
+
+        if (currentView === 'workflow') {
+            return <WorkflowPage />;
         }
         return null;
     };

@@ -375,7 +375,7 @@ class SchedulerService:
                         .eq("accepted", True) \
                         .gte("created_at", f"{today} 00:00:00") \
                         .order("relevance_score", desc=True) \
-                        .limit(50) \
+                        .limit(int(os.environ.get("REPORT_PAPER_LIMIT", 50))) \
                         .execute()
                     
                     if not states_response.data:
@@ -409,7 +409,8 @@ class SchedulerService:
                         papers.append(paper_obj)
                     
                     # === 6. 生成报告（内部会自动发送邮件）===
-                    report = report_service.generate_daily_report(papers, user_profile)
+                    # [Fix] 正确解包返回值 (report, usage)
+                    report, _ = report_service.generate_daily_report(papers, user_profile)
                     print(f"✓ 已为用户 {user_profile.info.name} 生成并发送报告: {report.title}")
                     
                 except Exception as e:
@@ -423,33 +424,81 @@ class SchedulerService:
             import traceback
             traceback.print_exc()
 
-    def run_daily_workflow(self):
+    def run_daily_workflow(self, force: bool = False):
         """
         执行完整的每日工作流。
         
         顺序执行：
         1. check_arxiv_update(): 检查更新并获取类别。
-        2. if categories:
-            a. clear_daily_papers()
-            b. workflow_service.process_public_papers_workflow(categories)
-            c. process_personalized_papers()
-            d. generate_report_job()
+        2. if categories or force:
+            a. clear_daily_papers() (仅当非 force 时，或 force 且确实有更新时？这里逻辑需要微调)
+               - 如果是 force 模式，通常是为了断点续传，不应该 clear_daily_papers，除非明确是重新开始。
+               - 但为了简单，force 模式下我们假设用户想继续跑流程。
+               - 如果是断点续传，workflow_service.process_public_papers_workflow 内部会检查 status='fetched'，所以不会重复处理。
+               - 关键是不要 clear_daily_papers 如果我们想保留已抓取的数据。
+               - 让我们调整逻辑：
+                 - 如果 force=True，跳过 check_arxiv_update 的"无更新"返回，强制使用默认或已有类别。
+                 - 如果 force=True，跳过 clear_daily_papers (假设是续传)。
+                 - 或者更智能点：force 只是绕过"今天已更新"的检查。
+        
+        Args:
+            force (bool): 是否强制执行，忽略 Arxiv 更新检查。
         """
-        print("Running daily workflow...")
+        print(f"Running daily workflow (Force={force})...")
         
         # 1. Check Update & Get Categories
         categories = self.check_arxiv_update()
         
+        # 如果强制执行且没有检测到更新（categories 为 None），则尝试获取所有用户的关注类别
+        if force and not categories:
+            print("Force mode enabled. Aggregating user categories...")
+            try:
+                # 复用 check_arxiv_update 中的聚合逻辑
+                # 为了避免代码重复，最好提取聚合逻辑为单独方法，或者在这里重新实现
+                # 这里简单重新实现聚合逻辑
+                profiles = self.db.table("profiles").select("focus").execute().data
+                all_categories = set()
+                
+                for p in profiles:
+                    focus = p.get("focus", {})
+                    if focus and "category" in focus:
+                        cats = focus["category"]
+                        if isinstance(cats, list):
+                            all_categories.update(cats)
+                        elif isinstance(cats, str):
+                            all_categories.add(cats)
+                
+                if all_categories:
+                    categories = list(all_categories)
+                    print(f"Aggregated categories in force mode: {categories}")
+                else:
+                    print("No user categories found in force mode, using default.")
+                    default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
+                    categories = [c.strip() for c in default_cats]
+            except Exception as e:
+                print(f"Error aggregating categories in force mode: {e}")
+                default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
+                categories = [c.strip() for c in default_cats]
+
         if categories:
-            print(f"Arxiv updated. Starting workflow for categories: {categories}")
+            print(f"Starting workflow for categories: {categories}")
             
             # 2. Clear Daily DB
-            from app.services.paper_service import paper_service
-            if paper_service.clear_daily_papers():
-                print("Daily papers cleared.")
+            # 只有在非强制模式（正常自动运行）或者确实检测到新更新时才清空
+            # 如果是 force 模式且没有新更新（即断点续传），不要清空！
+            if not force:
+                from app.services.paper_service import paper_service
+                if paper_service.clear_daily_papers():
+                    print("Daily papers cleared.")
+            else:
+                print("Force mode: Skipping clear_daily_papers to allow resume.")
             
             # 3. Public Workflow (Crawl -> Fetch -> Analyze -> Archive)
             try:
+                # 注意：process_public_papers_workflow 内部包含 run_crawler
+                # 如果是断点续传，run_crawler 会重新爬取，但这通常没问题（Scrapy 会覆盖或忽略）
+                # 或者我们可以让 process_public_papers_workflow 也支持 resume？
+                # 目前保持简单：直接运行，依赖数据库状态去重
                 workflow_service.process_public_papers_workflow(categories)
             except Exception as e:
                 print(f"Public workflow failed, stopping daily workflow: {e}")

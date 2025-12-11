@@ -12,6 +12,7 @@ class Report(BaseModel):
     
     id: str
     user_id: Optional[str] = None
+    email: Optional[str] = None  # [Add] 新增 email 字段以匹配数据库
     title: str
     date: str
     summary: str

@@ -42,60 +42,83 @@ class QwenService:
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
-    def call_llm(self, prompt: str) -> str:
+    def call_llm(self, prompt: str) -> tuple[str, Dict[str, int]]:
         """
-        调用 Qwen API 执行 LLM 请求。
+        调用 LLM API 执行请求 (包含重试机制)。
 
         Args:
             prompt (str): 发送给 LLM 的完整提示词字符串。
 
         Returns:
-            str: LLM 返回的 JSON 格式字符串内容。如果调用失败，返回 "{}"。
+            tuple[str, Dict[str, int]]: (内容字符串, 使用统计字典)。
+                                        统计字典包含 'prompt_tokens', 'completion_tokens', 'total_tokens'。
+                                        如果调用失败，返回 ("{}", {})。
         """
-        try:
-            if not self.client:
-                print("✗ LLM 客户端未初始化，无法执行请求")
-                return "{}"
+        import time
+        
+        if not self.client:
+            print("✗ LLM 客户端未初始化，无法执行请求")
+            return "{}", {}
 
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.read_prompt("system.md")},
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=1,
-                response_format={"type": "json_object"} # 强制JSON格式(如果支持),或仅依赖提示词
-            )
-            response = completion.choices[0].message.content
-            
-            # 清理可能的 markdown 代码块标记
-            response = response.strip()
-            if response.startswith("```"):
-                # 移除开头的 ```json 或 ```
-                lines = response.split('\n')
-                if lines[0].startswith("```"):
-                    lines = lines[1:]
-                # 移除结尾的 ```
-                if lines and lines[-1].strip() == "```":
-                    lines = lines[:-1]
-                response = '\n'.join(lines)
-            
-            return response.strip()
-        except Exception as e:
-            print(f"LLM 调用错误: {e}")
-            return "{}"
+        max_retries = 3
+        base_delay = 2
+        
+        for attempt in range(max_retries + 1):
+            try:
+                completion = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": self.read_prompt("system.md")},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=1,
+                    response_format={"type": "json_object"} # 强制JSON格式
+                )
+                response = completion.choices[0].message.content
+                usage = completion.usage
+                usage_dict = {
+                    "prompt_tokens": usage.prompt_tokens if usage else 0,
+                    "completion_tokens": usage.completion_tokens if usage else 0,
+                    "total_tokens": usage.total_tokens if usage else 0
+                }
+                
+                # 清理可能的 markdown 代码块标记
+                response = response.strip()
+                if response.startswith("```"):
+                    lines = response.split('\n')
+                    if lines[0].startswith("```"):
+                        lines = lines[1:]
+                    if lines and lines[-1].strip() == "```":
+                        lines = lines[:-1]
+                    response = '\n'.join(lines)
+                
+                return response.strip(), usage_dict
+                
+            except Exception as e:
+                error_str = str(e)
+                if "429" in error_str or "Rate limit" in error_str:
+                    if attempt < max_retries:
+                        delay = base_delay * (2 ** attempt)
+                        print(f"⚠️ LLM 速率限制 (429), {delay}秒后重试... ({attempt + 1}/{max_retries})")
+                        time.sleep(delay)
+                        continue
+                
+                print(f"❌ LLM 调用错误: {e}")
+                # 非 429 错误或重试耗尽，返回空
+                return "{}", {}
+                
+        return "{}", {}
 
     def filter_paper(self, paper: Dict, user_profile: str) -> Dict[str, Any]:
         """
         使用 LLM 检查论文是否与用户画像相关。
 
         Args:
-            paper (Dict): 包含论文信息的字典 (如 title, abstract, category)。
-            user_profile (str): 序列化后的用户画像字符串。
+            paper (Dict): 论文元数据字典。
+            user_profile (str): 用户画像字符串。
 
         Returns:
-            Dict[str, Any]: 包含过滤结果的字典，例如 {"is_relevant": bool, "score": float, "reason": str}。
-                            如果解析失败，返回默认的不相关结果。
+            Dict[str, Any]: 筛选结果字典 (包含 _usage)。
         """
         template = self.read_prompt("filter.md")
         prompt = template.format(
@@ -105,24 +128,25 @@ class QwenService:
             category=paper.get("category", "")
         )
         
-        response = self.call_llm(prompt)
+        response, usage = self.call_llm(prompt)
         try:
-            return json.loads(response)
+            result = json.loads(response)
+            result["_usage"] = usage # 注入 usage 信息
+            return result
         except json.JSONDecodeError:
             print(f"filter 解析 JSON 错误: {response}")
-            return {"is_relevant": False, "score": 0, "reason": "Parse Error"}
+            return {"is_relevant": False, "score": 0, "reason": "Parse Error", "_usage": usage}
 
     def analyze_paper(self, abstract: str, comment: str = "") -> Dict[str, Any]:
         """
-        使用 LLM 分析论文详情，提取关键信息 (Public Analysis)。
+        使用 LLM 分析论文详情。
 
         Args:
             abstract (str): 论文摘要。
-            comment (str): 论文的评论/备注信息 (用于辅助生成 tags)。
+            comment (str): 论文备注 (可选)。
 
         Returns:
-            Dict[str, Any]: 包含分析结果的字典，例如 {"tldr": str, "motivation": str, "method": str, ...}。
-                            如果解析失败，返回空字典。
+            Dict[str, Any]: 分析结果字典 (包含 _usage)。
         """
         template = self.read_prompt("analyze.md")
         
@@ -131,24 +155,25 @@ class QwenService:
             comment=comment
         )
         
-        response = self.call_llm(prompt)
+        response, usage = self.call_llm(prompt)
         try:
-            return json.loads(response)
+            result = json.loads(response)
+            result["_usage"] = usage
+            return result
         except json.JSONDecodeError:
             print(f"analyze 解析 JSON 错误: {response}")
-            return {}
+            return {"_usage": usage}
 
     def generate_report(self, papers: list, user_profile: str) -> Dict[str, Any]:
         """
-        使用 LLM 根据一组论文生成每日报告。
+        使用 LLM 生成每日报告。
 
         Args:
-            papers (list): 包含多篇论文信息的列表。
-            user_profile (str): 序列化后的用户画像字符串。
+            papers (list): 论文列表。
+            user_profile (str): 用户画像字符串。
 
         Returns:
-            Dict[str, Any]: 包含报告内容的字典，例如 {"title": str, "summary": str, "content": List}。
-                            如果解析失败，返回空字典。
+            Dict[str, Any]: 报告生成结果 (包含 _usage)。
         """
         template = self.read_prompt("report.md")
         
@@ -157,16 +182,16 @@ class QwenService:
         for p in papers:
             papers_text += f"ID: {p['id']}\nTitle: {p['title']}\nAbstract: {p['abstract'][:200]}...\n\n"
             
-        prompt = template.format(
-            user_profile=user_profile,
-            papers=papers_text
-        )
+        # 使用 replace 替代 format，避免 JSON 大括号冲突
+        prompt = template.replace("{user_profile}", user_profile).replace("{papers}", papers_text)
         
-        response = self.call_llm(prompt)
+        response, usage = self.call_llm(prompt)
         try:
-            return json.loads(response)
+            result = json.loads(response)
+            result["_usage"] = usage
+            return result
         except json.JSONDecodeError:
             print(f"report 解析 JSON 错误: {response}")
-            return {}
+            return {"_usage": usage}
 
 llm_service = QwenService()

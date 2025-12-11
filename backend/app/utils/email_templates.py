@@ -2,6 +2,7 @@ from typing import List, Dict
 from app.schemas.report import Report
 from app.schemas.paper import PersonalizedPaper
 import os
+import re
 
 class EmailTemplates:
     """
@@ -24,21 +25,12 @@ class EmailTemplates:
         'cs.NE': '🌐',
         'default': '📄'
     }
-    
+    # ... (existing code) ...
+
     def get_header(self, report: Report, stats: Dict) -> str:
-        """
-        生成邮件头部
-        
-        Args:
-            report (Report): 报告对象
-            stats (Dict): 统计数据字典
-            
-        Returns:
-            str: 头部 HTML 字符串
-        """
-        backend_url = os.getenv('BACKEND_URL', 'http://localhost:8000')
-        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-        
+        # ... (existing code) ...
+        # Add CSS for report content
+        # Insert before </style>
         # 主题统计
         category_badges = ""
         for cat, count in list(stats.get('category_stats', {}).items())[:5]:
@@ -52,102 +44,46 @@ class EmailTemplates:
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body {{ 
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-                    line-height: 1.6; 
-                    color: #333; 
-                    background: #f5f5f5;
-                    margin: 0;
-                    padding: 0;
-                }}
-                .container {{ 
-                    max-width: 650px; 
-                    margin: 20px auto; 
+                /* ... (existing styles) ... */
+                
+                .report-content {{
+                    padding: 30px;
                     background: white;
-                    border-radius: 8px;
-                    overflow: hidden;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                }}
-                .header {{ 
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    padding: 40px 30px;
-                    text-align: center;
-                }}
-                .title {{ 
-                    font-size: 26px; 
-                    font-weight: bold; 
-                    color: white; 
-                    margin: 0 0 10px 0;
-                    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                }}
-                .subtitle {{
-                    color: rgba(255,255,255,0.9); 
-                    font-size: 14px;
-                }}
-                
-                .stats-container {{
-                    display: flex;
-                    justify-content: space-around;
-                    padding: 30px 20px;
-                    background: linear-gradient(to bottom, #f8f9fa 0%, white 100%);
                     border-bottom: 1px solid #e9ecef;
+                    color: #2d3748;
                 }}
-                .stat-card {{
-                    text-align: center;
-                    flex: 1;
+                .report-content h3 {{
+                    font-size: 18px;
+                    color: #2c5282;
+                    margin-top: 25px;
+                    margin-bottom: 15px;
+                    border-left: 4px solid #4299e1;
+                    padding-left: 10px;
                 }}
-                .stat-number {{
-                    font-size: 36px;
-                    font-weight: 700;
-                    color: #667eea;
-                    margin: 0;
-                    line-height: 1;
-                }}
-                .stat-label {{
-                    font-size: 12px;
-                    color: #6c757d;
-                    text-transform: uppercase;
-                    letter-spacing: 1px;
-                    margin-top: 8px;
-                }}
-                
-                .topics-section {{
-                    padding: 20px 30px;
-                    background: #f8f9fa;
-                    border-bottom: 1px solid #e9ecef;
-                }}
-                .topics-title {{
-                    font-size: 14px;
-                    color: #495057;
-                    margin-bottom: 10px;
-                }}
-                .topic-badge {{
-                    display: inline-block;
-                    background: white;
-                    color: #495057;
-                    padding: 5px 12px;
-                    margin: 4px;
-                    border-radius: 20px;
-                    font-size: 12px;
-                    border: 1px solid #dee2e6;
-                }}
-                
-                .summary-section {{
-                    background: linear-gradient(to right, #e3f2fd 0%, #f3e5f5 100%);
-                    padding: 25px 30px;
-                    margin: 0;
-                    border-left: 4px solid #2196f3;
-                }}
-                .summary-title {{
-                    font-weight: 700;
-                    color: #1976d2;
-                    margin-bottom: 10px;
+                .report-content h4 {{
                     font-size: 16px;
+                    color: #4a5568;
+                    margin-top: 20px;
+                    margin-bottom: 10px;
+                    font-weight: 600;
                 }}
-                .summary-content {{
-                    color: #424242;
-                    line-height: 1.8;
+                .report-content p {{
+                    margin-bottom: 15px;
+                    line-height: 1.7;
+                    text-align: justify;
                 }}
+                .report-content strong {{
+                    color: #2b6cb0;
+                }}
+                .report-content ul {{
+                    padding-left: 20px;
+                    margin-bottom: 15px;
+                }}
+                .report-content li {{
+                    margin-bottom: 8px;
+                }}
+                
+                /* ... (rest of styles) ... */
             </style>
         </head>
         <body>
@@ -182,7 +118,7 @@ class EmailTemplates:
                     <div class="summary-content">{report.summary}</div>
                 </div>
         '''
-    
+
     def get_paper_card(self, index: int, paper: PersonalizedPaper, report_id: str) -> str:
         """
         生成论文卡片
@@ -203,7 +139,7 @@ class EmailTemplates:
         published = paper.meta.published_date if paper.meta else "未知日期"
         category = paper.meta.category[0] if paper.meta and paper.meta.category else "未分类"
         relevance = round(paper.user_state.relevance_score, 2) if paper.user_state else 0.0
-        arxiv_url = paper.meta.links.get('arxiv') if paper.meta and paper.meta.links else "#"
+        arxiv_url = paper.meta.links.arxiv if paper.meta and paper.meta.links else "#"
         
         # 相关性徽章颜色
         if relevance >= 0.8:
@@ -231,7 +167,7 @@ class EmailTemplates:
             </div>
             
             <div style="font-size: 14px; color: #495057; line-height: 1.6; margin-bottom: 15px;">
-                {paper.user_state.why_this_paper if paper.user_state and paper.user_state.why_this_paper else paper.analysis.details.get('tldr', '暂无摘要') if paper.analysis and paper.analysis.details else '暂无摘要'}
+                {paper.user_state.why_this_paper if paper.user_state and paper.user_state.why_this_paper else paper.analysis.tldr if paper.analysis and paper.analysis.tldr else '暂无摘要'}
             </div>
             
             <a href="{arxiv_url}" style="display: inline-block; background: #667eea; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 13px;">
@@ -285,7 +221,73 @@ class EmailTemplates:
         </body>
         </html>
         '''
-    
+    def _markdown_to_html(self, text: str) -> str:
+        """
+        简单的 Markdown 转 HTML 转换器
+        """
+        if not text:
+            return ""
+            
+        # 1. 转义 HTML (简单处理)
+        text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        
+        # 2. 处理标题
+        # ### Title -> <h3>Title</h3>
+        text = re.sub(r'^### (.*?)$', r'<h3>\1</h3>', text, flags=re.MULTILINE)
+        # #### Title -> <h4>Title</h4>
+        text = re.sub(r'^#### (.*?)$', r'<h4>\1</h4>', text, flags=re.MULTILINE)
+        # ## Title -> <h2>Title</h2>
+        text = re.sub(r'^## (.*?)$', r'<h2>\1</h2>', text, flags=re.MULTILINE)
+        
+        # 3. 处理加粗 **text** -> <strong>text</strong>
+        text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+        
+        # 4. 处理引用 <ref id="xxx"> -> [xxx] (或者链接)
+        # 假设格式是 <ref id="2512.08185">
+        # 转换为链接到 Arxiv
+        text = re.sub(r'&lt;ref id="(.*?)"&gt;', r'<a href="https://arxiv.org/abs/\1" style="color: #667eea; text-decoration: none;">[\1]</a>', text)
+        
+        # 5. 处理段落
+        # 将双换行视为段落分隔
+        paragraphs = text.split('\n\n')
+        html_parts = []
+        for p in paragraphs:
+            p = p.strip()
+            if not p:
+                continue
+            # 如果不是标题开头，包裹 <p>
+            if not p.startswith('<h'):
+                # 处理列表
+                if p.startswith('- '):
+                    items = p.split('\n')
+                    list_html = '<ul>'
+                    for item in items:
+                        if item.strip().startswith('- '):
+                            list_html += f'<li>{item.strip()[2:]}</li>'
+                    list_html += '</ul>'
+                    html_parts.append(list_html)
+                else:
+                    html_parts.append(f'<p>{p.replace(chr(10), "<br>")}</p>')
+            else:
+                html_parts.append(p)
+                
+        return '\n'.join(html_parts)
+
+    def get_content_section(self, report: Report) -> str:
+        """
+        生成报告正文部分
+        """
+        if not report.content:
+            return ""
+            
+        html_content = self._markdown_to_html(report.content)
+        
+        return f'''
+        <div class="report-content">
+            {html_content}
+        </div>
+        '''
+
     def generate_email_html(self, report: Report, papers: List[PersonalizedPaper], stats: Dict) -> str:
         """
         生成完整邮件 HTML
@@ -300,12 +302,16 @@ class EmailTemplates:
         """
         header = self.get_header(report, stats)
         
+        # 生成正文内容
+        content_html = self.get_content_section(report)
+        
         # 生成论文卡片
-        papers_html = '<div style="padding: 30px;">'
+        papers_html = '<div style="padding: 30px; background: #f8f9fa;">'
+        papers_html += '<div style="font-size: 16px; font-weight: bold; color: #2d3748; margin-bottom: 20px; padding-left: 10px; border-left: 4px solid #667eea;">推荐论文列表</div>'
         for idx, paper in enumerate(papers[:15], 1):  # 只展示前15篇
             papers_html += self.get_paper_card(idx, paper, report.id)
         papers_html += '</div>'
         
         footer = self.get_footer(report.id, report.user_id)
         
-        return header + papers_html + footer
+        return header + content_html + papers_html + footer

@@ -51,6 +51,8 @@ class WorkflowService:
         
         获取状态为 'fetched' 的新论文，并进行公共分析（如生成 TLDR、提取 Motivation 等）。
         这些分析结果是通用的，不针对特定用户。
+        
+        [Modified] 分批处理：每批 20 篇，批次间等待 60 秒。
 
         Args:
             None
@@ -58,6 +60,7 @@ class WorkflowService:
         Returns:
             None
         """
+        import time
         print("Starting Public Analysis...")
         try:
             print("--- Public Analysis ---")
@@ -81,9 +84,24 @@ class WorkflowService:
                 meta = RawPaperMetadata(**meta_data)
                 papers_to_analyze.append(PersonalizedPaper(meta=meta, analysis=None, user_state=None))
             
-            if papers_to_analyze:
-                print(f"Found {len(papers_to_analyze)} papers needing public analysis.")
-                paper_service.batch_analyze_papers(papers_to_analyze)
+            total_papers = len(papers_to_analyze)
+            if total_papers > 0:
+                print(f"Found {total_papers} papers needing public analysis.")
+                
+                # 分批处理
+                batch_size = 20
+                delay_seconds = 60
+                
+                for i in range(0, total_papers, batch_size):
+                    batch = papers_to_analyze[i:i + batch_size]
+                    print(f"Processing batch {i // batch_size + 1}/{(total_papers + batch_size - 1) // batch_size} (Size: {len(batch)})...")
+                    
+                    paper_service.batch_analyze_papers(batch)
+                    
+                    # 如果不是最后一批，等待
+                    if i + batch_size < total_papers:
+                        print(f"Waiting {delay_seconds} seconds before next batch...")
+                        time.sleep(delay_seconds)
             else:
                 print("No papers need public analysis.")
 

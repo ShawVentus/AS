@@ -27,7 +27,7 @@ def filter_single_paper(paper_str: str, user_profile_str: str) -> Dict[str, Any]
         )
         
         # 3. 调用 LLM
-        response_str = llm_service.call_llm(prompt)
+        response_str, _ = llm_service.call_llm(prompt)
         
         # 4. 解析结果
         result = json.loads(response_str)

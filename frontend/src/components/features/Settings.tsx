@@ -8,13 +8,14 @@ import { CategorySelector } from '../common/CategorySelector';
 import { ArrowLeft, Sparkles, Lightbulb, Save, LogOut, User } from 'lucide-react';
 
 interface SettingsProps {
-    userProfile: UserProfile | null;
+    userProfile: UserProfile;
     onUpdate: () => void;
-    onBack?: () => void;
+    onBack: () => void;
+    onNavigate?: (view: string) => void;
 }
 
-export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
-    if (!userProfile) return null;
+export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBack, onNavigate }) => {
+    const [name, setName] = useState(userProfile.info.name);
 
     const [loading, setLoading] = useState(false);
     const [nlLoading, setNlLoading] = useState(false);
@@ -127,13 +128,6 @@ export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-                    >
-                        <LogOut size={16} />
-                        退出登录
-                    </button>
-                    <button
                         onClick={handleSave}
                         disabled={loading}
                         className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-6 rounded-lg shadow-lg shadow-blue-900/20 disabled:opacity-50 transition-all"
@@ -242,11 +236,10 @@ export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
                         </label>
                     </div>
                 </div>
-        </div>
-            </section >
+            </section>
 
-        {/* Natural Language Adjustment */ }
-        < section className = "bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm" >
+            {/* Natural Language Adjustment */}
+            <section className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm">
                 <div className="flex items-center gap-2 mb-4 text-blue-400">
                     <Sparkles size={20} />
                     <h2 className="text-lg font-semibold text-white">自然语言调整</h2>
@@ -271,10 +264,10 @@ export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
                 <p className="text-xs text-slate-500 mt-3 ml-1">
                     Agent 会分析您的输入，自动更新关注类别、关键词等信息。
                 </p>
-            </section >
+            </section>
 
-        {/* Focus Areas */ }
-        < section className = "bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm" >
+            {/* Focus Areas */}
+            <section className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm">
                 <div className="flex items-center gap-2 mb-6 text-indigo-400">
                     <Lightbulb size={20} />
                     <h2 className="text-lg font-semibold text-white">关注什么</h2>
@@ -314,7 +307,7 @@ export function Settings({ userProfile, onUpdate, onBack }: SettingsProps) {
                         addButtonText="添加机构"
                     />
                 </div>
-            </section >
-        </div >
+            </section>
+        </div>
     );
 }

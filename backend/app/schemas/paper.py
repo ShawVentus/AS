@@ -111,6 +111,10 @@ class FilterResponse(BaseModel):
     rejected_count: int      # 拒绝论文数
     selected_papers: List[FilterResultItem] # 接受的论文 (按相关性排序)
     rejected_papers: List[FilterResultItem] # 拒绝的论文 (按相关性排序)
+    # Performance metrics
+    tokens_input: Optional[int] = 0
+    tokens_output: Optional[int] = 0
+    cost: Optional[float] = 0.0
 
 # Deprecated but kept for compatibility if needed, or remove
 class PaperMetadata(BaseModel):

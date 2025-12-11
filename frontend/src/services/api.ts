@@ -103,6 +103,20 @@ export const RealReportAPI = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ report_id: reportId, email })
     }),
+    sendEmail: (reportId: string, email: string) => fetchJSON<{ success: boolean }>('/reports/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_id: reportId, email })
+    }),
+};
+
+export const RealWorkflowAPI = {
+    triggerDaily: () => fetchJSON<{ message: string; execution_id?: string }>('/workflow/trigger-daily', { method: 'POST' }),
+    resumeWorkflow: (executionId: string) => fetchJSON<{ message: string }>('/workflow/resume', {
+        method: 'POST',
+        body: JSON.stringify({ execution_id: executionId })
+    }),
+    getStatus: (executionId: string) => fetchJSON<any>(`/workflow/status/${executionId}`),
 };
 
 import { MockUserAPI, MockPaperAPI, MockReportAPI } from './mockApi';
@@ -112,4 +126,5 @@ const useMock = import.meta.env.VITE_USE_MOCK === 'true';
 export const UserAPI = useMock ? MockUserAPI : RealUserAPI;
 export const PaperAPI = useMock ? MockPaperAPI : RealPaperAPI;
 export const ReportAPI = useMock ? MockReportAPI : RealReportAPI;
+export const WorkflowAPI = RealWorkflowAPI; // 暂无 Mock
 

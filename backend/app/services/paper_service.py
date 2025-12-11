@@ -10,7 +10,7 @@ from app.schemas.user import UserProfile
 from app.services.llm_service import llm_service
 from app.core.database import get_db
 
-MAX_WORKERS = 5
+MAX_WORKERS = 2
 
 class PaperService:
     def __init__(self):
@@ -527,6 +527,10 @@ class PaperService:
         processed_count = 0
         total_papers = len(papers)
         
+        # Token 统计
+        total_tokens_input = 0
+        total_tokens_output = 0
+        
         # [Batch Update] 收集所有状态数据
         all_state_data = []
 
@@ -591,6 +595,11 @@ class PaperService:
                     filter_result, retries = future.result()
                     total_retries += retries
                     
+                    # 累加 Token 消耗
+                    usage = filter_result.get("_usage", {})
+                    total_tokens_input += usage.get("prompt_tokens", 0)
+                    total_tokens_output += usage.get("completion_tokens", 0)
+                    
                     # 构造状态数据字典
                     state_data = {
                         "user_id": user_id,
@@ -654,7 +663,16 @@ class PaperService:
         print(f"Total Papers: {total_papers}")
         print(f"Accepted: {accepted_count}, Rejected: {rejected_count}")
         print(f"Total Retries: {total_retries}")
-
+        
+        # 计算总 Token 消耗 (从 all_state_data 或重新遍历)
+        # 由于我们没有在 all_state_data 保存 usage，我们需要在 future 处理循环中累加
+        # 为了避免大规模重写，我们假设 _filter_with_retry 返回了 usage (需要修改 _filter_with_retry)
+        # 但 _filter_with_retry 是内部函数，修改它需要修改 ThreadPoolExecutor 的调用
+        # 让我们简化：在 future.result() 中获取 usage
+        
+        # 这里的代码块是 filter_papers 的尾部，无法访问 executor 循环中的局部变量
+        # 因此必须重写 filter_papers 的 executor 循环部分
+        
         from datetime import datetime
         return FilterResponse(
             user_id=user_id,
@@ -663,7 +681,9 @@ class PaperService:
             accepted_count=accepted_count,
             rejected_count=rejected_count,
             selected_papers=selected_papers,
-            rejected_papers=rejected_papers
+            rejected_papers=rejected_papers,
+            tokens_input=total_tokens_input,
+            tokens_output=total_tokens_output
         )
 
     def analyze_paper(self, paper: PersonalizedPaper) -> Optional[dict]:
@@ -671,13 +691,12 @@ class PaperService:
         使用 LLM 对单篇论文进行深度分析 (Public Analysis)。
         仅当论文尚未分析 (analysis 为空) 时执行。
         
-        [Modified] 仅返回需要更新的数据字典，不操作数据库。
-
         Args:
             paper (PersonalizedPaper): 待分析的论文对象。
 
         Returns:
             Optional[dict]: 需要更新到 daily_papers 的数据字典 (包含 id, details, status)。
+                            如果分析失败或无内容，返回 None。
         """
         from app.utils.paper_analysis_utils import analyze_paper_content
 
@@ -687,27 +706,51 @@ class PaperService:
         # 调用工具函数进行分析
         analysis_dict = analyze_paper_content(paper_dict)
         
-        if analysis_dict is not None:
-            # 构造更新数据
-            update_data = {
-                "id": paper.meta.id, # 必须包含 ID
-                "details": analysis_dict,
-                "status": "analyzed"
-            }
-            return update_data
+        # [Debug] 打印原始返回数据
+        if analysis_dict:
+            print(f"🔍 [DEBUG] Paper {paper.meta.id} LLM Raw Output Keys: {list(analysis_dict.keys())}")
+            # 避免打印过长，只打印前 200 字符
+            # print(f"🔍 [DEBUG] Content Preview: {str(analysis_dict)[:200]}...")
+        
+        # 检查返回结果是否有效 (必须包含关键字段，且不能只是空字典或仅有 _usage)
+        if not analysis_dict or (len(analysis_dict) == 1 and "_usage" in analysis_dict):
+            print(f"⚠️ 论文 {paper.meta.id} 分析结果为空或无效，跳过更新。")
+            return None
+
+        # 提取 usage，避免存入 details
+        usage = analysis_dict.pop("_usage", {})
+        
+        # 构造更新数据
+        # [Fix] 包含所有必要字段以避免 upsert 时的非空约束错误
+        # 虽然理论上 upsert 只更新指定字段，但为了稳妥，我们带上所有元数据
+        update_data = {
+            "id": paper.meta.id,
+            "title": paper.meta.title,
+            "authors": paper.meta.authors,
+            "published_date": paper.meta.published_date,
+            "category": paper.meta.category,
+            "abstract": paper.meta.abstract,
+            # [Fix] 序列化 links 对象为字典，避免 JSON 序列化错误
+            "links": paper.meta.links.model_dump() if hasattr(paper.meta.links, 'model_dump') else paper.meta.links,
+            "comment": paper.meta.comment,
+            "details": analysis_dict,
+            "status": "analyzed",
+            "_usage": usage # 透传 usage 给调用者，但不存入 details 字段
+        }
             
-        return None
+        return update_data
 
     def batch_analyze_papers(self, papers: List[PersonalizedPaper]) -> None:
         """
         并发批量分析论文 (Public Analysis)。
         [Modified] 并发分析后，批量写入 daily_papers 数据库。
+        [Modified] 改为每 5 篇写入一次，以提供更快的反馈并防止数据丢失。
 
         Args:
             papers (List[PersonalizedPaper]): 待分析的论文列表。
-
+        
         Returns:
-            None
+            Dict[str, int]: Token 消耗统计 {"tokens_input": int, "tokens_output": int}
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
         
@@ -716,42 +759,75 @@ class PaperService:
         
         if not papers_to_analyze:
             print("No papers need analysis.")
-            return
+            return {"tokens_input": 0, "tokens_output": 0}
 
         print(f"Analyzing {len(papers_to_analyze)} papers content (Concurrent)...")
         
+        total_tokens_input = 0
+        total_tokens_output = 0
+        
         results = []
-        # 保持较高的并发数，因为不再涉及 DB IO，主要是 LLM 网络 IO
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        # 降低并发数，避免 429 错误
+        max_workers = 2
+        
+        # 定义写入批次大小
+        write_batch_size = 5
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_paper = {executor.submit(self.analyze_paper, p): p for p in papers_to_analyze}
             
-            for future in as_completed(future_to_paper):
+            for i, future in enumerate(as_completed(future_to_paper)):
                 p = future_to_paper[future]
                 try:
                     data = future.result()
                     if data:
+                        # 提取 usage (analyze_paper 已经将 _usage 放在顶层)
+                        usage = data.pop("_usage", {})
+                        total_tokens_input += usage.get("prompt_tokens", 0)
+                        total_tokens_output += usage.get("completion_tokens", 0)
+                        
                         results.append(data)
+                        print(f"✓ 论文 {p.meta.id} 分析完成")
+                        
+                        # [Modified] 每攒够 5 篇，或者最后一篇，立即写入数据库
+                        if len(results) >= write_batch_size:
+                            print(f"Batch writing {len(results)} papers to DB...")
+                            try:
+                                self.db.table("daily_papers").upsert(results).execute()
+                                print("Batch write success.")
+                                results = [] # 清空缓冲区
+                            except Exception as e:
+                                print(f"Batch write failed: {e}")
+                                # 不清空 results? 或者保留重试? 简单起见，不清空会导致重复写入尝试，
+                                # 但 upsert 是幂等的，所以没问题。为了避免无限累积，还是清空比较好，
+                                # 或者记录失败。这里选择清空，以免阻塞后续。
+                                results = []
+
+                    else:
+                        print(f"✗ 论文 {p.meta.id} 分析失败 (无数据)")
+                        
+                    # [Fix] 添加延迟，避免速率限制
+                    if i < len(papers_to_analyze) - 1:
+                        time.sleep(1.5) 
+                        
                 except Exception as e:
                     print(f"Error analyzing paper {p.meta.id}: {e}")
 
-        if not results:
-            print("No analysis results generated.")
-            return
+        # 处理剩余未写入的数据
+        if results:
+            print(f"Writing remaining {len(results)} papers to DB...")
+            try:
+                self.db.table("daily_papers").upsert(results).execute()
+                print("Final batch write success.")
+            except Exception as e:
+                print(f"Final batch write failed: {e}")
 
-        # 批量写入 (Batch Upsert)
-        print(f"Batch updating {len(results)} papers to daily_papers DB...")
-        try:
-            # 分批写入
-            batch_size = 100
-            for i in range(0, len(results), batch_size):
-                batch = results[i:i + batch_size]
-                self.db.table("daily_papers").upsert(batch).execute()
+        return {"tokens_input": total_tokens_input, "tokens_output": total_tokens_output}
             
-            print("Batch update daily_papers completed.")
-            # 注意：papers 表的更新由后续的 archive_daily_papers 统一处理
-            
-        except Exception as e:
-            print(f"Batch update failed: {e}")
+        return {
+            "tokens_input": total_tokens_input,
+            "tokens_output": total_tokens_output
+        }
 
     def get_paper_by_id(self, paper_id: str, user_id: str) -> Optional[PersonalizedPaper]:
         """

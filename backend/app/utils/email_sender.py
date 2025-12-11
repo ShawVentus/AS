@@ -64,8 +64,9 @@ class EmailSender:
         Returns:
             MIMEMultipart: 邮件消息对象
         """
+        from email.utils import formataddr
         msg = MIMEMultipart('alternative')
-        msg['From'] = Header(f'玻尔平台 <{self.sender_email}>')
+        msg['From'] = formataddr(('玻尔平台', self.sender_email))
         msg['To'] = to_email
         msg['Subject'] = Header(subject, 'utf-8')
         
@@ -97,32 +98,52 @@ class EmailSender:
             return False, "SMTP凭据未设置"
 
         for attempt in range(1, max_retries + 1):
+            server = None
             try:
                 msg = self._create_message(to_email, subject, html_content, plain_content)
                 
                 server_cls = smtplib.SMTP_SSL if self.use_ssl else smtplib.SMTP
-                logger.debug(f"Attempt {attempt}: Connecting to {self.smtp_server}:{self.smtp_port} (SSL={self.use_ssl})")
                 
-                with server_cls(self.smtp_server, self.smtp_port, timeout=self.timeout) as server:
-                    if not self.use_ssl:
-                        server.ehlo()
-                        server.starttls()
-                        server.ehlo()
-                    
-                    server.login(self.sender_email, self.sender_password)
-                    server.send_message(msg)
+                server = server_cls(self.smtp_server, self.smtp_port, timeout=self.timeout)
+                
+                if not self.use_ssl:
+                    server.ehlo()
+                    server.starttls()
+                    server.ehlo()
+                
+                server.login(self.sender_email, self.sender_password)
+                server.send_message(msg)
                 
                 logger.info(f"Email sent to {to_email}")
+                
+                # 尝试优雅关闭，但忽略错误
+                try:
+                    server.quit()
+                except Exception:
+                    pass
+                    
                 return True, f"Email sent to {to_email}"
                 
             except smtplib.SMTPAuthenticationError:
                 error_msg = "SMTP认证失败。请检查邮箱和授权码。"
                 logger.error(error_msg)
+                if server:
+                    try:
+                        server.quit()
+                    except Exception:
+                        pass
                 return False, error_msg
                 
             except Exception as e:
                 error_msg = f"发送失败: {str(e)}"
                 logger.warning(f"Attempt {attempt}/{max_retries} failed: {error_msg}")
+                
+                if server:
+                    try:
+                        server.quit()
+                    except Exception:
+                        pass
+                        
                 if attempt < max_retries:
                     time.sleep(attempt) # 指数退避
                 else:

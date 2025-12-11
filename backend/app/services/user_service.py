@@ -136,9 +136,13 @@ class UserService:
                     focus_data["category"] = focus_data.pop("domains")
                 
                 # --- 构造对象 ---
+                info_data = data.get("info", {})
+                # [Fix] 确保 info 中包含 id，如果 JSON 中没有，从 user_id 列注入
+                if not info_data.get("id"):
+                    info_data["id"] = user_id
                 
                 return UserProfile(
-                    info=data.get("info", {}),
+                    info=info_data,
                     focus=focus_data,
                     context=context_data,
                     memory=data.get("memory", {})
