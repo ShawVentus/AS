@@ -32,11 +32,6 @@ def test_resend_report_from_db():
         print(f"🆔 ID: {report_id}")
         print(f"📧 Original Email: {latest_report.get('email')}")
         
-        # Optional: Override email for testing if needed, but report_service uses report.email
-        # If we want to test sending to ME (the developer), we might need to hack it or ensure the report is mine.
-        # But user asked to "automatically get... and send to corresponding email".
-        # So we should respect the email in the report.
-        
         # 2. Call resend
         print("🔄 Calling resend_daily_report...")
         success = report_service.resend_daily_report(report_id)

@@ -20,10 +20,17 @@ class GenerateReportStep(WorkflowStep):
         """
         执行报告生成逻辑。
         """
-        usage = scheduler_service.generate_report_job()
+        force = context.get("force", False)
+        stats = scheduler_service.generate_report_job(force=force)
         
-        if usage:
-            self.tokens_input = usage.get("tokens_input", 0)
-            self.tokens_output = usage.get("tokens_output", 0)
+        if stats:
+            self.tokens_input = stats.get("tokens_input", 0)
+            self.tokens_output = stats.get("tokens_output", 0)
+            self.cost = stats.get("cost", 0.0)
+            self.metrics["cache_hit_tokens"] = stats.get("cache_hit_tokens", 0)
+            self.metrics["request_count"] = stats.get("request_count", 0)
+            
+            from app.core.config import settings
+            self.metrics["model_name"] = settings.OPENROUTER_MODEL_PERFORMANCE
         
         return {"report_generated": True}

@@ -20,8 +20,8 @@ class Report(BaseModel):
     ref_papers: List[str] = Field(alias='refPapers')
     
     # 统计字段
-    total_papers_count: int = Field(default=0, alias='totalPapersCount')
-    recommended_papers_count: int = Field(default=0, alias='recommendedPapersCount')
+    total_papers_count: Optional[int] = Field(default=0, alias='totalPapersCount')
+    recommended_papers_count: Optional[int] = Field(default=0, alias='recommendedPapersCount')
 
 class ReportFeedback(BaseModel):
     """

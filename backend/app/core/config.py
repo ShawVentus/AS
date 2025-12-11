@@ -33,6 +33,18 @@ class Settings:
     BOHRIUM_API_KEY: str = os.getenv("BOHRIUM_API_KEY", "")
     BOHRIUM_MODEL: str = os.getenv("BOHRIUM_MODEL", "qwen3-max")
 
+    # 成本控制与模型配置
+    # 便宜的模型 (用于分析/筛选)
+    OPENROUTER_MODEL_CHEAP: str = os.getenv("OPENROUTER_MODEL_CHEAP", "qwen/qwen-plus")
+    # 高性能模型 (用于报告生成)
+    OPENROUTER_MODEL_PERFORMANCE: str = os.getenv("OPENROUTER_MODEL_PERFORMANCE", "qwen/qwen3-max")
+    
+    # Qwen-Plus 定价 (USD per 1M tokens)
+    QWEN_PLUS_PRICE_INPUT: float = float(os.getenv("QWEN_PLUS_PRICE_INPUT", "0.40"))
+    QWEN_PLUS_PRICE_OUTPUT: float = float(os.getenv("QWEN_PLUS_PRICE_OUTPUT", "1.20"))
+    QWEN_MAX_PRICE_INPUT: float = float(os.getenv("QWEN_MAX_PRICE_INPUT", "1.60")) # 假设价格，需确认
+    QWEN_MAX_PRICE_OUTPUT: float = float(os.getenv("QWEN_MAX_PRICE_OUTPUT", "4.80"))
+
     # 兼容旧配置
     ACCESS_KEY: str = os.getenv("ACCESS_KEY", "")
 

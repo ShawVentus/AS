@@ -17,6 +17,7 @@ from uuid import uuid4
 from app.core.database import get_db
 # from app.services.email_service import email_service # TODO: 创建 email_service 模块
 from app.core.workflow_step import WorkflowStep
+from app.core.config import settings
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -43,7 +44,29 @@ class WorkflowEngine:
         # 从环境变量读取配置
         self.admin_emails = os.environ.get("ADMIN_EMAILS", "").split(",")
         self.llm_price_input = float(os.environ.get("LLM_PRICE_INPUT", "1.0"))  # USD per 1M tokens
+        self.llm_price_input = float(os.environ.get("LLM_PRICE_INPUT", "1.0"))  # USD per 1M tokens
         self.llm_price_output = float(os.environ.get("LLM_PRICE_OUTPUT", "5.0"))
+
+    def _setup_logging(self, execution_id: str):
+        """设置文件日志"""
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs")
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+            
+        log_file = os.path.join(log_dir, f"workflow_{execution_id}.log")
+        file_handler = logging.FileHandler(log_file, encoding='utf-8')
+        file_handler.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        
+        # 添加到 root logger 或当前 logger
+        logger.addHandler(file_handler)
+        
+        # [Fix] 禁止 httpx 输出 INFO 日志 (如 200 OK)
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        
+        logger.info(f"📂 日志文件已创建: {log_file}")
+        return file_handler
     
     def register_step(self, step: WorkflowStep):
         """注册工作流步骤"""
@@ -67,6 +90,9 @@ class WorkflowEngine:
             # 如果已存在 ID (例如由 API 预先创建)，则更新状态为 running
             self._update_execution_status("running")
             
+        # 设置日志
+        log_handler = self._setup_logging(self.execution_id)
+            
         logger.info(f"🚀 开始执行工作流: {workflow_type} (ID: {self.execution_id})")
         
         # 2. 初始化步骤记录
@@ -79,14 +105,23 @@ class WorkflowEngine:
                 # 检查 should_stop 标志
                 if self.context.get("should_stop", False):
                     logger.info(f"⏸️ 工作流提前终止: should_stop=True")
-                    self._update_execution_status("completed", completed_at=datetime.now())
+                    self._update_execution_status("completed", completed_at=datetime.now().isoformat())
                     return self.execution_id
                 
                 self._execute_step_with_retry(step, i)
             
             # 所有步骤完成
-            self._update_execution_status("completed", completed_at=datetime.now())
+            self._update_execution_status("completed", completed_at=datetime.now().isoformat())
+
             logger.info(f"✅ 工作流执行完成: {self.execution_id}")
+            
+            # 生成汇总报告
+            self.generate_summary_report()
+            
+            # 移除日志 handler
+            if log_handler:
+                logger.removeHandler(log_handler)
+                log_handler.close()
             
         except Exception as e:
             # 工作流失败
@@ -163,13 +198,13 @@ class WorkflowEngine:
                 # 检查 should_stop 标志
                 if self.context.get("should_stop", False):
                     logger.info(f"⏸️ 工作流提前终止: should_stop=True")
-                    self._update_execution_status("completed", completed_at=datetime.now())
+                    self._update_execution_status("completed", completed_at=datetime.now().isoformat())
                     return
                 
                 self._execute_step_with_retry(step, i)
             
             # 所有步骤完成
-            self._update_execution_status("completed", completed_at=datetime.now())
+            self._update_execution_status("completed", completed_at=datetime.now().isoformat())
             logger.info(f"✅ 工作流恢复并执行完成: {self.execution_id}")
             
         except Exception as e:
@@ -185,7 +220,9 @@ class WorkflowEngine:
         
         for attempt in range(1, step.max_retries + 1):
             try:
+                logger.info("\n" + "="*50)
                 logger.info(f"👉 执行步骤 [{step.name}] (尝试 {attempt}/{step.max_retries + 1})...")
+                logger.info("="*50)
                 
                 # 更新步骤状态为 running
                 self._update_step_status(step_record_id, "running", retry_count=attempt - 1)
@@ -206,7 +243,31 @@ class WorkflowEngine:
                     self._update_execution_context()
                 
                 # 计算成本
-                cost = self._calculate_cost(step.tokens_input, step.tokens_output)
+                # 优先使用步骤返回的精确 Cost (如果 API 支持)
+                # 如果步骤没有设置 cost (为0)，则根据 Token 计算
+                # 注意: 某些步骤可能已经设置了 cost (如 paper_service 返回的)
+                step_cost = step.cost
+                
+                # 获取额外指标
+                cache_hit = step.metrics.get("cache_hit_tokens", 0)
+                request_count = step.metrics.get("request_count", 0)
+                model_name = step.metrics.get("model_name", "")
+                
+                # 如果没有精确 Cost，手动计算
+                if step_cost == 0.0 and (step.tokens_input > 0 or step.tokens_output > 0):
+                    # 根据模型名称选择定价
+                    price_input = self.llm_price_input
+                    price_output = self.llm_price_output
+                    
+                    if "qwen-plus" in model_name:
+                        price_input = settings.QWEN_PLUS_PRICE_INPUT
+                        price_output = settings.QWEN_PLUS_PRICE_OUTPUT
+                    elif "qwen3-max" in model_name:
+                        price_input = settings.QWEN_MAX_PRICE_INPUT
+                        price_output = settings.QWEN_MAX_PRICE_OUTPUT
+                    
+                    step_cost = (step.tokens_input / 1_000_000) * price_input + \
+                                (step.tokens_output / 1_000_000) * price_output
                 
                 # 更新步骤为完成
                 self._update_step_status(
@@ -215,17 +276,21 @@ class WorkflowEngine:
                     duration_ms=duration_ms,
                     tokens_input=step.tokens_input,
                     tokens_output=step.tokens_output,
-                    cost=cost,
-                    completed_at=datetime.now()
+                    cost=step_cost,
+                    completed_at=datetime.now().isoformat(),
+                    # 新增字段
+                    model_name=model_name,
+                    cache_hit_tokens=cache_hit,
+                    request_count=request_count
                 )
                 
                 # 累加到工作流总消耗
-                self._increment_workflow_cost(step.tokens_input, step.tokens_output, cost)
+                self._increment_workflow_cost(step.tokens_input, step.tokens_output, step_cost)
                 
                 # 更新当前步骤名称
                 self._update_current_step(step.name)
                 
-                logger.info(f"✅ 步骤 [{step.name}] 完成。耗时: {duration_ms}ms, 成本: ${cost:.6f}")
+                logger.info(f"✅ 步骤 [{step.name}] 完成。耗时: {duration_ms}ms, 成本: ${step_cost:.6f}")
                 
                 return  # 成功，退出重试循环
                 
@@ -381,3 +446,79 @@ class WorkflowEngine:
             }).eq("id", self.execution_id).execute()
         except Exception as e:
             logger.error(f"更新执行上下文失败: {e}")
+
+    def generate_summary_report(self):
+        """
+        生成工作流执行汇总报告 (表格形式)。
+        包含: 阶段名 | Model | Cost | Input | Output | Cache Hit | Requests | Time
+        """
+        try:
+            print("\n" + "="*95)
+            print(f"📊 工作流执行汇总报告 (ID: {self.execution_id})")
+            print("="*95)
+            
+            # 获取所有步骤记录
+            response = self.db.table("workflow_steps") \
+                .select("*") \
+                .eq("execution_id", self.execution_id) \
+                .order("step_order") \
+                .execute()
+            
+            steps = response.data
+            
+            # 表头
+            header = f"{'阶段名':<25} | {'Model':<15} | {'Cost ($)':<10} | {'Input':<8} | {'Output':<8} | {'Cache':<8} | {'Reqs':<5} | {'Time':<10}"
+            print(header)
+            print("-" * len(header))
+            
+            total_cost = 0.0
+            total_input = 0
+            total_output = 0
+            total_cache = 0
+            total_reqs = 0
+            total_duration_ms = 0
+            
+            for s in steps:
+                name = s.get("step_name", "")
+                model = s.get("model_name") or "-"
+                cost = s.get("cost", 0.0)
+                inp = s.get("tokens_input", 0)
+                out = s.get("tokens_output", 0)
+                cache = s.get("cache_hit_tokens", 0)
+                reqs = s.get("request_count", 0)
+                duration_ms = s.get("duration_ms", 0) or 0
+                
+                # 格式化时间
+                duration_sec = duration_ms / 1000
+                if duration_sec > 60:
+                    minutes = int(duration_sec // 60)
+                    seconds = int(duration_sec % 60)
+                    time_str = f"{minutes}m {seconds}s"
+                else:
+                    time_str = f"{duration_sec:.2f}s"
+                
+                # 累加
+                total_cost += cost
+                total_input += inp
+                total_output += out
+                total_cache += cache
+                total_reqs += reqs
+                total_duration_ms += duration_ms
+                
+                print(f"{name:<25} | {model:<15} | {cost:<10.6f} | {inp:<8} | {out:<8} | {cache:<8} | {reqs:<5} | {time_str:<10}")
+            
+            # 格式化总时间
+            total_duration_sec = total_duration_ms / 1000
+            if total_duration_sec > 60:
+                total_minutes = int(total_duration_sec // 60)
+                total_seconds = int(total_duration_sec % 60)
+                total_time_str = f"{total_minutes}m {total_seconds}s"
+            else:
+                total_time_str = f"{total_duration_sec:.2f}s"
+
+            print("-" * len(header))
+            print(f"{'TOTAL':<25} | {'-':<15} | {total_cost:<10.6f} | {total_input:<8} | {total_output:<8} | {total_cache:<8} | {total_reqs:<5} | {total_time_str:<10}")
+            print("="*95 + "\n")
+            
+        except Exception as e:
+            logger.error(f"生成汇总报告失败: {e}")

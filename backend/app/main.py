@@ -5,6 +5,10 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.api.v1.api import api_router
 from app.services.scheduler import scheduler_service
+import logging
+
+# 配置日志，屏蔽 httpx 的 INFO 日志
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

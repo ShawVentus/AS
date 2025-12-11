@@ -1,4 +1,6 @@
 export interface UserInfo {
+    /** 用户ID */
+    id?: string;
     /** 用户姓名 */
     name: string;
     /** 邮箱地址 */

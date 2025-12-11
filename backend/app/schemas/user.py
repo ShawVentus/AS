@@ -44,3 +44,9 @@ class NaturalLanguageInput(BaseModel):
     """自然语言输入模型"""
     text: str
     user_id: str
+
+class UserInitializationRequest(BaseModel):
+    """用户初始化请求模型"""
+    info: UserInfo
+    focus: Focus
+    context: Context

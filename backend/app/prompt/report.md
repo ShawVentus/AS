@@ -20,7 +20,7 @@
 返回格式要求：
 请仅返回一个标准的 JSON 对象，不要包含 markdown 代码块标记（如 ```json）。格式如下：
 {
-    "title": "YYYY/MM/DD - 研报标题",
+    "title": "{date} - 研报标题",
     "summary": "核心摘要 (100字以内)",
     "content": "markdown格式的正文，包含 <ref id=\"xxx\"> 标签...",
     "ref_papers": ["引用论文ID1", "引用论文ID2"]

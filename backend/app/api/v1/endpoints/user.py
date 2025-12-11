@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.auth import get_current_user_id
 from app.core.database import get_db
-from app.schemas.user import UserProfile, Focus, UserInfo, Context, Memory, UserFeedback
+from app.schemas.user import UserProfile, Focus, UserInfo, Context, Memory, UserFeedback, UserInitializationRequest
 
 router = APIRouter()
 
@@ -73,3 +73,18 @@ def record_user_interaction(feedback: UserFeedback, user_id: str = Depends(get_c
     if not success:
         raise HTTPException(status_code=500, detail="Failed to record interaction")
     return {"status": "success"}
+@router.post("/initialize", response_model=UserProfile)
+def initialize_user_profile(
+    init_data: UserInitializationRequest, 
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    初始化用户画像。
+    如果用户不存在，会创建新用户。
+    接收完整的初始化数据 (Info, Focus, Context)。
+    """
+    from app.services.user_service import user_service
+    # 注意：这里我们无法直接从 get_current_user_id 获取 email，
+    # 实际场景中应该从 JWT token claims 中解析 email，或者再次调用 auth API 获取。
+    # 暂时我们在 init_data.info 中信任前端传来的 email，或者由 service 层处理默认值。
+    return user_service.initialize_profile(init_data, user_id)

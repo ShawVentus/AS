@@ -1,5 +1,5 @@
 import React from 'react';
-import { WorkflowProgress as WorkflowProgressType } from '../../hooks/useWorkflowProgress';
+import type { WorkflowProgress as WorkflowProgressType } from '../../../hooks/useWorkflowProgress';
 
 interface Props {
     progress: WorkflowProgressType | null;
@@ -29,9 +29,9 @@ export const WorkflowProgress: React.FC<Props> = ({ progress, isConnected, error
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold text-gray-800">工作流进度</h2>
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${progress.status === 'running' ? 'bg-blue-100 text-blue-800' :
-                        progress.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            progress.status === 'failed' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
+                    progress.status === 'completed' ? 'bg-green-100 text-green-800' :
+                        progress.status === 'failed' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
                     }`}>
                     {progress.status.toUpperCase()}
                 </span>
@@ -57,9 +57,9 @@ export const WorkflowProgress: React.FC<Props> = ({ progress, isConnected, error
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-100">
                         <div className="flex items-center space-x-3">
                             <div className={`w-2 h-2 rounded-full ${step.status === 'completed' ? 'bg-green-500' :
-                                    step.status === 'running' ? 'bg-blue-500 animate-pulse' :
-                                        step.status === 'failed' ? 'bg-red-500' :
-                                            'bg-gray-300'
+                                step.status === 'running' ? 'bg-blue-500 animate-pulse' :
+                                    step.status === 'failed' ? 'bg-red-500' :
+                                        'bg-gray-300'
                                 }`}></div>
                             <span className="font-medium text-gray-700">{step.name}</span>
                         </div>
@@ -71,9 +71,9 @@ export const WorkflowProgress: React.FC<Props> = ({ progress, isConnected, error
                                 <span className="text-gray-500">${step.cost.toFixed(6)}</span>
                             )}
                             <span className={`text-xs px-2 py-0.5 rounded ${step.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                    step.status === 'running' ? 'bg-blue-100 text-blue-700' :
-                                        step.status === 'failed' ? 'bg-red-100 text-red-700' :
-                                            'bg-gray-200 text-gray-600'
+                                step.status === 'running' ? 'bg-blue-100 text-blue-700' :
+                                    step.status === 'failed' ? 'bg-red-100 text-red-700' :
+                                        'bg-gray-200 text-gray-600'
                                 }`}>
                                 {step.status}
                             </span>

@@ -36,21 +36,37 @@ class PersonalizedFilterStep(WorkflowStep):
         
         # 暂时不做任何操作，因为 process_pending_papers 需要 user_id
         # 假设 context 中有 user_id (如果是单用户触发)
+        from app.services.user_service import user_service
+        from app.core.config import settings
+
         user_id = context.get("user_id")
-        
-        total_input = 0
-        total_output = 0
+        target_users = []
         
         if user_id:
-             filter_res = paper_service.process_pending_papers(user_id)
+            target_users = [user_id]
+        else:
+            # 获取所有活跃用户
+            target_users = user_service.get_all_active_users()
+            
+        total_input = 0
+        total_output = 0
+        total_cost = 0.0
+        total_cache_hits = 0
+        total_requests = 0
+        
+        for uid in target_users:
+             filter_res = paper_service.process_pending_papers(uid)
              total_input += filter_res.tokens_input or 0
              total_output += filter_res.tokens_output or 0
-        else:
-            # 获取所有用户
-            # from app.services.user_service import user_service
-            # users = user_service.get_all_users()
-            # for user in users: ...
-            pass
+             total_cost += filter_res.cost or 0.0
+             total_cache_hits += filter_res.cache_hit_tokens or 0
+             total_requests += filter_res.request_count or 0
+             
+        # 记录聚合指标
+        self.cost = total_cost
+        self.metrics["cache_hit_tokens"] = total_cache_hits
+        self.metrics["request_count"] = total_requests
+        self.metrics["model_name"] = settings.OPENROUTER_MODEL_CHEAP
             
         self.tokens_input = total_input
         self.tokens_output = total_output

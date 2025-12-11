@@ -14,23 +14,24 @@ def chat_non_stream(messages, model="qwen3-max"):
         messages=messages,
         stream=False,
     )
-    print(resp.choices[0].message.content)
+    print(resp)
+    # print(resp.choices[0].message.content)
 
-def chat_stream(messages, model="qwen3-max"):
-    """流式对话：逐块返回"""
-    stream = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        stream=True,
-    )
-    for chunk in stream:
-        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-            print(chunk.choices[0].delta.content, end="", flush=True)
-    print()  # 换行
+# def chat_stream(messages, model="qwen3-max"):
+#     """流式对话：逐块返回"""
+#     stream = client.chat.completions.create(
+#         model=model,
+#         messages=messages,
+#         stream=True,
+#     )
+#     for chunk in stream:
+#         if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+#             print(chunk.choices[0].delta.content, end="", flush=True)
+#     print()  # 换行
 
 if __name__ == "__main__":
-    msgs = [{"role": "user", "content": "你好，最近AI有什么新进展？"}]
+    msgs = [{"role": "user", "content": "你是什么模型?"}]
     print("=== 非流式 ===")
-    chat_non_stream(msgs, "qwen3-max")
-    print("\n=== 流式 ===")
-    chat_stream(msgs, "qwen3-max")
+    chat_non_stream(msgs, "qwen-plus")
+    # print("\n=== 流式 ===")
+    # chat_stream(msgs, "qwen-plus")

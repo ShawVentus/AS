@@ -115,6 +115,8 @@ class FilterResponse(BaseModel):
     tokens_input: Optional[int] = 0
     tokens_output: Optional[int] = 0
     cost: Optional[float] = 0.0
+    cache_hit_tokens: Optional[int] = 0
+    request_count: Optional[int] = 0
 
 # Deprecated but kept for compatibility if needed, or remove
 class PaperMetadata(BaseModel):

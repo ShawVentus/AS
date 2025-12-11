@@ -1,18 +1,19 @@
-from typing import List, Dict
+from typing import List, Dict, Any
 from app.schemas.report import Report
 from app.schemas.paper import PersonalizedPaper
 import os
 import re
+from jinja2 import Environment, FileSystemLoader
+from premailer import transform
 
 class EmailTemplates:
     """
-    HTML 邮件模板生成器
+    HTML 邮件模板生成器 (Jinja2 版)
     
     主要功能：
-    1. 生成包含统计数据的邮件头部
-    2. 生成精美的论文展示卡片
-    3. 生成包含反馈链接的底部
-    4. 组合生成完整的 HTML 邮件内容
+    1. 加载 Jinja2 模板
+    2. 准备渲染所需的上下文数据
+    3. 渲染 HTML 并使用 Premailer 内联 CSS
     """
     
     # 主题标签映射（带 emoji）
@@ -25,205 +26,23 @@ class EmailTemplates:
         'cs.NE': '🌐',
         'default': '📄'
     }
-    # ... (existing code) ...
 
-    def get_header(self, report: Report, stats: Dict) -> str:
-        # ... (existing code) ...
-        # Add CSS for report content
-        # Insert before </style>
-        # 主题统计
-        category_badges = ""
-        for cat, count in list(stats.get('category_stats', {}).items())[:5]:
-            emoji = self.TOPIC_EMOJIS.get(cat, self.TOPIC_EMOJIS['default'])
-            category_badges += f'<span class="topic-badge">{emoji} {cat} ({count})</span>'
-        
-        return f'''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                /* ... (existing styles) ... */
-                
-                .report-content {{
-                    padding: 30px;
-                    background: white;
-                    border-bottom: 1px solid #e9ecef;
-                    color: #2d3748;
-                }}
-                .report-content h3 {{
-                    font-size: 18px;
-                    color: #2c5282;
-                    margin-top: 25px;
-                    margin-bottom: 15px;
-                    border-left: 4px solid #4299e1;
-                    padding-left: 10px;
-                }}
-                .report-content h4 {{
-                    font-size: 16px;
-                    color: #4a5568;
-                    margin-top: 20px;
-                    margin-bottom: 10px;
-                    font-weight: 600;
-                }}
-                .report-content p {{
-                    margin-bottom: 15px;
-                    line-height: 1.7;
-                    text-align: justify;
-                }}
-                .report-content strong {{
-                    color: #2b6cb0;
-                }}
-                .report-content ul {{
-                    padding-left: 20px;
-                    margin-bottom: 15px;
-                }}
-                .report-content li {{
-                    margin-bottom: 8px;
-                }}
-                
-                /* ... (rest of styles) ... */
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1 class="title">📊 {report.title}</h1>
-                    <div class="subtitle">玻尔平台 • {report.date}</div>
-                </div>
-                
-                <div class="stats-container">
-                    <div class="stat-card">
-                        <div class="stat-number">{stats['total_papers']}</div>
-                        <div class="stat-label">📄 爬取论文</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">{stats['recommended_papers']}</div>
-                        <div class="stat-label">⭐ 推荐论文</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-number">{stats['avg_relevance_score']}</div>
-                        <div class="stat-label">📈 平均相关度</div>
-                    </div>
-                </div>
-                
-                <div class="topics-section">
-                    <div class="topics-title">🏷️ 主题分布</div>
-                    {category_badges}
-                </div>
-                
-                <div class="summary-section">
-                    <div class="summary-title">核心摘要</div>
-                    <div class="summary-content">{report.summary}</div>
-                </div>
-        '''
+    def __init__(self):
+        """
+        初始化模板环境
+        """
+        template_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
+        self.env = Environment(loader=FileSystemLoader(template_dir))
 
-    def get_paper_card(self, index: int, paper: PersonalizedPaper, report_id: str) -> str:
-        """
-        生成论文卡片
-        
-        Args:
-            index (int): 序号
-            paper (PersonalizedPaper): 论文对象
-            report_id (str): 报告ID
-            
-        Returns:
-            str: 论文卡片 HTML
-        """
-        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-        
-        # 获取数据
-        title = paper.meta.title if paper.meta else "未知标题"
-        authors = ', '.join(paper.meta.authors[:3]) + ('...' if len(paper.meta.authors) > 3 else '') if paper.meta and paper.meta.authors else "未知作者"
-        published = paper.meta.published_date if paper.meta else "未知日期"
-        category = paper.meta.category[0] if paper.meta and paper.meta.category else "未分类"
-        relevance = round(paper.user_state.relevance_score, 2) if paper.user_state else 0.0
-        arxiv_url = paper.meta.links.arxiv if paper.meta and paper.meta.links else "#"
-        
-        # 相关性徽章颜色
-        if relevance >= 0.8:
-            badge_color = '#28a745'  # 绿色
-        elif relevance >= 0.6:
-            badge_color = '#ffc107'  # 黄色
-        else:
-            badge_color = '#6c757d'  # 灰色
-        
-        return f'''
-        <div style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 20px; transition: all 0.3s;">
-            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
-                <h3 style="margin: 0; font-size: 18px; color: #212529; flex: 1;">
-                    <a href="{arxiv_url}" style="color: #667eea; text-decoration: none;">{index}. {title}</a>
-                </h3>
-                <span style="background: {badge_color}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; white-space: nowrap; margin-left: 10px;">
-                    {relevance}
-                </span>
-            </div>
-            
-            <div style="font-size: 13px; color: #6c757d; margin-bottom: 10px;">
-                <span>👤 {authors}</span> • 
-                <span>📅 {published}</span> • 
-                <span style="background: #e9ecef; padding: 2px 8px; border-radius: 4px;">{self.TOPIC_EMOJIS.get(category, self.TOPIC_EMOJIS['default'])} {category}</span>
-            </div>
-            
-            <div style="font-size: 14px; color: #495057; line-height: 1.6; margin-bottom: 15px;">
-                {paper.user_state.why_this_paper if paper.user_state and paper.user_state.why_this_paper else paper.analysis.tldr if paper.analysis and paper.analysis.tldr else '暂无摘要'}
-            </div>
-            
-            <a href="{arxiv_url}" style="display: inline-block; background: #667eea; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 13px;">
-                查看原文 →
-            </a>
-        </div>
-        '''
-    
-    def get_footer(self, report_id: str, user_id: str) -> str:
-        """
-        生成邮件底部
-        
-        Args:
-            report_id (str): 报告ID
-            user_id (str): 用户ID
-            
-        Returns:
-            str: 底部 HTML
-        """
-        backend_url = os.getenv('BACKEND_URL', 'http://localhost:8000')
-        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-        track_pixel_url = f"{backend_url}/api/v1/email/track/{report_id}/{user_id}"
-        
-        return f'''
-                <div style="background: #f8f9fa; padding: 30px 30px 20px; text-align: center; border-top: 1px solid #e9ecef;">
-                    <div style="font-size: 16px; color: #495057; margin-bottom: 20px; font-weight: 600;">
-                        今天的报告如何？
-                    </div>
-                    <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 20px;">
-                        <a href="{frontend_url}/feedback?report={report_id}&rating=1" style="font-size: 32px; text-decoration: none; transition: transform 0.2s;">⭐</a>
-                        <a href="{frontend_url}/feedback?report={report_id}&rating=2" style="font-size: 32px; text-decoration: none; transition: transform 0.2s;">⭐⭐</a>
-                        <a href="{frontend_url}/feedback?report={report_id}&rating=3" style="font-size: 32px; text-decoration: none; transition: transform 0.2s;">⭐⭐⭐</a>
-                        <a href="{frontend_url}/feedback?report={report_id}&rating=4" style="font-size: 32px; text-decoration: none; transition: transform 0.2s;">⭐⭐⭐⭐</a>
-                        <a href="{frontend_url}/feedback?report={report_id}&rating=5" style="font-size: 32px; text-decoration: none; transition: transform 0.2s;">⭐⭐⭐⭐⭐</a>
-                    </div>
-                    <a href="{frontend_url}/reports/{report_id}" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-bottom: 20px;">
-                        查看完整报告 →
-                    </a>
-                </div>
-                
-                <div style="background: #212529; color: #adb5bd; padding: 20px; text-align: center;">
-                    <p style="margin: 0 0 10px 0; font-size: 13px;">由玻尔平台生成</p>
-                    <p style="margin: 0; font-size: 12px;">
-                        <a href="{frontend_url}/settings" style="color: #667eea; text-decoration: none;">邮件设置</a>
-                    </p>
-                </div>
-            </div>
-            
-            <!-- 追踪像素 -->
-            <img src="{track_pixel_url}" width="1" height="1" style="display:none;" />
-        </body>
-        </html>
-        '''
     def _markdown_to_html(self, text: str) -> str:
         """
         简单的 Markdown 转 HTML 转换器
+        
+        Args:
+            text (str): Markdown 文本
+            
+        Returns:
+            str: HTML 文本
         """
         if not text:
             return ""
@@ -231,33 +50,24 @@ class EmailTemplates:
         # 1. 转义 HTML (简单处理)
         text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         
-        # 2. 处理标题
-        # ### Title -> <h3>Title</h3>
-        text = re.sub(r'^### (.*?)$', r'<h3>\1</h3>', text, flags=re.MULTILINE)
-        # #### Title -> <h4>Title</h4>
-        text = re.sub(r'^#### (.*?)$', r'<h4>\1</h4>', text, flags=re.MULTILINE)
-        # ## Title -> <h2>Title</h2>
-        text = re.sub(r'^## (.*?)$', r'<h2>\1</h2>', text, flags=re.MULTILINE)
+        # 2. 处理标题 - 统一转换为 h4 以保持样式一致
+        # 移除可能存在的 markdown 标记
+        text = re.sub(r'^#+ (.*?)$', r'<h4>\1</h4>', text, flags=re.MULTILINE)
         
         # 3. 处理加粗 **text** -> <strong>text</strong>
         text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
         
         # 4. 处理引用 <ref id="xxx"> -> [xxx] (或者链接)
-        # 假设格式是 <ref id="2512.08185">
-        # 转换为链接到 Arxiv
-        text = re.sub(r'&lt;ref id="(.*?)"&gt;', r'<a href="https://arxiv.org/abs/\1" style="color: #667eea; text-decoration: none;">[\1]</a>', text)
+        text = re.sub(r'&lt;ref id="(.*?)"&gt;', r'<a href="https://arxiv.org/abs/\1" style="color: #4f46e5; text-decoration: none;">[\1]</a>', text)
         
         # 5. 处理段落
-        # 将双换行视为段落分隔
         paragraphs = text.split('\n\n')
         html_parts = []
         for p in paragraphs:
             p = p.strip()
             if not p:
                 continue
-            # 如果不是标题开头，包裹 <p>
             if not p.startswith('<h'):
-                # 处理列表
                 if p.startswith('- '):
                     items = p.split('\n')
                     list_html = '<ul>'
@@ -273,20 +83,165 @@ class EmailTemplates:
                 
         return '\n'.join(html_parts)
 
-    def get_content_section(self, report: Report) -> str:
+    def _prepare_paper_data(self, index: int, paper: PersonalizedPaper) -> Dict[str, Any]:
         """
-        生成报告正文部分
+        准备单个论文的展示数据
+        
+        Args:
+            index (int): 序号
+            paper (PersonalizedPaper): 论文对象
+            
+        Returns:
+            Dict: 模板所需的论文数据字典
         """
-        if not report.content:
+        # 获取基础数据
+        title = paper.meta.title if paper.meta else "未知标题"
+        authors = ', '.join(paper.meta.authors[:3]) + ('...' if len(paper.meta.authors) > 3 else '') if paper.meta and paper.meta.authors else "未知作者"
+        published = paper.meta.published_date if paper.meta else "未知日期"
+        
+        # 处理分类列表
+        categories = []
+        if paper.meta and paper.meta.category:
+            for cat in paper.meta.category:
+                emoji = self.TOPIC_EMOJIS.get(cat, self.TOPIC_EMOJIS['default'])
+                categories.append({"name": cat, "emoji": emoji})
+        else:
+            categories.append({"name": "未分类", "emoji": self.TOPIC_EMOJIS['default']})
+
+        relevance = round(paper.user_state.relevance_score, 2) if paper.user_state else 0.0
+        arxiv_url = paper.meta.links.arxiv if paper.meta and paper.meta.links else "#"
+        
+        # 确定徽章颜色
+        if relevance >= 0.8:
+            badge_color = '#10b981'  # 绿色
+        elif relevance >= 0.6:
+            badge_color = '#f59e0b'  # 黄色
+        else:
+            badge_color = '#6b7280'  # 灰色
+
+        # 获取摘要/点评
+        tldr = '暂无摘要'
+        if paper.user_state and paper.user_state.why_this_paper:
+            tldr = paper.user_state.why_this_paper
+        elif paper.analysis and paper.analysis.tldr:
+            tldr = paper.analysis.tldr
+
+        return {
+            "index": index,
+            "title": title,
+            "link": arxiv_url,
+            "authors": authors,
+            "published": published,
+            "categories": categories,
+            "relevance": relevance,
+            "badge_color": badge_color,
+            "tldr": tldr
+        }
+
+    def _process_report_content(self, content: str) -> tuple[str, str | None]:
+        """
+        处理报告内容：提取摘要并移除冗余标题
+        
+        Args:
+            content (str): 原始 Markdown 内容
+            
+        Returns:
+            tuple[str, str | None]: (清洗后的内容, 提取的摘要文本)
+        """
+        if not content:
+            return "", None
+            
+        extracted_summary = None
+        cleaned_content = content
+        
+        # 1. 尝试提取 "核心摘要"
+        # 匹配 ## 核心摘要 [内容] ## 详细内容 (或结尾)
+        summary_match = re.search(r'##\s*核心摘要\s*\n(.*?)(?=\n##|\Z)', content, re.DOTALL)
+        if summary_match:
+            extracted_summary = summary_match.group(1).strip()
+            # 从内容中移除核心摘要部分
+            cleaned_content = cleaned_content.replace(summary_match.group(0), "")
+            
+        # 2. 移除 "详细内容" 标题及可能的残留字符
+        # 移除 "## 详细内容"
+        cleaned_content = re.sub(r'##\s*详细内容\s*\n', '', cleaned_content)
+        # 移除可能残留的孤立 # 符号 (用户反馈出现的情况)
+        cleaned_content = re.sub(r'^\s*#\s*\n', '', cleaned_content, flags=re.MULTILINE)
+        
+        return cleaned_content.strip(), extracted_summary
+
+    def _markdown_to_html(self, text: str) -> str:
+        """
+        Markdown 转 HTML 转换器（带自动编号）
+        
+        Args:
+            text (str): Markdown 文本
+            
+        Returns:
+            str: HTML 文本
+        """
+        if not text:
             return ""
             
-        html_content = self._markdown_to_html(report.content)
+        # 1. 转义 HTML
+        text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         
-        return f'''
-        <div class="report-content">
-            {html_content}
-        </div>
-        '''
+        # 2. 自动编号与标题处理
+        # 查找所有标题 (###, ####, #####) 并添加序号
+        header_counter = 0
+        
+        def header_replace(match):
+            nonlocal header_counter
+            level = len(match.group(1)) # 标题级别 (### = 3)
+            title = match.group(2)
+            
+            # 只对主要的小标题进行编号 (通常是 h3 或 h4)
+            # 假设正文中的主要分段是 ### 或 ####
+            header_counter += 1
+            
+            # 映射 Markdown 级别到 HTML 标签
+            # 强制统一使用 h4 以保持样式一致
+            tag = 'h4'
+            
+            # 添加序号样式
+            numbered_title = f'<span style="background-color: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; margin-right: 8px; vertical-align: middle;">{header_counter}</span>{title}'
+            
+            return f'<{tag}>{numbered_title}</{tag}>'
+
+        # 匹配 ^(#{3,5}) (内容)
+        text = re.sub(r'^(#{3,5})\s+(.*?)$', header_replace, text, flags=re.MULTILINE)
+        
+        # 处理 ## (如果有剩余的二级标题，转为 h2，不编号)
+        text = re.sub(r'^## (.*?)$', r'<h2>\1</h2>', text, flags=re.MULTILINE)
+        
+        # 3. 处理加粗 **text** -> <strong>text</strong>
+        text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+        
+        # 4. 处理引用 <ref id="xxx"> -> [xxx]
+        text = re.sub(r'&lt;ref id="(.*?)"&gt;', r'<a href="https://arxiv.org/abs/\1" style="color: #4f46e5; text-decoration: none;">[\1]</a>', text)
+        
+        # 5. 处理段落和列表
+        paragraphs = text.split('\n\n')
+        html_parts = []
+        for p in paragraphs:
+            p = p.strip()
+            if not p:
+                continue
+            if not p.startswith('<h'):
+                if p.startswith('- '):
+                    items = p.split('\n')
+                    list_html = '<ul>'
+                    for item in items:
+                        if item.strip().startswith('- '):
+                            list_html += f'<li>{item.strip()[2:]}</li>'
+                    list_html += '</ul>'
+                    html_parts.append(list_html)
+                else:
+                    html_parts.append(f'<p>{p.replace(chr(10), "<br>")}</p>')
+            else:
+                html_parts.append(p)
+                
+        return '\n'.join(html_parts)
 
     def generate_email_html(self, report: Report, papers: List[PersonalizedPaper], stats: Dict) -> str:
         """
@@ -298,20 +253,53 @@ class EmailTemplates:
             stats (Dict): 统计数据
             
         Returns:
-            str: 完整 HTML 内容
+            str: 处理后的完整 HTML 内容
         """
-        header = self.get_header(report, stats)
+        # 1. 准备基础上下文
+        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
         
-        # 生成正文内容
-        content_html = self.get_content_section(report)
+        # 2. 准备主题列表数据
+        category_list = []
+        for cat, count in list(stats.get('category_stats', {}).items())[:5]:
+            emoji = self.TOPIC_EMOJIS.get(cat, self.TOPIC_EMOJIS['default'])
+            category_list.append((cat, count, emoji))
+            
+        # 3. 准备论文列表数据
+        papers_data = []
+        for idx, paper in enumerate(papers[:15], 1):
+            papers_data.append(self._prepare_paper_data(idx, paper))
+
+        # 4. 处理报告内容
+        cleaned_content, extracted_summary = self._process_report_content(report.content)
         
-        # 生成论文卡片
-        papers_html = '<div style="padding: 30px; background: #f8f9fa;">'
-        papers_html += '<div style="font-size: 16px; font-weight: bold; color: #2d3748; margin-bottom: 20px; padding-left: 10px; border-left: 4px solid #667eea;">推荐论文列表</div>'
-        for idx, paper in enumerate(papers[:15], 1):  # 只展示前15篇
-            papers_html += self.get_paper_card(idx, paper, report.id)
-        papers_html += '</div>'
+        # 确定最终使用的摘要
+        final_summary = extracted_summary if extracted_summary else report.summary
+
+        # 5. 构建完整上下文
+        context = {
+            "title": report.title,
+            "date": report.date,
+            "summary": final_summary,
+            "content_html": self._markdown_to_html(cleaned_content),
+            "stats": {
+                "total_papers": stats.get('total_papers', 0),
+                "recommended_papers": stats.get('recommended_papers', 0),
+                "avg_relevance_score": stats.get('avg_relevance_score', 0.0),
+                "category_list": category_list
+            },
+            "papers": papers_data,
+            "highlight": None,
+            "frontend_url": frontend_url,
+            "report_id": report.id,
+            "user_id": report.user_id,
+            "backend_url": os.getenv('BACKEND_URL', 'http://localhost:8000')
+        }
+
+        # 6. 渲染模板
+        template = self.env.get_template('daily_report.html')
+        html_content = template.render(**context)
         
-        footer = self.get_footer(report.id, report.user_id)
+        # 7. 内联 CSS
+        final_html = transform(html_content)
         
-        return header + content_html + papers_html + footer
+        return final_html

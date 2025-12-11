@@ -9,9 +9,14 @@ export const MockUserAPI = {
         await delay(500);
         return USER_PROFILE;
     },
-    initialize: async (userInfo: UserInfo) => {
+    initialize: async (data: { info: UserInfo, focus: any, context: any }) => {
         await delay(500);
-        return { ...USER_PROFILE, info: { ...USER_PROFILE.info, ...userInfo } };
+        return {
+            ...USER_PROFILE,
+            info: { ...USER_PROFILE.info, ...data.info },
+            focus: { ...USER_PROFILE.focus, ...data.focus },
+            context: { ...USER_PROFILE.context, ...data.context }
+        };
     },
     updateNL: async (text: string, userId: string) => {
         await delay(500);

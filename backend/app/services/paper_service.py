@@ -5,6 +5,7 @@ import subprocess
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm # 引入 tqdm 用于进度条
 from app.schemas.paper import RawPaperMetadata, UserPaperState, PersonalizedPaper, PaperAnalysis, PaperDetails, PaperLinks, PaperFilter, FilterResponse, FilterResultItem, PaperExportRequest
 from app.schemas.user import UserProfile
 from app.services.llm_service import llm_service
@@ -429,7 +430,8 @@ class PaperService:
             # 这里按照需求：只关注当日更新
             
             # 临时修改 get_papers_by_categories 支持指定表名
-            papers = self.get_papers_by_categories(categories, user_id, table_name="daily_papers")
+            # [Fix] 增加 limit，否则默认只取 1 条，如果该条已处理则会导致无结果
+            papers = self.get_papers_by_categories(categories, user_id, limit=200, table_name="daily_papers")
             
             # 如果 daily_papers 没有找到，是否回退到 papers? 
             # 根据 "减少计算量" 的初衷，应该只处理 daily_papers。
@@ -530,6 +532,8 @@ class PaperService:
         # Token 统计
         total_tokens_input = 0
         total_tokens_output = 0
+        total_cost = 0.0
+        total_cache_hit_tokens = 0
         
         # [Batch Update] 收集所有状态数据
         all_state_data = []
@@ -583,14 +587,11 @@ class PaperService:
                 future_to_paper[future] = p
 
             # --- 3. 处理筛选结果 ---
-            for future in as_completed(future_to_paper):
+            # 使用 tqdm 显示进度
+            for future in tqdm(as_completed(future_to_paper), total=len(future_to_paper), desc="Filtering Papers"):
                 p = future_to_paper[future]
                 processed_count += 1
                 
-                # 进度日志
-                if processed_count % 10 == 0 or processed_count == total_papers:
-                    print(f"Progress: {processed_count}/{total_papers} papers processed...")
-
                 try:
                     filter_result, retries = future.result()
                     total_retries += retries
@@ -599,6 +600,8 @@ class PaperService:
                     usage = filter_result.get("_usage", {})
                     total_tokens_input += usage.get("prompt_tokens", 0)
                     total_tokens_output += usage.get("completion_tokens", 0)
+                    total_cost += usage.get("cost", 0.0)
+                    total_cache_hit_tokens += usage.get("cache_hit_tokens", 0)
                     
                     # 构造状态数据字典
                     state_data = {
@@ -638,14 +641,14 @@ class PaperService:
 
         # [Batch Update] 批量写入数据库
         if all_state_data:
-            print(f"Batch updating {len(all_state_data)} user paper states...")
+            # print(f"Batch updating {len(all_state_data)} user paper states...")
             try:
                 # 分批写入，防止一次性包过大
                 batch_size = 100
                 for i in range(0, len(all_state_data), batch_size):
                     batch = all_state_data[i:i + batch_size]
                     self.db.table("user_paper_states").upsert(batch).execute()
-                print("Batch update user states completed.")
+                # print("Batch update user states completed.")
             except Exception as e:
                 print(f"Error batch updating user paper states: {e}")
 
@@ -683,7 +686,10 @@ class PaperService:
             selected_papers=selected_papers,
             rejected_papers=rejected_papers,
             tokens_input=total_tokens_input,
-            tokens_output=total_tokens_output
+            tokens_output=total_tokens_output,
+            cost=total_cost,
+            cache_hit_tokens=total_cache_hit_tokens,
+            request_count=accepted_count + rejected_count
         )
 
     def analyze_paper(self, paper: PersonalizedPaper) -> Optional[dict]:
@@ -727,7 +733,7 @@ class PaperService:
             "id": paper.meta.id,
             "title": paper.meta.title,
             "authors": paper.meta.authors,
-            "published_date": paper.meta.published_date,
+            "published_date": str(paper.meta.published_date) if paper.meta.published_date else None,
             "category": paper.meta.category,
             "abstract": paper.meta.abstract,
             # [Fix] 序列化 links 对象为字典，避免 JSON 序列化错误
@@ -773,61 +779,57 @@ class PaperService:
         # 定义写入批次大小
         write_batch_size = 5
         
+        # 统计数据
+        stats = {
+            "tokens_input": 0,
+            "tokens_output": 0,
+            "cost": 0.0,
+            "cache_hit_tokens": 0,
+            "request_count": 0
+        }
+
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_paper = {executor.submit(self.analyze_paper, p): p for p in papers_to_analyze}
             
-            for i, future in enumerate(as_completed(future_to_paper)):
+            # 使用 tqdm 显示进度
+            for future in tqdm(as_completed(future_to_paper), total=len(papers_to_analyze), desc="Analyzing Papers"):
                 p = future_to_paper[future]
                 try:
                     data = future.result()
                     if data:
                         # 提取 usage (analyze_paper 已经将 _usage 放在顶层)
                         usage = data.pop("_usage", {})
-                        total_tokens_input += usage.get("prompt_tokens", 0)
-                        total_tokens_output += usage.get("completion_tokens", 0)
+                        
+                        # 累加统计数据
+                        stats["tokens_input"] += usage.get("prompt_tokens", 0)
+                        stats["tokens_output"] += usage.get("completion_tokens", 0)
+                        stats["cost"] += usage.get("cost", 0.0)
+                        stats["cache_hit_tokens"] += usage.get("cache_hit_tokens", 0)
+                        stats["request_count"] += 1
                         
                         results.append(data)
-                        print(f"✓ 论文 {p.meta.id} 分析完成")
+                        # 静默模式：成功时不打印详细日志
+                        # print(f"✓ 论文 {p.meta.id} 分析完成")
                         
                         # [Modified] 每攒够 5 篇，或者最后一篇，立即写入数据库
                         if len(results) >= write_batch_size:
-                            print(f"Batch writing {len(results)} papers to DB...")
+                            # print(f"Batch writing {len(results)} papers to DB...")
                             try:
                                 self.db.table("daily_papers").upsert(results).execute()
-                                print("Batch write success.")
                                 results = [] # 清空缓冲区
                             except Exception as e:
                                 print(f"Batch write failed: {e}")
-                                # 不清空 results? 或者保留重试? 简单起见，不清空会导致重复写入尝试，
-                                # 但 upsert 是幂等的，所以没问题。为了避免无限累积，还是清空比较好，
-                                # 或者记录失败。这里选择清空，以免阻塞后续。
-                                results = []
-
-                    else:
-                        print(f"✗ 论文 {p.meta.id} 分析失败 (无数据)")
-                        
-                    # [Fix] 添加延迟，避免速率限制
-                    if i < len(papers_to_analyze) - 1:
-                        time.sleep(1.5) 
-                        
                 except Exception as e:
                     print(f"Error analyzing paper {p.meta.id}: {e}")
-
-        # 处理剩余未写入的数据
+        
+        # 处理剩余的
         if results:
-            print(f"Writing remaining {len(results)} papers to DB...")
             try:
                 self.db.table("daily_papers").upsert(results).execute()
-                print("Final batch write success.")
             except Exception as e:
                 print(f"Final batch write failed: {e}")
-
-        return {"tokens_input": total_tokens_input, "tokens_output": total_tokens_output}
-            
-        return {
-            "tokens_input": total_tokens_input,
-            "tokens_output": total_tokens_output
-        }
+                
+        return stats
 
     def get_paper_by_id(self, paper_id: str, user_id: str) -> Optional[PersonalizedPaper]:
         """
@@ -890,7 +892,7 @@ class PaperService:
             results = []
             for p in papers_data:
                 state = states_map.get(p['id'])
-                results.append(self._merge_paper_state(p, state))
+                results.append(self.merge_paper_state(p, state))
                 
             return results
         except Exception as e:
@@ -987,7 +989,7 @@ class PaperService:
             for s in states:
                 p_data = papers_map.get(s['paper_id'])
                 if p_data:
-                    results.append(self._merge_paper_state(p_data, s))
+                    results.append(self.merge_paper_state(p_data, s))
             return results
         except Exception as e:
             print(f"Error fetching recommendations: {e}")

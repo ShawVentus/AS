@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        /* --- 基础重置 --- */
+        body {
+            margin: 0;
+            padding: 0;
+            min-width: 100%;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background-color: #f1f5f9;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        table {
+            border-spacing: 0;
+            border-collapse: collapse;
+        }
+
+        td {
+            padding: 0;
+        }
+
+        img {
+            border: 0;
+        }
+
+        /* --- 容器布局 --- */
+        .wrapper {
+            width: 100%;
+            table-layout: fixed;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            background-color: #f1f5f9;
+            padding-bottom: 40px;
+        }
+
+        .webkit {
+            max-width: 650px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* --- 头部样式 (New) --- */
+        .header-table {
+            background-color: #ffffff;
+            border-bottom: 2px solid #4f46e5;
+            width: 100%;
+        }
+
+        .header-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            background-color: #e0e7ff;
+            color: #4338ca;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .header-title {
+            font-size: 28px;
+            font-family: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 0 0 8px 0;
+            line-height: 1.2;
+        }
+
+        .header-meta {
+            color: #64748b;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        /* --- 统计区域 (Old) --- */
+        .stats-container {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px 20px;
+            background: linear-gradient(to bottom, #f8f9fa 0%, white 100%);
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .stat-card {
+            text-align: center;
+            flex: 1;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #4f46e5;
+            /* Adjusted to match new theme */
+            margin: 0;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 6px;
+        }
+
+        /* Rating Styles */
+        .rating-container {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .star {
+            font-size: 32px;
+            color: #cbd5e1;
+            text-decoration: none;
+            transition: color 0.2s;
+            line-height: 1;
+        }
+
+        .star:hover,
+        .star:hover~.star {
+            color: #fbbf24;
+        }
+
+        /* --- 主题分布 (Old) --- */
+        .topics-section {
+            padding: 15px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .topics-title {
+            font-size: 13px;
+            color: #495057;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .topic-badge {
+            display: inline-block;
+            background: white;
+            color: #495057;
+            padding: 4px 10px;
+            margin: 3px;
+            border-radius: 20px;
+            font-size: 11px;
+            border: 1px solid #dee2e6;
+        }
+
+        /* --- 摘要卡片 (New) --- */
+        .summary-card {
+            background-color: #eef2ff;
+            border-left: 4px solid #6366f1;
+            margin-bottom: 32px;
+            border-top-right-radius: 8px;
+            border-bottom-right-radius: 8px;
+            width: 100%;
+        }
+
+        .summary-title {
+            color: #312e81;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            font-size: 18px;
+        }
+
+        .summary-text {
+            color: #3730a3;
+            font-size: 14px;
+            font-style: italic;
+            line-height: 24px;
+            margin: 0;
+        }
+
+        /* --- 报告正文 (New Container + Markdown Styles) --- */
+        .report-content {
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.7;
+            text-align: justify;
+        }
+
+        /* Markdown 渲染样式适配 */
+        .report-content h3 {
+            margin: 24px 0 12px 0;
+            font-size: 22px;
+            font-weight: bold;
+            color: #1e293b;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 8px;
+        }
+
+        .report-content h4 {
+            margin: 20px 0 10px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .report-content p {
+            margin: 0 0 16px 0;
+        }
+
+        .report-content strong {
+            color: #334155;
+            font-weight: 600;
+        }
+
+        .report-content ul {
+            padding-left: 20px;
+            margin-bottom: 16px;
+        }
+
+        .report-content li {
+            margin-bottom: 6px;
+        }
+
+        .report-content a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+
+        /* --- 论文列表 (Old + Refined) --- */
+        .papers-section {
+            padding: 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .papers-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 20px;
+            padding-left: 10px;
+            border-left: 4px solid #4f46e5;
+        }
+
+        .paper-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+            text-align: left;
+            /* Ensure left alignment */
+        }
+
+        .paper-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+
+        .paper-title {
+            margin: 0;
+            font-size: 16px;
+            color: #212529;
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .paper-title a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+
+        .relevance-badge {
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+            margin-left: 10px;
+        }
+
+        .paper-meta {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 10px;
+        }
+
+        .paper-tldr {
+            font-size: 14px;
+            color: #475569;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .view-btn {
+            display: inline-block;
+            background: #4f46e5;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* --- 底部 (Old) --- */
+        .footer {
+            background: #ffffff;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            margin: 0 6px;
+            font-size: 12px;
+        }
+
+        /* 移动端适配 */
+        @media screen and (max-width: 600px) {
+            .webkit {
+                width: 100% !important;
+                border-radius: 0 !important;
+            }
+
+            .content-padding {
+                padding: 20px !important;
+            }
+
+            .stats-container {
+                flex-wrap: wrap;
+            }
+
+            .stat-card {
+                min-width: 33%;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <center class="wrapper">
+        <div class="webkit">
+            <!-- 1. 头部 -->
+            <table class="header-table" cellspacing="0" cellpadding="0"
+                style="border-spacing:0; border-collapse:collapse; background-color:#fff; border-bottom:2px solid #4f46e5; width:100%">
+                <tr>
+                    <td style="padding:24px; text-align:center">
+                        <div class="header-tag"
+                            style="display:inline-block; padding:4px 12px; background-color:#e0e7ff; color:#4338ca; border-radius:9999px; font-size:12px; font-weight:700; letter-spacing:0.05em; margin-bottom:12px">
+                            DAILY INTELLIGENCE</div>
+                        <h1 class="header-title"
+                            style='font-size:28px; font-family:ui-serif, Georgia, Cambria, "Times New Roman", Times, serif; font-weight:700; color:#0f172a; margin:0 0 8px 0; line-height:1.2'>
+                            {{ title }}</h1>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- 2. 统计数据 -->
+            <div class="stats-container"
+                style="display:flex; justify-content:space-around; padding:20px 20px; background:linear-gradient(to bottom, #f8f9fa 0%, white 100%); border-bottom:1px solid #e9ecef">
+                <div class="stat-card" style="text-align:center; flex:1">
+                    <div class="stat-number"
+                        style="font-size:28px; font-weight:700; color:#4f46e5; margin:0; line-height:1">{{
+                        stats.total_papers }}</div>
+                    <div class="stat-label"
+                        style="font-size:11px; color:#6c757d; text-transform:uppercase; letter-spacing:1px; margin-top:6px">
+                        📄 今日新增</div>
+                </div>
+                <div class="stat-card" style="text-align:center; flex:1">
+                    <div class="stat-number"
+                        style="font-size:28px; font-weight:700; color:#4f46e5; margin:0; line-height:1">{{
+                        stats.recommended_papers }}</div>
+                    <div class="stat-label"
+                        style="font-size:11px; color:#6c757d; text-transform:uppercase; letter-spacing:1px; margin-top:6px">
+                        ⭐ 推荐阅读</div>
+                </div>
+                <div class="stat-card" style="text-align:center; flex:1">
+                    <div class="stat-number"
+                        style="font-size:28px; font-weight:700; color:#4f46e5; margin:0; line-height:1">{{ papers|length
+                        }}</div>
+                    <div class="stat-label"
+                        style="font-size:11px; color:#6c757d; text-transform:uppercase; letter-spacing:1px; margin-top:6px">
+                        � 报告推荐</div>
+                </div>
+            </div>
+
+            <!-- 3. 主题分布 -->
+            <div class="topics-section">
+                <div class="topics-title">🏷️ 主题分布</div>
+                {% for cat, count, emoji in stats.category_list %}
+                <span class="topic-badge">{{ emoji }} {{ cat }} ({{ count }})</span>
+                {% endfor %}
+            </div>
+
+            <!-- 4. 正文区域 -->
+            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td class="content-padding" style="padding: 32px;">
+
+                        <!-- 摘要 -->
+                        <table class="summary-card" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td style="padding: 20px;">
+                                    <h3 class="summary-title">
+                                        <span style="margin-right: 8px;">📝</span>本期摘要
+                                    </h3>
+                                    <p class="summary-text">{{ summary }}</p>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- 报告正文 (Markdown Rendered) -->
+                        <div class="report-content">
+                            {{ content_html | safe }}
+                        </div>
+
+                        <!-- 高亮点评 (占位符) -->
+                        {% if highlight %}
+                        <div style="margin-top: 32px;">
+                            <table border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td valign="top" style="padding-top: 6px; padding-right: 8px;">
+                                        <div
+                                            style="width: 6px; height: 6px; background-color: #10b981; border-radius: 50%;">
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div
+                                            style="font-size: 13px; color: #64748b; font-style: italic; font-weight: 500;">
+                                            {{ highlight }}
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        {% endif %}
+
+                    </td>
+                </tr>
+            </table>
+
+            <!-- 5. 推荐论文列表 -->
+            <div class="papers-section">
+                <details>
+                    <summary class="papers-title" style="cursor: pointer; outline: none;">
+                        推荐论文列表 (点击展开/收起)
+                    </summary>
+                    {% for paper in papers %}
+                    <div class="paper-card" style="margin-top: 20px;">
+                        <div class="paper-title-row">
+                            <h3 class="paper-title">
+                                <a href="{{ paper.link }}">{{ loop.index }}. {{ paper.title }}</a>
+                            </h3>
+                        </div>
+
+                        <div class="paper-meta">
+                            <span>👤 {{ paper.authors }}</span>
+                            <div style="margin-top: 6px;">
+                                {% for cat in paper.categories %}
+                                <span
+                                    style="background: #e9ecef; padding: 2px 8px; border-radius: 4px; margin-right: 4px; display: inline-block;">{{
+                                    cat.emoji }} {{ cat.name }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="paper-tldr">
+                            {{ paper.tldr }}
+                        </div>
+
+                        <a href="{{ paper.link }}" class="view-btn">查看原文 →</a>
+                    </div>
+                    {% endfor %}
+                </details>
+            </div>
+
+            <!-- 6. 底部 -->
+            <div class="footer" style="background:#fff; padding:30px; text-align:center; border-top:1px solid #e2e8f0">
+                <div style="font-size: 16px; color: #495057; margin-bottom: 20px; font-weight: 600;">
+                    今天的报告如何？
+                </div>
+
+                <!-- Star Rating -->
+                <div class="rating-container">
+                    <a href="{{ frontend_url }}/feedback?report={{ report_id }}&rating=5" class="star">★</a>
+                    <a href="{{ frontend_url }}/feedback?report={{ report_id }}&rating=4" class="star">★</a>
+                    <a href="{{ frontend_url }}/feedback?report={{ report_id }}&rating=3" class="star">★</a>
+                    <a href="{{ frontend_url }}/feedback?report={{ report_id }}&rating=2" class="star">★</a>
+                    <a href="{{ frontend_url }}/feedback?report={{ report_id }}&rating=1" class="star">★</a>
+                </div>
+
+                <p style="margin: 0 0 16px 0; font-size: 14px; color: #64748b;">MedIntel Daily - Your Bridge to Medical
+                    AI Agents</p>
+                <div class="footer-links">
+                    <a href="{{ frontend_url }}/settings"
+                        style="color:#94a3b8; text-decoration:none; margin:0 6px; font-size:12px">邮件设置</a> |
+                    <a href="{{ frontend_url }}/reports/{{ report_id }}"
+                        style="color:#94a3b8; text-decoration:none; margin:0 6px; font-size:12px">查看网页版</a>
+                </div>
+                <p style="margin: 16px 0 0 0; font-size: 10px; color: #cbd5e1;">Generated by Gemini Agent</p>
+            </div>
+        </div>
+    </center>
+</body>
+
+</html>

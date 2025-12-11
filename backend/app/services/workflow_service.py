@@ -85,6 +85,16 @@ class WorkflowService:
                 papers_to_analyze.append(PersonalizedPaper(meta=meta, analysis=None, user_state=None))
             
             total_papers = len(papers_to_analyze)
+            
+            # 统计数据
+            total_stats = {
+                "tokens_input": 0,
+                "tokens_output": 0,
+                "cost": 0.0,
+                "cache_hit_tokens": 0,
+                "request_count": 0
+            }
+            
             if total_papers > 0:
                 print(f"Found {total_papers} papers needing public analysis.")
                 
@@ -96,7 +106,15 @@ class WorkflowService:
                     batch = papers_to_analyze[i:i + batch_size]
                     print(f"Processing batch {i // batch_size + 1}/{(total_papers + batch_size - 1) // batch_size} (Size: {len(batch)})...")
                     
-                    paper_service.batch_analyze_papers(batch)
+                    batch_stats = paper_service.batch_analyze_papers(batch)
+                    
+                    # 累加统计
+                    if batch_stats:
+                        total_stats["tokens_input"] += batch_stats.get("tokens_input", 0)
+                        total_stats["tokens_output"] += batch_stats.get("tokens_output", 0)
+                        total_stats["cost"] += batch_stats.get("cost", 0.0)
+                        total_stats["cache_hit_tokens"] += batch_stats.get("cache_hit_tokens", 0)
+                        total_stats["request_count"] += batch_stats.get("request_count", 0)
                     
                     # 如果不是最后一批，等待
                     if i + batch_size < total_papers:
@@ -104,6 +122,8 @@ class WorkflowService:
                         time.sleep(delay_seconds)
             else:
                 print("No papers need public analysis.")
+                
+            return total_stats
 
         except Exception as e:
             print(f"Error in analyze_public_papers: {e}")

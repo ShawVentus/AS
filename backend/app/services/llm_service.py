@@ -42,16 +42,24 @@ class QwenService:
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
-    def call_llm(self, prompt: str) -> tuple[str, Dict[str, int]]:
+    def call_llm(self, prompt: str, model: str = None) -> tuple[str, Dict[str, Any]]:
         """
         调用 LLM API 执行请求 (包含重试机制)。
+        支持动态切换模型，并解析 OpenRouter 的成本与缓存信息。
 
         Args:
             prompt (str): 发送给 LLM 的完整提示词字符串。
+            model (str, optional): 指定使用的模型。如果为 None，使用默认配置的模型。
 
         Returns:
-            tuple[str, Dict[str, int]]: (内容字符串, 使用统计字典)。
-                                        统计字典包含 'prompt_tokens', 'completion_tokens', 'total_tokens'。
+            tuple[str, Dict[str, Any]]: (内容字符串, 使用统计字典)。
+                                        统计字典包含:
+                                        - 'prompt_tokens': 输入 Token 数
+                                        - 'completion_tokens': 输出 Token 数
+                                        - 'total_tokens': 总 Token 数
+                                        - 'cost': 预估或实际成本 (USD)
+                                        - 'cache_hit_tokens': 缓存命中的 Token 数
+                                        - 'model': 实际使用的模型名称
                                         如果调用失败，返回 ("{}", {})。
         """
         import time
@@ -60,13 +68,16 @@ class QwenService:
             print("✗ LLM 客户端未初始化，无法执行请求")
             return "{}", {}
 
+        # 使用指定模型或默认模型
+        target_model = model if model else self.model
+        
         max_retries = 3
         base_delay = 2
         
         for attempt in range(max_retries + 1):
             try:
                 completion = self.client.chat.completions.create(
-                    model=self.model,
+                    model=target_model,
                     messages=[
                         {"role": "system", "content": self.read_prompt("system.md")},
                         {"role": "user", "content": prompt},
@@ -75,12 +86,43 @@ class QwenService:
                     response_format={"type": "json_object"} # 强制JSON格式
                 )
                 response = completion.choices[0].message.content
+                
+                # 解析 Usage 和 Cost
                 usage = completion.usage
                 usage_dict = {
                     "prompt_tokens": usage.prompt_tokens if usage else 0,
                     "completion_tokens": usage.completion_tokens if usage else 0,
-                    "total_tokens": usage.total_tokens if usage else 0
+                    "total_tokens": usage.total_tokens if usage else 0,
+                    "model": target_model
                 }
+
+                # 尝试解析 OpenRouter 特有字段 (cost, cache)
+                # 注意: OpenAI Python 客户端可能将额外字段放在 model_extra 或直接属性中
+                # 这里的处理尝试兼容不同的返回结构
+                
+                # 1. 尝试获取缓存命中数
+                # OpenRouter 通常在 prompt_tokens_details 中返回 cached_tokens
+                if usage and hasattr(usage, 'prompt_tokens_details') and usage.prompt_tokens_details:
+                     # 检查是否为对象或字典
+                    details = usage.prompt_tokens_details
+                    if isinstance(details, dict):
+                        usage_dict["cache_hit_tokens"] = details.get("cached_tokens", 0)
+                    elif hasattr(details, 'cached_tokens'):
+                        usage_dict["cache_hit_tokens"] = details.cached_tokens
+                    else:
+                        usage_dict["cache_hit_tokens"] = 0
+                else:
+                    usage_dict["cache_hit_tokens"] = 0
+
+                # 2. 尝试获取 Cost (OpenRouter 特有)
+                # 某些客户端版本可能将非标准字段放在 extra_fields 或 model_extra
+                # 如果无法直接获取，后续 WorkflowEngine 会根据 Token 计算
+                if hasattr(completion, 'usage') and isinstance(completion.usage, dict):
+                     usage_dict["cost"] = completion.usage.get("cost", 0.0)
+                elif hasattr(completion, 'model_extra') and completion.model_extra:
+                     usage_info = completion.model_extra.get('usage', {})
+                     if isinstance(usage_info, dict):
+                         usage_dict["cost"] = usage_info.get('cost', 0.0)
                 
                 # 清理可能的 markdown 代码块标记
                 response = response.strip()
@@ -128,7 +170,8 @@ class QwenService:
             category=paper.get("category", "")
         )
         
-        response, usage = self.call_llm(prompt)
+        # 使用便宜的模型进行筛选
+        response, usage = self.call_llm(prompt, model=settings.OPENROUTER_MODEL_CHEAP)
         try:
             result = json.loads(response)
             result["_usage"] = usage # 注入 usage 信息
@@ -155,7 +198,8 @@ class QwenService:
             comment=comment
         )
         
-        response, usage = self.call_llm(prompt)
+        # 使用便宜的模型进行分析
+        response, usage = self.call_llm(prompt, model=settings.OPENROUTER_MODEL_CHEAP)
         try:
             result = json.loads(response)
             result["_usage"] = usage
@@ -183,9 +227,12 @@ class QwenService:
             papers_text += f"ID: {p['id']}\nTitle: {p['title']}\nAbstract: {p['abstract'][:200]}...\n\n"
             
         # 使用 replace 替代 format，避免 JSON 大括号冲突
-        prompt = template.replace("{user_profile}", user_profile).replace("{papers}", papers_text)
+        from datetime import datetime
+        date_str = datetime.now().strftime("%Y/%m/%d")
+        prompt = template.replace("{user_profile}", user_profile).replace("{papers}", papers_text).replace("{date}", date_str)
         
-        response, usage = self.call_llm(prompt)
+        # 使用高性能模型生成报告
+        response, usage = self.call_llm(prompt, model=settings.OPENROUTER_MODEL_PERFORMANCE)
         try:
             result = json.loads(response)
             result["_usage"] = usage

@@ -3,6 +3,8 @@ import json
 import os
 from fastapi import HTTPException
 from app.schemas.user import UserProfile, UserInfo, UserFeedback, Focus, Context, Memory
+from app.schemas.user import UserInitializationRequest
+
 from app.services.mock_data import USER_PROFILE
 from app.core.database import get_db
 
@@ -177,41 +179,71 @@ class UserService:
                     detail=f"Failed to retrieve user profile due to server error: {str(e)}"
                 )
 
-    def initialize_profile(self, user_info: UserInfo) -> UserProfile:
+    def initialize_profile(self, init_data: "UserInitializationRequest", user_id: str, email: Optional[str] = None) -> UserProfile:
         """
         使用用户提交的基础信息初始化画像。
         
-        通常在用户首次设置时调用。会更新数据库中的 info 字段。
-
         Args:
-            user_info (UserInfo): 用户提交的基础问卷信息。
+            init_data (UserInitializationRequest): 用户提交的完整初始化信息(Info, Focus, Context)。
+            user_id (str): 当前认证用户的 ID。
+            email (Optional[str]): 当前认证用户的邮箱。
 
         Returns:
             UserProfile: 更新后的完整用户画像。
         """
         try:
-            # 确保用户存在
-            user_id = self._create_default_user()
+            # 1. 检查 Profile 是否存在
+            response = self.db.table("profiles").select("*").eq("user_id", user_id).execute()
             
-            # 更新画像中的info部分
-            # 注意:在实际应用中,我们可能根据输入生成默认的Focus/Context
-            # 现在我们只更新info部分
+            # 2. 如果不存在，创建新 Profile
+            if not response.data:
+                # 使用传入的 email，如果未提供则尝试从 user_info 获取，最后回退到默认
+                user_email = email or init_data.info.email or DEFAULT_EMAIL
+                temp_name = user_email.split('@')[0] if '@' in user_email else "User"
+                
+                empty_profile = {
+                    "user_id": user_id,
+                    "info": {
+                        "id": user_id,
+                        "name": temp_name,
+                        "email": user_email,
+                        "avatar": "",
+                        "role": "researcher"
+                    },
+                    "focus": {
+                        "category": [],
+                        "keywords": [],
+                        "authors": [],
+                        "institutions": []
+                    },
+                    "context": {
+                        "preferences": "",
+                        "currentTask": "",
+                        "futureGoal": ""
+                    },
+                    "memory": {
+                        "user_prompt": []
+                    }
+                }
+                self.db.table("profiles").insert(empty_profile).execute()
             
-            # 确保 info 中包含 id
-            user_info.id = user_id
+            # 3. 更新画像数据
+            # 确保 info 中包含正确的 id
+            init_data.info.id = user_id
+            if email and not init_data.info.email:
+                init_data.info.email = email
             
-            # 获取当前画像以合并
-            current_profile = self.get_profile()
-            current_profile.info = user_info
-            
-            # 更新数据库
+            # 更新数据库 (Info, Focus, Context)
             self.db.table("profiles").update({
-                "info": user_info.model_dump()
+                "info": init_data.info.model_dump(),
+                "focus": init_data.focus.model_dump(),
+                "context": init_data.context.model_dump()
             }).eq("user_id", user_id).execute()
             
-            return current_profile
+            return self.get_profile(user_id)
         except Exception as e:
             print(f"Error initializing profile: {e}")
+            # 如果出错，尝试返回默认画像，但记录错误
             return UserProfile(**USER_PROFILE)
 
     def is_profile_initialized(self, user_id: str) -> bool:
@@ -371,8 +403,24 @@ class UserService:
             }).eq("user_id", user_id).execute()
             
             return True
+            return True
         except Exception as e:
             print(f"Error recording interaction: {e}")
             return False
+
+    def get_all_active_users(self) -> List[str]:
+        """
+        获取所有活跃用户的 ID。
+        
+        Returns:
+            List[str]: 用户 ID 列表。
+        """
+        try:
+            # 简单起见，获取所有 profile
+            response = self.db.table("profiles").select("user_id").execute()
+            return [row["user_id"] for row in response.data]
+        except Exception as e:
+            print(f"Error fetching all users: {e}")
+            return []
 
 user_service = UserService()

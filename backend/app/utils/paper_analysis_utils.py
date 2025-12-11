@@ -27,7 +27,9 @@ def filter_single_paper(paper_str: str, user_profile_str: str) -> Dict[str, Any]
         )
         
         # 3. 调用 LLM
-        response_str, _ = llm_service.call_llm(prompt)
+        # [Fix] 使用配置的 Cheap Model，并捕获 usage
+        from app.core.config import settings
+        response_str, usage = llm_service.call_llm(prompt, model=settings.OPENROUTER_MODEL_CHEAP)
         
         # 4. 解析结果
         result = json.loads(response_str)
@@ -35,7 +37,8 @@ def filter_single_paper(paper_str: str, user_profile_str: str) -> Dict[str, Any]
         return {
             "why_this_paper": result.get("why_this_paper", "No reason provided."),
             "relevance_score": float(result.get("relevance_score", 0.0)),
-            "accepted": bool(result.get("accepted", False))
+            "accepted": bool(result.get("accepted", False)),
+            "_usage": usage # [Fix] 返回 usage 供上层统计
         }
         
     except Exception as e:

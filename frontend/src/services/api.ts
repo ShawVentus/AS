@@ -61,9 +61,9 @@ export const RealUserAPI = {
         body: JSON.stringify({ text })
     }),
     // 保留旧接口兼容性或标记为废弃
-    initialize: (userInfo: UserInfo) => fetchJSON<UserProfile>('/user/initialize', {
+    initialize: (data: { info: UserInfo, focus: any, context: any }) => fetchJSON<UserProfile>('/user/initialize', {
         method: 'POST',
-        body: JSON.stringify(userInfo)
+        body: JSON.stringify(data)
     }),
     updateNL: (text: string, userId: string) => fetchJSON<UserProfile>('/user/update/nl', {
         method: 'POST',
@@ -98,11 +98,6 @@ export const RealReportAPI = {
     getReports: () => fetchJSON<Report[]>('/reports/'),
     getReportDetail: (id: string) => fetchJSON<Report>(`/reports/${id}`),
     generateReport: () => fetchJSON<Report>('/reports/generate', { method: 'POST' }),
-    sendEmail: (reportId: string, email: string) => fetchJSON<{ success: boolean }>('/reports/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ report_id: reportId, email })
-    }),
     sendEmail: (reportId: string, email: string) => fetchJSON<{ success: boolean }>('/reports/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

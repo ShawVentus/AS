@@ -24,10 +24,17 @@ class AnalyzePublicStep(WorkflowStep):
         执行公共分析逻辑。
         """
         # 调用 workflow_service 中的 analyze_public_papers
-        usage = workflow_service.analyze_public_papers()
+        stats = workflow_service.analyze_public_papers()
         
         # 记录消耗
-        self.tokens_input = usage.get("tokens_input", 0)
-        self.tokens_output = usage.get("tokens_output", 0)
+        if stats:
+            self.tokens_input = stats.get("tokens_input", 0)
+            self.tokens_output = stats.get("tokens_output", 0)
+            self.cost = stats.get("cost", 0.0)
+            self.metrics["cache_hit_tokens"] = stats.get("cache_hit_tokens", 0)
+            self.metrics["request_count"] = stats.get("request_count", 0)
+            # 假设使用的是 cheap model
+            from app.core.config import settings
+            self.metrics["model_name"] = settings.OPENROUTER_MODEL_CHEAP
         
         return {"public_analysis_completed": True}

@@ -320,7 +320,7 @@ class SchedulerService:
         except Exception as e:
             print(f"Error in process_personalized_papers: {e}")
 
-    def generate_report_job(self):
+    def generate_report_job(self, force: bool = False):
         """
         生成并发送每日报告的任务。
         
@@ -330,12 +330,22 @@ class SchedulerService:
         3. 调用 report_service.generate_daily_report() 生成报告（内部自动发送邮件）。
 
         Args:
-            None
+            force (bool): 是否强制生成报告（即使今日已生成）。
 
         Returns:
-            None
+            Dict[str, Any]: 统计数据 (tokens_input, tokens_output, cost, etc.)
         """
         print("开始生成每日报告...")
+        
+        # 统计数据
+        total_stats = {
+            "tokens_input": 0,
+            "tokens_output": 0,
+            "cost": 0.0,
+            "cache_hit_tokens": 0,
+            "request_count": 0
+        }
+        
         try:
             # === 1. 获取所有用户 ===
             profiles_response = self.db.table("profiles").select("*").execute()
@@ -343,7 +353,7 @@ class SchedulerService:
             
             if not profiles_data:
                 print("未找到任何用户")
-                return
+                return total_stats
             
             print(f"找到 {len(profiles_data)} 个用户，开始生成报告...")
             
@@ -363,6 +373,20 @@ class SchedulerService:
                         continue
                         
                     print(f"\n处理用户: {user_profile.info.name} ({user_id})")
+
+                    # [New] 检查今日是否已生成报告
+                    if not force:
+                        from datetime import datetime
+                        today_str = datetime.now().strftime("%Y-%m-%d")
+                        existing_reports = self.db.table("reports") \
+                            .select("id") \
+                            .eq("user_id", user_id) \
+                            .eq("date", today_str) \
+                            .execute()
+                        
+                        if existing_reports.data:
+                            print(f"用户 {user_profile.info.name} 今日已生成报告，跳过 (Force=False)")
+                            continue
                     
                     # === 3. 获取今日的个性化论文 ===
                     from datetime import datetime
@@ -410,7 +434,16 @@ class SchedulerService:
                     
                     # === 6. 生成报告（内部会自动发送邮件）===
                     # [Fix] 正确解包返回值 (report, usage)
-                    report, _ = report_service.generate_daily_report(papers, user_profile)
+                    report, usage = report_service.generate_daily_report(papers, user_profile)
+                    
+                    # 累加统计
+                    if usage:
+                        total_stats["tokens_input"] += usage.get("prompt_tokens", 0)
+                        total_stats["tokens_output"] += usage.get("completion_tokens", 0)
+                        total_stats["cost"] += usage.get("cost", 0.0)
+                        total_stats["cache_hit_tokens"] += usage.get("cache_hit_tokens", 0)
+                        total_stats["request_count"] += 1
+                        
                     print(f"✓ 已为用户 {user_profile.info.name} 生成并发送报告: {report.title}")
                     
                 except Exception as e:
@@ -419,46 +452,88 @@ class SchedulerService:
                     traceback.print_exc()
                     continue
                     
+            return total_stats
+                    
         except Exception as e:
             print(f"生成报告任务失败: {e}")
             import traceback
             traceback.print_exc()
+            return total_stats
 
     def run_daily_workflow(self, force: bool = False):
         """
-        执行完整的每日工作流。
-        
-        顺序执行：
-        1. check_arxiv_update(): 检查更新并获取类别。
-        2. if categories or force:
-            a. clear_daily_papers() (仅当非 force 时，或 force 且确实有更新时？这里逻辑需要微调)
-               - 如果是 force 模式，通常是为了断点续传，不应该 clear_daily_papers，除非明确是重新开始。
-               - 但为了简单，force 模式下我们假设用户想继续跑流程。
-               - 如果是断点续传，workflow_service.process_public_papers_workflow 内部会检查 status='fetched'，所以不会重复处理。
-               - 关键是不要 clear_daily_papers 如果我们想保留已抓取的数据。
-               - 让我们调整逻辑：
-                 - 如果 force=True，跳过 check_arxiv_update 的"无更新"返回，强制使用默认或已有类别。
-                 - 如果 force=True，跳过 clear_daily_papers (假设是续传)。
-                 - 或者更智能点：force 只是绕过"今天已更新"的检查。
+        运行每日工作流。
         
         Args:
-            force (bool): 是否强制执行，忽略 Arxiv 更新检查。
+            force (bool): 是否强制运行（忽略日期检查）。
         """
+        # [Fix] 禁止 httpx 输出 INFO 日志
+        import logging
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        
         print(f"Running daily workflow (Force={force})...")
+        
+        from app.services.workflow_engine import WorkflowEngine
+        from app.services.workflow_steps.check_update_step import CheckUpdateStep
+        from app.services.workflow_steps.clear_daily_step import ClearDailyStep
+        from app.services.workflow_steps.run_crawler_step import RunCrawlerStep
+        from app.services.workflow_steps.fetch_details_step import FetchDetailsStep
+        from app.services.workflow_steps.analyze_public_step import AnalyzePublicStep
+        from app.services.workflow_steps.archive_step import ArchiveStep
+        from app.services.workflow_steps.personalized_filter_step import PersonalizedFilterStep
+        from app.services.workflow_steps.generate_report_step import GenerateReportStep
+        
+        engine = WorkflowEngine()
+        
+        # 注册步骤
+        # 1. 检查更新 (如果 force=True，此步骤内部逻辑可能会跳过检查或直接返回 True，需确认 CheckUpdateStep 逻辑)
+        # CheckUpdateStep 目前只检查更新，不处理 force。
+        # 如果 force=True，我们可以手动设置 context["force"] = True，并在 CheckUpdateStep 中处理，
+        # 或者我们在这里手动检查，如果 force=True，则跳过 CheckUpdateStep 或忽略其 should_stop。
+        # 但为了保持一致性，最好让 CheckUpdateStep 处理 force。
+        # 目前 CheckUpdateStep 只是调用 scheduler_service.check_arxiv_update()。
+        # 我们可以简单地注册所有步骤，并让 engine 处理。
+        # 但 CheckUpdateStep 会返回 should_stop=True 如果没更新。
+        # 如果 force=True，我们希望忽略 should_stop。
+        
+        # 方案：在 context 中传入 force=True
+        initial_context = {"force": force}
+        
+        # 为了支持 force 模式下的逻辑 (跳过 check_update 的 should_stop)，我们需要修改 CheckUpdateStep 
+        # 或者在这里做一些 hack。
+        # 让我们修改 CheckUpdateStep 吧？或者简单点，如果 force=True，我们就不注册 CheckUpdateStep？
+        # 但我们需要 categories。
+        # 如果 force=True，check_arxiv_update 会尝试聚合用户类别。
+        
+        # 让我们看看 CheckUpdateStep 的代码:
+        # categories = scheduler_service.check_arxiv_update()
+        # if categories: return {has_update: True, categories: ...}
+        # else: return {should_stop: True}
+        
+        # 而 scheduler_service.check_arxiv_update() 内部没有处理 force 参数。
+        # run_daily_workflow 原逻辑是：
+        # categories = self.check_arxiv_update()
+        # if force and not categories: ... (聚合用户类别)
+        
+        # 所以我们需要把这个逻辑移到 CheckUpdateStep 中，或者在 CheckUpdateStep 之前处理。
+        # 为了最小化改动，我们可以保留 CheckUpdateStep，但传入 force 参数。
+        # 但 CheckUpdateStep 的 execute 方法只接受 context。
+        # 所以我们需要修改 CheckUpdateStep 来读取 context["force"]。
+        
+        # 暂时我们先不修改 CheckUpdateStep，而是手动处理 categories，然后传入 context。
+        # 这样 CheckUpdateStep 就不需要了，或者变成一个 "SetupContextStep"。
+        
+        # 让我们手动执行 check_arxiv_update 逻辑，然后把 categories 放入 context。
+        # 这样更灵活。
         
         # 1. Check Update & Get Categories
         categories = self.check_arxiv_update()
         
-        # 如果强制执行且没有检测到更新（categories 为 None），则尝试获取所有用户的关注类别
         if force and not categories:
             print("Force mode enabled. Aggregating user categories...")
             try:
-                # 复用 check_arxiv_update 中的聚合逻辑
-                # 为了避免代码重复，最好提取聚合逻辑为单独方法，或者在这里重新实现
-                # 这里简单重新实现聚合逻辑
                 profiles = self.db.table("profiles").select("focus").execute().data
                 all_categories = set()
-                
                 for p in profiles:
                     focus = p.get("focus", {})
                     if focus and "category" in focus:
@@ -472,46 +547,38 @@ class SchedulerService:
                     categories = list(all_categories)
                     print(f"Aggregated categories in force mode: {categories}")
                 else:
-                    print("No user categories found in force mode, using default.")
                     default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
                     categories = [c.strip() for c in default_cats]
             except Exception as e:
-                print(f"Error aggregating categories in force mode: {e}")
+                print(f"Error aggregating categories: {e}")
                 default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
                 categories = [c.strip() for c in default_cats]
+        
+        if not categories:
+            print("Arxiv not updated and not in force mode. Skipping workflow.")
+            return
 
-        if categories:
-            print(f"Starting workflow for categories: {categories}")
-            
-            # 2. Clear Daily DB
-            # 只有在非强制模式（正常自动运行）或者确实检测到新更新时才清空
-            # 如果是 force 模式且没有新更新（即断点续传），不要清空！
-            if not force:
-                from app.services.paper_service import paper_service
-                if paper_service.clear_daily_papers():
-                    print("Daily papers cleared.")
-            else:
-                print("Force mode: Skipping clear_daily_papers to allow resume.")
-            
-            # 3. Public Workflow (Crawl -> Fetch -> Analyze -> Archive)
-            try:
-                # 注意：process_public_papers_workflow 内部包含 run_crawler
-                # 如果是断点续传，run_crawler 会重新爬取，但这通常没问题（Scrapy 会覆盖或忽略）
-                # 或者我们可以让 process_public_papers_workflow 也支持 resume？
-                # 目前保持简单：直接运行，依赖数据库状态去重
-                workflow_service.process_public_papers_workflow(categories)
-            except Exception as e:
-                print(f"Public workflow failed, stopping daily workflow: {e}")
-                return
-
-            # 4. Personalized Filter
-            self.process_personalized_papers()
-            
-            # 5. Report
-            self.generate_report_job()
-            
-            print("Daily workflow completed.")
+        print(f"Starting workflow for categories: {categories}")
+        initial_context["categories"] = categories
+        
+        # 注册后续步骤
+        # 2. Clear Daily DB (只有非 force 才清空? 原逻辑是: if not force: clear)
+        if not force:
+            engine.register_step(ClearDailyStep())
         else:
-            print("Arxiv not updated. Skipping workflow.")
+            print("Force mode: Skipping ClearDailyStep.")
+            
+        engine.register_step(RunCrawlerStep())
+        engine.register_step(FetchDetailsStep())
+        engine.register_step(AnalyzePublicStep())
+        engine.register_step(ArchiveStep())
+        engine.register_step(PersonalizedFilterStep())
+        engine.register_step(GenerateReportStep())
+        
+        # 执行工作流
+        try:
+            engine.execute_workflow("daily_update", initial_context=initial_context)
+        except Exception as e:
+            print(f"Workflow execution failed: {e}")
 
 scheduler_service = SchedulerService()

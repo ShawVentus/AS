@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医疗AI日报</title>
+    <style>
+        /* 客户端重置样式 */
+        body { margin: 0; padding: 0; min-width: 100%; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; background-color: #f1f5f9; }
+        table { border-spacing: 0; border-collapse: collapse; }
+        td { padding: 0; }
+        img { border: 0; }
+        .wrapper { width: 100%; table-layout: fixed; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; background-color: #f1f5f9; }
+        .webkit { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); overflow: hidden; }
+        
+        /* 移动端适配 */
+        @media screen and (max-width: 600px) {
+            .webkit { width: 100% !important; border-radius: 0 !important; }
+            .content-padding { padding: 20px !important; }
+            .mobile-block { display: block !important; width: 100% !important; }
+        }
+    </style>
+</head>
+<body>
+    <center class="wrapper">
+        <div class="webkit">
+            <!-- 邮件头部 -->
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                <tr>
+                    <td style="padding: 24px;">
+                        <h1 style="margin: 0 0 16px 0; font-size: 20px; font-weight: bold; color: #1e293b; line-height: 1.4;">
+                            【医疗AI日报】2025/12/08：多智能体临床决策与具身智能新进展
+                        </h1>
+                        <table border="0" cellspacing="0" cellpadding="0">
+                            <tr>
+                                <td width="40" valign="top">
+                                    <div style="width: 40px; height: 40px; background-color: #2563eb; border-radius: 50%; color: #ffffff; text-align: center; line-height: 40px; font-weight: bold; font-size: 14px;">AI</div>
+                                </td>
+                                <td style="padding-left: 12px;">
+                                    <div style="font-size: 14px; font-weight: 600; color: #0f172a;">MedIntel Report</div>
+                                    <div style="font-size: 12px; color: #64748b;">To: subscriber@medtech-daily.com</div>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- 邮件正文 -->
+            <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td class="content-padding" style="padding: 32px;">
+                        
+                        <!-- 摘要卡片 -->
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #eff6ff; border-left: 4px solid #3b82f6; margin-bottom: 32px; border-radius: 0 4px 4px 0;">
+                            <tr>
+                                <td style="padding: 16px;">
+                                    <div style="color: #1e40af; font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px;">本期摘要</div>
+                                    <div style="color: #1e3a8a; font-size: 14px; line-height: 1.6;">
+                                        聚焦医疗场景下的多智能体决策、具身智能体安全与认知监测，涵盖头痛诊断、视网膜疾病识别、神经语音解码等应用。
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- 内容区块 1 -->
+                        <div style="margin-bottom: 32px;">
+                            <h2 style="margin: 0 0 12px 0; font-size: 16px; font-weight: bold; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                                <span style="background-color: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 8px; vertical-align: middle;">1</span>
+                                多智能体临床决策支持系统
+                            </h2>
+                            <p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: justify;">
+                                近期研究显著推进了多智能体架构在初级医疗中的落地能力。一项工作提出基于“协调器-专家”结构的多智能体系统，用于继发性头痛的可解释诊断，通过将任务分解为七个专科代理并结合临床指南提示（GPrompt），在小模型上也取得显著F1提升 [2512.04207]。另一项研究则探索角色化多智能体协作机制，在包含医生角色的头脑风暴实验中验证了领域定制对创意深度与跨域覆盖的增强效果 [2512.04488]。
+                            </p>
+                            <!-- Highlight -->
+                            <table border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td valign="top" style="padding-top: 6px; padding-right: 8px;">
+                                        <div style="width: 6px; height: 6px; background-color: #10b981; border-radius: 50%;"></div>
+                                    </td>
+                                    <td>
+                                        <div style="font-size: 13px; color: #64748b; font-style: italic; font-weight: 500;">
+                                            结构化设计提升诊断准确性，确立人机协同新范式。
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- 内容区块 2 -->
+                        <div style="margin-bottom: 32px;">
+                            <h2 style="margin: 0 0 12px 0; font-size: 16px; font-weight: bold; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                                <span style="background-color: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 8px; vertical-align: middle;">2</span>
+                                医疗感知与认知监测智能体
+                            </h2>
+                            <p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: justify;">
+                                面向神经系统与感官疾病的持续监测成为新热点。研究者整合语音AI与关系图Transformer（RELGT），实现对苯丙酮尿症患者“脑雾”症状的连续追踪，其语音指标与血液生化显著相关 [2512.04938]。在脑机接口方向，团队利用Vision Transformer与对比学习，首次从全植入式无线硬膜外ECoG系统中解码出可理解语音 [2512.04618]。AcuLa框架通过语言模型作为“语义教师”，将听诊音频模型对齐至临床语义空间，在18项心肺任务中大幅超越基线 [2512.04847]。
+                            </p>
+                            <table border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td valign="top" style="padding-top: 6px; padding-right: 8px;"><div style="width: 6px; height: 6px; background-color: #10b981; border-radius: 50%;"></div></td>
+                                    <td><div style="font-size: 13px; color: #64748b; font-style: italic; font-weight: 500;">非侵入式语音指标与植入式解码技术的双重突破。</div></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- 内容区块 3 -->
+                        <div style="margin-bottom: 32px;">
+                            <h2 style="margin: 0 0 12px 0; font-size: 16px; font-weight: bold; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                                <span style="background-color: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 8px; vertical-align: middle;">3</span>
+                                小样本医疗诊断与分子智能体
+                            </h2>
+                            <p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: justify;">
+                                平衡化小样本学习框架在视网膜疾病诊断中展现优势，通过均衡采样与CLAHE增强，显著提升少数类识别率 [2512.04967]。BioMedGPT-Mol通过多任务指令微调，有效将通用大模型转化为专业分子理解与逆合成规划工具，在多个基准上达到领先性能 [2512.04629]。
+                            </p>
+                            <table border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td valign="top" style="padding-top: 6px; padding-right: 8px;"><div style="width: 6px; height: 6px; background-color: #10b981; border-radius: 50%;"></div></td>
+                                    <td><div style="font-size: 13px; color: #64748b; font-style: italic; font-weight: 500;">解决数据稀缺痛点，构建专业化分子工具。</div></td>
+                                </tr>
+                            </table>
+                        </div>
+                        
+                         <!-- 内容区块 4 -->
+                        <div style="margin-bottom: 32px;">
+                            <h2 style="margin: 0 0 12px 0; font-size: 16px; font-weight: bold; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px;">
+                                <span style="background-color: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-right: 8px; vertical-align: middle;">4</span>
+                                智能体安全、治理与具身交互
+                            </h2>
+                            <p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.6; color: #475569; text-align: justify;">
+                                ASTRIDE平台扩展STRIDE威胁模型，新增“AI智能体特有攻击”类别，并利用VLM与LLM自动分析架构图以识别提示注入等风险 [2512.04785]。Policy-to-Tests（P2T）将HIPAA等政策自动转为可执行规则 [2512.04408]。CRAFT-E框架融合符号知识图与能量抓取推理，实现可解释物体选择 [2512.04231]。
+                            </p>
+                            <table border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td valign="top" style="padding-top: 6px; padding-right: 8px;"><div style="width: 6px; height: 6px; background-color: #10b981; border-radius: 50%;"></div></td>
+                                    <td><div style="font-size: 13px; color: #64748b; font-style: italic; font-weight: 500;">从数字安全到物理交互的全面治理框架。</div></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- 对比图表 -->
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-top: 24px;">
+                            <thead style="background-color: #f8fafc;">
+                                <tr>
+                                    <th style="padding: 12px; font-size: 12px; color: #64748b; text-align: left; border-bottom: 1px solid #e2e8f0;">模型/系统</th>
+                                    <th style="padding: 12px; font-size: 12px; color: #64748b; text-align: left; border-bottom: 1px solid #e2e8f0;">应用领域</th>
+                                    <th style="padding: 12px; font-size: 12px; color: #64748b; text-align: right; border-bottom: 1px solid #e2e8f0;">关键成果</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #1e293b; font-weight: bold;">GPrompt Agent</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><span style="background-color: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 99px; font-size: 11px; border: 1px solid #dbeafe;">临床诊断</span></td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #059669; text-align: right;">F1分数显著提升</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #1e293b; font-weight: bold;">RELGT</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><span style="background-color: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 99px; font-size: 11px; border: 1px solid #dbeafe;">认知监测</span></td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #059669; text-align: right;">语音生化相关</td>
+                                </tr>
+                                 <tr>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #1e293b; font-weight: bold;">AcuLa</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><span style="background-color: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 99px; font-size: 11px; border: 1px solid #dbeafe;">心肺听诊</span></td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #059669; text-align: right;">超越基线</td>
+                                </tr>
+                                 <tr>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #1e293b; font-weight: bold;">BioMedGPT</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9;"><span style="background-color: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 99px; font-size: 11px; border: 1px solid #dbeafe;">药物研发</span></td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; color: #059669; text-align: right;">逆合成领先</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px; font-size: 13px; color: #1e293b; font-weight: bold;">CRAFT-E</td>
+                                    <td style="padding: 12px;"><span style="background-color: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 99px; font-size: 11px; border: 1px solid #dbeafe;">具身机器人</span></td>
+                                    <td style="padding: 12px; font-size: 13px; color: #059669; text-align: right;">可解释抓取</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div style="background-color: #f8fafc; padding: 8px; text-align: center; border-top: 1px solid #e2e8f0;">
+                             <p style="margin: 0; font-size: 10px; color: #94a3b8;">数据来源：2025/12/08 日报自动提取</p>
+                        </div>
+
+                    </td>
+                </tr>
+            </table>
+            
+            <!-- 邮件底部 -->
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="border-top: 1px solid #e2e8f0; background-color: #ffffff;">
+                <tr>
+                    <td style="padding: 32px; text-align: center;">
+                        <p style="margin: 0 0 16px 0; font-size: 14px; color: #64748b;">MedIntel Daily - Your Bridge to Medical AI Agents</p>
+                        <div style="font-size: 12px; color: #94a3b8;">
+                            <a href="#" style="color: #94a3b8; text-decoration: none; margin: 0 4px;">退订</a> |
+                            <a href="#" style="color: #94a3b8; text-decoration: none; margin: 0 4px;">偏好</a> |
+                            <a href="#" style="color: #94a3b8; text-decoration: none; margin: 0 4px;">存档</a>
+                        </div>
+                        <p style="margin: 16px 0 0 0; font-size: 10px; color: #cbd5e1;">Sudbury, MA, USA • Generated by Gemini Agent</p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </center>
+</body>
+</html>

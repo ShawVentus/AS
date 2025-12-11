@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../services/supabase';
+import { UserAPI } from '../../services/api';
 import { CategorySelector } from '../common/CategorySelector';
 import { TagInput } from '../common/TagInput';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
@@ -35,18 +36,15 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, initialName 
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('No user found');
 
-            const updates = {
+            // 构造初始化请求数据
+            const initData = {
                 info: {
+                    id: user.id,
                     name: formData.nickname,
                     nickname: formData.nickname,
-                    email: user.email,
+                    email: user.email || '',
                     avatar: '',
                     role: formData.role
-                },
-                context: {
-                    preferences: formData.preferences,
-                    currentTask: formData.currentTask,
-                    futureGoal: formData.futureGoal
                 },
                 focus: {
                     category: formData.category,
@@ -54,17 +52,17 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, initialName 
                     authors: formData.authors,
                     institutions: formData.institutions
                 },
-                updated_at: new Date().toISOString(),
+                context: {
+                    preferences: formData.preferences,
+                    currentTask: formData.currentTask,
+                    futureGoal: formData.futureGoal
+                }
             };
 
-            const { error } = await supabase
-                .from('profiles')
-                .upsert({
-                    user_id: user.id,
-                    ...updates
-                });
+            // 调用后端 API 进行初始化
+            // 这将确保在后端创建/更新 Profile，并处理任何必要的关联逻辑
+            await UserAPI.initialize(initData);
 
-            if (error) throw error;
             onComplete();
         } catch (error) {
             console.error('Error updating profile:', error);
