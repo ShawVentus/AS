@@ -120,7 +120,7 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
     };
 
     return (
-        <div className="flex h-full overflow-hidden animate-in fade-in">
+        <div className="flex h-full overflow-hidden animate-page-enter">
             {/* Left Side: Report Content */}
             <div className="flex-1 flex flex-col min-w-0">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950 sticky top-0 z-10">

@@ -83,7 +83,7 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8"
             onClick={onClose}
         >
             {/* Navigation Buttons (Outside Modal) */}
@@ -104,9 +104,9 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
                 </button>
             )}
 
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-md animate-backdrop" onClick={onClose} />
             <div
-                className="bg-slate-900 w-full max-w-4xl max-h-full rounded-2xl shadow-2xl border border-slate-800 flex flex-col relative animate-in fade-in zoom-in-95 duration-300 overflow-visible"
+                className="bg-slate-900 w-full max-w-4xl max-h-full rounded-2xl shadow-2xl border border-slate-800 flex flex-col relative overflow-visible animate-modal"
                 onClick={(e) => e.stopPropagation()}
             > {/* Added animation and overflow-visible */}
 

@@ -34,14 +34,14 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({ selectedCate
     const currentSubcategories = mainCategories.find(c => c.value === selectedMainCategory)?.subcategories || [];
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-2">
             <div className="flex items-center gap-2 border-l-4 border-emerald-500 pl-3">
                 <h3 className="text-base font-medium text-white">类别 (Category)</h3>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
                 {selectedCategories.map(category => (
-                    <span key={category} className="flex items-center gap-2 px-3 py-1.5 bg-slate-950 text-slate-200 text-sm rounded-md border border-slate-800 group hover:border-slate-600 transition-colors">
+                    <span key={category} className="flex items-center gap-2 px-2 py-1 bg-slate-950 text-slate-200 text-sm rounded-md border border-slate-800 group hover:border-slate-600 transition-colors">
                         {category}
                         <button
                             onClick={() => handleRemoveCategory(category)}

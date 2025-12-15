@@ -61,16 +61,16 @@ export const TagInput: React.FC<TagInputProps> = ({ tags, onChange, placeholder,
     };
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-2">
             {label && (
                 <div className="flex items-center gap-2 border-l-4 border-emerald-500 pl-3">
                     <h3 className="text-base font-medium text-white">{label}</h3>
                 </div>
             )}
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
                 {tags.map(tag => (
-                    <span key={tag} className="flex items-center gap-2 px-3 py-1.5 bg-slate-950 text-slate-200 text-sm rounded-md border border-slate-800 group hover:border-slate-600 transition-colors">
+                    <span key={tag} className="flex items-center gap-2 px-2 py-1 bg-slate-950 text-slate-200 text-sm rounded-md border border-slate-800 group hover:border-slate-600 transition-colors">
                         {tag}
                         <button
                             onClick={() => removeTag(tag)}

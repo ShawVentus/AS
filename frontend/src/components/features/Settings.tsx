@@ -113,7 +113,7 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
     };
 
     return (
-        <div className="p-6 max-w-6xl mx-auto space-y-6 pb-20 animate-in fade-in">
+        <div className="p-6 max-w-6xl mx-auto space-y-4 pb-20 animate-in fade-in">
             <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-4">
                     {onBack && (
@@ -139,12 +139,12 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
             </div>
 
             {/* 基础设置 - 合并基本资料和邮件设置 */}
-            <section className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm">
-                <div className="flex items-center gap-2 mb-6 text-slate-400">
+            <section className="bg-slate-900/50 rounded-xl p-5 border border-slate-800 backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-4 text-slate-400">
                     <User size={20} />
                     <h2 className="text-lg font-semibold text-white">基础设置</h2>
                 </div>
-                <div className="flex items-start gap-8">
+                <div className="flex items-start gap-6">
                     {/* 左侧：头像上传 */}
                     {/* 左侧：头像上传 */}
                     <div className="flex flex-col items-center gap-3 pt-2 pl-2">
@@ -200,7 +200,7 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                     </div>
 
                     {/* 右侧：昵称、邮箱、邮件推送 */}
-                    <div className="flex-1 space-y-4 max-w-md">
+                    <div className="flex-1 space-y-3 max-w-md">
                         <div>
                             <label className="block text-sm font-medium text-slate-400 mb-1">昵称</label>
                             <input
@@ -242,8 +242,8 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
             </section>
 
             {/* Natural Language Adjustment */}
-            <section className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm">
-                <div className="flex items-center gap-2 mb-4 text-blue-400">
+            <section className="bg-slate-900/50 rounded-xl p-5 border border-slate-800 backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-3 text-blue-400">
                     <Sparkles size={20} />
                     <h2 className="text-lg font-semibold text-white">自然语言调整</h2>
                 </div>
@@ -270,13 +270,13 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
             </section>
 
             {/* Focus Areas */}
-            <section className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm">
-                <div className="flex items-center gap-2 mb-6 text-indigo-400">
+            <section className="bg-slate-900/50 rounded-xl p-5 border border-slate-800 backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-4 text-indigo-400">
                     <Lightbulb size={20} />
                     <h2 className="text-lg font-semibold text-white">关注什么</h2>
                 </div>
 
-                <div className="space-y-8">
+                <div className="space-y-6">
                     {/* 1. Category (ArXiv Categories) */}
                     <CategorySelector
                         selectedCategories={formData.category}
