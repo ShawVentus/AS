@@ -1,0 +1,101 @@
+2025-12-12 16:45:19,024 - app.services.workflow_engine - INFO - 📂 日志文件已创建: /Users/mac/Desktop/AS/backend/logs/workflow_b9935607-6d09-4e50-87d2-a1c0ee02fef0.log
+2025-12-12 16:45:19,025 - app.services.workflow_engine - INFO - 🚀 开始执行工作流: daily_update (ID: b9935607-6d09-4e50-87d2-a1c0ee02fef0)
+2025-12-12 16:45:21,858 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:45:21,859 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 1/4)...
+2025-12-12 16:45:21,859 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:45:23,970 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:45:25,640 - app.services.workflow_engine - INFO - 📝 注册步骤: [run_crawler]
+2025-12-12 16:45:25,640 - app.services.workflow_engine - INFO - 📝 注册步骤: [fetch_details]
+2025-12-12 16:45:25,640 - app.services.workflow_engine - INFO - 📝 注册步骤: [analyze_public_papers]
+2025-12-12 16:45:25,640 - app.services.workflow_engine - INFO - 📝 注册步骤: [archive_daily_papers]
+2025-12-12 16:45:25,640 - app.services.workflow_engine - INFO - 📝 注册步骤: [personalized_filter]
+2025-12-12 16:45:25,640 - app.services.workflow_engine - INFO - 📝 注册步骤: [generate_report]
+2025-12-12 16:45:26,054 - app.services.workflow_engine - INFO - 📂 日志文件已创建: /Users/mac/Desktop/AS/backend/logs/workflow_2873750b-b0d0-4068-a52b-0ff6db7dbdc7.log
+2025-12-12 16:45:26,054 - app.services.workflow_engine - INFO - 🚀 开始执行工作流: daily_update (ID: 2873750b-b0d0-4068-a52b-0ff6db7dbdc7)
+2025-12-12 16:45:28,882 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:45:28,882 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 1/4)...
+2025-12-12 16:45:28,882 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:45:30,485 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:47:47,331 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:47:49,358 - app.services.workflow_engine - INFO - ✅ 步骤 [run_crawler] 完成。耗时: 144580ms, 成本: $0.000000
+2025-12-12 16:47:49,748 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:47:49,749 - app.services.workflow_engine - INFO - 👉 执行步骤 [fetch_details] (尝试 1/4)...
+2025-12-12 16:47:49,749 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:47:50,970 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:47:52,978 - app.services.workflow_engine - INFO - ✅ 步骤 [fetch_details] 完成。耗时: 817ms, 成本: $0.000000
+2025-12-12 16:47:53,379 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:47:53,379 - app.services.workflow_engine - INFO - 👉 执行步骤 [analyze_public_papers] (尝试 1/4)...
+2025-12-12 16:47:53,379 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:47:54,603 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:47:56,239 - app.services.workflow_engine - INFO - ✅ 步骤 [analyze_public_papers] 完成。耗时: 404ms, 成本: $0.000000
+2025-12-12 16:47:56,635 - app.services.workflow_engine - INFO - ✅ 步骤 [run_crawler] 完成。耗时: 145321ms, 成本: $0.000000
+2025-12-12 16:47:56,636 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:47:56,637 - app.services.workflow_engine - INFO - 👉 执行步骤 [archive_daily_papers] (尝试 1/4)...
+2025-12-12 16:47:56,637 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:47:57,056 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:47:57,059 - app.services.workflow_engine - INFO - 👉 执行步骤 [fetch_details] (尝试 1/4)...
+2025-12-12 16:47:57,060 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:47:58,772 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:48:02,599 - app.services.workflow_engine - INFO - ✅ 步骤 [fetch_details] 完成。耗时: 1063ms, 成本: $0.000000
+2025-12-12 16:48:03,386 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:48:03,386 - app.services.workflow_engine - INFO - 👉 执行步骤 [analyze_public_papers] (尝试 1/4)...
+2025-12-12 16:48:03,388 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:48:04,628 - app.services.workflow_engine - INFO - ✅ 步骤 [archive_daily_papers] 完成。耗时: 5357ms, 成本: $0.000000
+2025-12-12 16:48:05,021 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:48:05,022 - app.services.workflow_engine - INFO - 👉 执行步骤 [personalized_filter] (尝试 1/4)...
+2025-12-12 16:48:05,022 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:48:06,221 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:48:07,016 - app.services.workflow_engine - INFO - ✅ 步骤 [analyze_public_papers] 完成。耗时: 818ms, 成本: $0.000000
+2025-12-12 16:48:08,068 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:48:08,068 - app.services.workflow_engine - INFO - 👉 执行步骤 [archive_daily_papers] (尝试 1/4)...
+2025-12-12 16:48:08,068 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:48:09,101 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:48:10,339 - app.services.workflow_engine - ERROR - ❌ 步骤 [archive_daily_papers] 执行失败 (尝试 1): Failed to archive daily papers.
+2025-12-12 16:48:10,340 - app.services.workflow_engine - INFO - ⏳ 2秒后重试...
+2025-12-12 16:48:10,349 - app.services.workflow_engine - ERROR - ❌ 步骤 [personalized_filter] 执行失败 (尝试 1): [Errno 35] Resource temporarily unavailable
+2025-12-12 16:48:10,349 - app.services.workflow_engine - INFO - ⏳ 2秒后重试...
+2025-12-12 16:48:12,345 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:48:12,345 - app.services.workflow_engine - INFO - 👉 执行步骤 [archive_daily_papers] (尝试 2/4)...
+2025-12-12 16:48:12,346 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:48:12,352 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:48:12,352 - app.services.workflow_engine - INFO - 👉 执行步骤 [personalized_filter] (尝试 2/4)...
+2025-12-12 16:48:12,352 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:48:14,505 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:48:16,026 - app.services.workflow_engine - ERROR - ❌ 步骤 [archive_daily_papers] 执行失败 (尝试 2): Failed to archive daily papers.
+2025-12-12 16:48:16,027 - app.services.workflow_engine - INFO - ⏳ 4秒后重试...
+2025-12-12 16:48:16,424 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:48:18,450 - app.services.workflow_engine - INFO - ✅ 步骤 [personalized_filter] 完成。耗时: 3093ms, 成本: $0.000000
+2025-12-12 16:48:18,848 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:48:18,849 - app.services.workflow_engine - INFO - 👉 执行步骤 [generate_report] (尝试 1/4)...
+2025-12-12 16:48:18,849 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:48:20,029 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:48:20,029 - app.services.workflow_engine - INFO - 👉 执行步骤 [archive_daily_papers] (尝试 3/4)...
+2025-12-12 16:48:20,029 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:48:20,444 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:48:28,225 - app.services.workflow_engine - INFO - ✅ 步骤 [archive_daily_papers] 完成。耗时: 5381ms, 成本: $0.000000
+2025-12-12 16:48:28,643 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:48:28,644 - app.services.workflow_engine - INFO - 👉 执行步骤 [personalized_filter] (尝试 1/4)...
+2025-12-12 16:48:28,644 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:48:29,867 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:48:32,322 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:48:34,368 - app.services.workflow_engine - INFO - ✅ 步骤 [personalized_filter] 完成。耗时: 3273ms, 成本: $0.000000
+2025-12-12 16:48:34,781 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 16:48:34,781 - app.services.workflow_engine - INFO - 👉 执行步骤 [generate_report] (尝试 1/4)...
+2025-12-12 16:48:34,781 - app.services.workflow_engine - INFO - ==================================================
+2025-12-12 16:48:35,984 - app.services.workflow_engine - ERROR - 更新步骤进度失败: {'message': "Could not find the 'progress' column of 'workflow_steps' in the schema cache", 'code': 'PGRST204', 'hint': None, 'details': None}
+2025-12-12 16:48:51,038 - app.services.workflow_engine - INFO - ✅ 步骤 [generate_report] 完成。耗时: 29751ms, 成本: $0.005857

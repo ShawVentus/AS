@@ -8,7 +8,9 @@ from app.core.database import get_db
 # 加载环境变量
 load_dotenv()
 
-def fetch_and_update_details(table_name: str = "papers"):
+from typing import Optional, Callable, Dict, Any
+
+def fetch_and_update_details(table_name: str = "papers", progress_callback: Optional[Callable[[int, int, str], None]] = None):
     """
     Stage 2: 批量获取论文详情并更新到数据库
     """
@@ -42,10 +44,15 @@ def fetch_and_update_details(table_name: str = "papers"):
         
         if not papers_to_fetch:
             print("All pending papers updated.")
+            if progress_callback:
+                progress_callback(100, 100, "所有论文详情获取完成")
             break
             
         ids = [p['id'] for p in papers_to_fetch]
         print(f"Fetching details for {len(ids)} papers...")
+        
+        if progress_callback:
+            progress_callback(0, len(ids), f"正在获取 {len(ids)} 篇论文详情...")
 
         # 2. 调用 Arxiv API 批量获取
         try:

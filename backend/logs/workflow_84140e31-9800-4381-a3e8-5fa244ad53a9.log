@@ -1,0 +1,6 @@
+2025-12-12 17:06:22,626 - app.services.workflow_engine - INFO - 📂 日志文件已创建: /Users/mac/Desktop/AS/backend/logs/workflow_84140e31-9800-4381-a3e8-5fa244ad53a9.log
+2025-12-12 17:06:22,626 - app.services.workflow_engine - INFO - 🚀 开始执行工作流: daily_update (ID: 84140e31-9800-4381-a3e8-5fa244ad53a9)
+2025-12-12 17:06:25,554 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-12 17:06:25,554 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 1/4)...
+2025-12-12 17:06:25,554 - app.services.workflow_engine - INFO - ==================================================

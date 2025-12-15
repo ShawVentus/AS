@@ -10,7 +10,7 @@ from app.services.user_service import user_service
 from app.services.workflow_service import workflow_service
 import httpx
 import re
-from typing import Optional, List
+from typing import Optional, List, Callable, Dict, Any
 
 class SchedulerService:
     def __init__(self):
@@ -33,12 +33,12 @@ class SchedulerService:
             print("Scheduler is already running.")
             return
 
-        # 安排每日任务在早上8:00执行
-        self.scheduler.add_job(self.run_daily_workflow, 'cron', hour=8, minute=0)
+        # 安排每日任务在早上9:30执行
+        self.scheduler.add_job(self.run_daily_workflow, 'cron', hour=9, minute=30)
         self.scheduler.start()
-        print("Scheduler started. Daily job scheduled for 08:00.")
+        print("Scheduler started. Daily job scheduled for 09:30.")
 
-    def check_arxiv_update(self) -> Optional[List[str]]:
+    def check_arxiv_update(self) -> tuple[Optional[List[str]], Optional[str]]:
         """
         检查 Arxiv 是否有更新。
         比对 "Showing new listings for" 后的日期字符串。
@@ -48,7 +48,9 @@ class SchedulerService:
             None
 
         Returns:
-            Optional[List[str]]: 如果有更新，返回需要爬取的类别列表；否则返回 None。
+            tuple: (categories, arxiv_date)
+            - categories (List[str]): 需要爬取的类别列表，如果没有更新则为 None
+            - arxiv_date (str): Arxiv 上的日期字符串，如果没有找到则为 None
         """
         try:
             # 1. Get current status from Arxiv
@@ -63,14 +65,14 @@ class SchedulerService:
             response = httpx.get(url, headers=headers, timeout=10.0)
             if response.status_code != 200:
                 print(f"Failed to fetch Arxiv page: {response.status_code}")
-                return None
+                return None, None
                 
             html = response.text
             # Match: <h3>Showing new listings for Friday, 5 December 2024</h3>
             match = re.search(r"Showing new listings for (.*?)</h3>", html)
             if not match:
                 print("Could not find 'Showing new listings for' in HTML.")
-                return None
+                return None, None
                 
             current_date_str = match.group(1).strip()
             print(f"Arxiv Date: {current_date_str}")
@@ -107,24 +109,24 @@ class SchedulerService:
                     if not all_categories:
                         print("No user categories found, using default.")
                         default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
-                        return [c.strip() for c in default_cats]
+                        return [c.strip() for c in default_cats], current_date_str
                         
                     result_categories = list(all_categories)
                     print(f"Categories to crawl: {result_categories}")
-                    return result_categories
+                    return result_categories, current_date_str
                     
                 except Exception as e:
                     print(f"Error aggregating categories: {e}")
                     # Fallback to default
                     default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
-                    return [c.strip() for c in default_cats]
+                    return [c.strip() for c in default_cats], current_date_str
             else:
                 print("No update detected.")
-                return None
+                return None, current_date_str
                 
         except Exception as e:
             print(f"Error checking Arxiv update: {e}")
-            return None
+            return None, None
 
     def run_crawler(self):
         """
@@ -320,7 +322,7 @@ class SchedulerService:
         except Exception as e:
             print(f"Error in process_personalized_papers: {e}")
 
-    def generate_report_job(self, force: bool = False):
+    def generate_report_job(self, force: bool = False, target_user_id: Optional[str] = None, progress_callback: Optional[Callable[[int, int, str], None]] = None):
         """
         生成并发送每日报告的任务。
         
@@ -331,6 +333,8 @@ class SchedulerService:
 
         Args:
             force (bool): 是否强制生成报告（即使今日已生成）。
+            target_user_id (Optional[str]): 指定生成报告的用户 ID。
+            progress_callback (Optional[Callable]): 进度回调。
 
         Returns:
             Dict[str, Any]: 统计数据 (tokens_input, tokens_output, cost, etc.)
@@ -347,19 +351,35 @@ class SchedulerService:
         }
         
         try:
-            # === 1. 获取所有用户 ===
-            profiles_response = self.db.table("profiles").select("*").execute()
+            # === 1. 获取目标用户 ===
+            if target_user_id:
+                # 仅处理指定用户
+                profiles_response = self.db.table("profiles").select("*").eq("user_id", target_user_id).execute()
+            else:
+                # 获取所有用户
+                profiles_response = self.db.table("profiles").select("*").execute()
+                
             profiles_data = profiles_response.data
             
             if not profiles_data:
                 print("未找到任何用户")
+                if progress_callback:
+                    progress_callback(100, 100, "未找到用户")
                 return total_stats
             
             print(f"找到 {len(profiles_data)} 个用户，开始生成报告...")
             
+            total_users = len(profiles_data)
+            processed_count = 0
+            
             # === 2. 遍历每个用户 ===
             for profile_dict in profiles_data:
+                processed_count += 1
                 user_id = profile_dict.get("user_id")
+                
+                if progress_callback:
+                    progress_callback(processed_count, total_users, f"正在为用户 {user_id[:8]}... 生成报告")
+                
                 if not user_id:
                     continue
                 
@@ -460,18 +480,20 @@ class SchedulerService:
             traceback.print_exc()
             return total_stats
 
-    def run_daily_workflow(self, force: bool = False):
+    def run_daily_workflow(self, force: bool = False, target_user_id: Optional[str] = None, execution_id: Optional[str] = None):
         """
         运行每日工作流。
         
         Args:
             force (bool): 是否强制运行（忽略日期检查）。
+            target_user_id (Optional[str]): 指定运行的目标用户 ID。
+            execution_id (Optional[str]): 指定执行 ID（用于前端追踪）。
         """
         # [Fix] 禁止 httpx 输出 INFO 日志
         import logging
         logging.getLogger("httpx").setLevel(logging.WARNING)
         
-        print(f"Running daily workflow (Force={force})...")
+        print(f"Running daily workflow (Force={force}, ExecutionID={execution_id})...")
         
         from app.services.workflow_engine import WorkflowEngine
         from app.services.workflow_steps.check_update_step import CheckUpdateStep
@@ -484,6 +506,8 @@ class SchedulerService:
         from app.services.workflow_steps.generate_report_step import GenerateReportStep
         
         engine = WorkflowEngine()
+        if execution_id:
+            engine.execution_id = execution_id
         
         # 注册步骤
         # 1. 检查更新 (如果 force=True，此步骤内部逻辑可能会跳过检查或直接返回 True，需确认 CheckUpdateStep 逻辑)
@@ -496,45 +520,35 @@ class SchedulerService:
         # 但 CheckUpdateStep 会返回 should_stop=True 如果没更新。
         # 如果 force=True，我们希望忽略 should_stop。
         
-        # 方案：在 context 中传入 force=True
-        initial_context = {"force": force}
-        
-        # 为了支持 force 模式下的逻辑 (跳过 check_update 的 should_stop)，我们需要修改 CheckUpdateStep 
-        # 或者在这里做一些 hack。
-        # 让我们修改 CheckUpdateStep 吧？或者简单点，如果 force=True，我们就不注册 CheckUpdateStep？
-        # 但我们需要 categories。
-        # 如果 force=True，check_arxiv_update 会尝试聚合用户类别。
-        
-        # 让我们看看 CheckUpdateStep 的代码:
-        # categories = scheduler_service.check_arxiv_update()
-        # if categories: return {has_update: True, categories: ...}
-        # else: return {should_stop: True}
-        
-        # 而 scheduler_service.check_arxiv_update() 内部没有处理 force 参数。
-        # run_daily_workflow 原逻辑是：
-        # categories = self.check_arxiv_update()
-        # if force and not categories: ... (聚合用户类别)
-        
-        # 所以我们需要把这个逻辑移到 CheckUpdateStep 中，或者在 CheckUpdateStep 之前处理。
-        # 为了最小化改动，我们可以保留 CheckUpdateStep，但传入 force 参数。
-        # 但 CheckUpdateStep 的 execute 方法只接受 context。
-        # 所以我们需要修改 CheckUpdateStep 来读取 context["force"]。
-        
-        # 暂时我们先不修改 CheckUpdateStep，而是手动处理 categories，然后传入 context。
-        # 这样 CheckUpdateStep 就不需要了，或者变成一个 "SetupContextStep"。
-        
-        # 让我们手动执行 check_arxiv_update 逻辑，然后把 categories 放入 context。
-        # 这样更灵活。
+        # 方案：在 context 中传入 force=True 和 target_user_id
+        initial_context = {
+            "force": force,
+            "target_user_id": target_user_id
+        }
         
         # 1. Check Update & Get Categories
-        categories = self.check_arxiv_update()
+        categories, arxiv_date = self.check_arxiv_update()
         
-        if force and not categories:
-            print("Force mode enabled. Aggregating user categories...")
+        # [Fix] 如果是 force 模式 OR 指定了 target_user_id (手动触发)，则尝试聚合类别
+        if (force or target_user_id) and not categories:
+            print("Force mode or Target User detected. Aggregating user categories...")
             try:
-                profiles = self.db.table("profiles").select("focus").execute().data
+                # 如果指定了用户，只获取该用户的类别？
+                # 为了简单和数据完整性，我们还是获取所有用户的类别，或者至少包含该用户的类别。
+                # 如果只获取该用户类别，可能会漏掉其他人的。
+                # 但如果是手动触发，可能只关心该用户。
+                # 策略：如果是 target_user_id，优先获取该用户的 focus。
+                
+                target_profiles = []
+                if target_user_id:
+                    p = self.db.table("profiles").select("focus").eq("user_id", target_user_id).execute().data
+                    if p:
+                        target_profiles = p
+                else:
+                    target_profiles = self.db.table("profiles").select("focus").execute().data
+
                 all_categories = set()
-                for p in profiles:
+                for p in target_profiles:
                     focus = p.get("focus", {})
                     if focus and "category" in focus:
                         cats = focus["category"]
@@ -545,8 +559,9 @@ class SchedulerService:
                 
                 if all_categories:
                     categories = list(all_categories)
-                    print(f"Aggregated categories in force mode: {categories}")
+                    print(f"Aggregated categories: {categories}")
                 else:
+                    # Fallback
                     default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
                     categories = [c.strip() for c in default_cats]
             except Exception as e:
@@ -560,13 +575,15 @@ class SchedulerService:
 
         print(f"Starting workflow for categories: {categories}")
         initial_context["categories"] = categories
+        initial_context["arxiv_date"] = arxiv_date
         
         # 注册后续步骤
-        # 2. Clear Daily DB (只有非 force 才清空? 原逻辑是: if not force: clear)
-        if not force:
+        # 2. Clear Daily DB (只有非 force 且非单用户触发才清空?)
+        # 如果是单用户触发，绝对不能清空 daily_papers，因为可能影响其他人或已有数据。
+        if not force and not target_user_id:
             engine.register_step(ClearDailyStep())
         else:
-            print("Force mode: Skipping ClearDailyStep.")
+            print("Force mode or Single User: Skipping ClearDailyStep.")
             
         engine.register_step(RunCrawlerStep())
         engine.register_step(FetchDetailsStep())

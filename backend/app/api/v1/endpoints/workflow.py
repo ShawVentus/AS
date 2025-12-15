@@ -5,8 +5,18 @@ import threading
 
 router = APIRouter()
 
+from pydantic import BaseModel
+from typing import Optional
+
+class TriggerWorkflowRequest(BaseModel):
+    target_user_id: Optional[str] = None
+    force: bool = False
+
 @router.post("/trigger-daily")
-async def trigger_daily_workflow(user_id: str = Depends(get_current_user_id)):
+async def trigger_daily_workflow(
+    request: TriggerWorkflowRequest = TriggerWorkflowRequest(),
+    user_id: str = Depends(get_current_user_id)
+):
     """
     手动触发每日工作流。
     
@@ -17,18 +27,45 @@ async def trigger_daily_workflow(user_id: str = Depends(get_current_user_id)):
     4. 生成报告 + 发送邮件。
     
     Args:
+        request (TriggerWorkflowRequest): 请求体，包含 target_user_id 和 force。
         user_id (str): 当前用户 ID（用于验证权限）。
 
     Returns:
         dict: 包含状态和消息的字典。
     """
     # 异步执行工作流
-    thread = threading.Thread(target=scheduler_service.run_daily_workflow)
+    # 如果请求中没有指定 target_user_id，则默认处理所有用户 (或者根据业务逻辑，手动触发是否只处理自己?)
+    # 通常手动触发如果是管理员，可能想跑全量。如果是普通用户，可能只想跑自己。
+    # 这里我们允许前端显式传递 target_user_id。
+    
+    # [Logic] 如果前端传了 target_user_id，则只跑该用户。
+    # 此外，为了方便调试，允许 force 参数。
+    
+    # 1. 预先创建 Execution Record，以便立即返回 ID
+    from app.services.workflow_engine import WorkflowEngine
+    engine = WorkflowEngine()
+    # 初始上下文
+    initial_context = {
+        "force": request.force,
+        "target_user_id": request.target_user_id
+    }
+    execution_id = engine.create_execution("daily_update", initial_context=initial_context)
+    
+    # 2. 启动后台线程，传入 execution_id
+    thread = threading.Thread(
+        target=scheduler_service.run_daily_workflow,
+        kwargs={
+            "force": request.force, 
+            "target_user_id": request.target_user_id,
+            "execution_id": execution_id
+        }
+    )
     thread.start()
     
     return {
         "status": "started",
-        "message": "每日工作流已在后台启动，请查看服务器日志"
+        "message": f"每日工作流已启动 (Target User: {request.target_user_id or 'All'})",
+        "execution_id": execution_id
     }
 
 @router.post("/trigger-report-only")

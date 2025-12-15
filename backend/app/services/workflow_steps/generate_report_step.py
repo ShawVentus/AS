@@ -21,7 +21,13 @@ class GenerateReportStep(WorkflowStep):
         执行报告生成逻辑。
         """
         force = context.get("force", False)
-        stats = scheduler_service.generate_report_job(force=force)
+        target_user_id = context.get("target_user_id")
+        
+        stats = scheduler_service.generate_report_job(
+            force=force, 
+            target_user_id=target_user_id,
+            progress_callback=self.update_progress
+        )
         
         if stats:
             self.tokens_input = stats.get("tokens_input", 0)

@@ -27,16 +27,18 @@ class CheckUpdateStep(WorkflowStep):
         """
         # 复用 SchedulerService 中的 check_arxiv_update 逻辑
         # 注意：这里直接调用 scheduler_service 实例的方法
-        categories = scheduler_service.check_arxiv_update()
+        categories, arxiv_date = scheduler_service.check_arxiv_update()
         
         if categories:
             return {
                 "has_update": True,
-                "categories": categories
+                "categories": categories,
+                "arxiv_date": arxiv_date
             }
         else:
             return {
                 "has_update": False,
                 "categories": [],
+                "arxiv_date": arxiv_date,
                 "should_stop": True # 通知引擎停止后续步骤
             }

@@ -20,6 +20,7 @@ import { Onboarding } from './components/features/Onboarding';
 import { Settings } from './components/features/Settings';
 import { FeedbackPage } from './components/features/FeedbackPage';
 import { WorkflowPage } from './features/admin/WorkflowPage';
+import { ReportGenerationModal } from './components/features/ReportGenerationModal';
 
 function App() {
     const { user, loading } = useAuth();
@@ -34,6 +35,7 @@ function App() {
     const [modalPaperIndex, setModalPaperIndex] = useState(0); // 当前论文索引
     const [latestReport, setLatestReport] = useState<Report | null>(null);
     const [dateFilter, setDateFilter] = useState<string | null>(null); // 论文列表日期筛选
+    const [showReportModal, setShowReportModal] = useState(false);
 
     // Data loading state
     const [dataLoading, setDataLoading] = useState(true);
@@ -327,6 +329,7 @@ function App() {
                     setCurrentView={setCurrentView}
                     userProfile={userProfile}
                     isLoading={dataLoading}
+                    onGenerateReport={() => setShowReportModal(true)}
                 />
             )}
 
@@ -359,6 +362,23 @@ function App() {
                     setModalPaper(modalPapers[prevIndex]);
                 } : undefined}
             />
+
+            {/* Report Generation Modal */}
+            {user && (
+                <ReportGenerationModal
+                    isOpen={showReportModal}
+                    onClose={() => setShowReportModal(false)}
+                    userId={user.id}
+                    onComplete={() => {
+                        // Refresh reports list if needed
+                        import('./services/api').then(m => m.ReportAPI.getReports()).then(reports => {
+                            if (reports && reports.length > 0) {
+                                setLatestReport(reports[0]);
+                            }
+                        });
+                    }}
+                />
+            )}
         </div>
     );
 }

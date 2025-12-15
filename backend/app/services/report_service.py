@@ -69,7 +69,15 @@ class ReportService:
         print(f"DEBUG: LLM Report Result: {json.dumps(llm_result, ensure_ascii=False, indent=2)}")
         
         # LLM 失败时的退路
-        if not llm_result:
+        if not llm_result or not llm_result.get("title"):
+            print("❌ Report generation failed. Sending alert email...")
+            try:
+                alert_subject = "【系统报警】日报生成失败"
+                alert_content = f"用户 {user_profile.info.name} ({user_profile.info.id}) 的日报生成失败，请检查后台日志。"
+                email_sender.send_email("2962326813@qq.com", alert_subject, f"<p>{alert_content}</p>", alert_content)
+            except Exception as e:
+                print(f"Failed to send alert email: {e}")
+
             llm_result = {
                 "title": f"{datetime.now().strftime('%Y/%m/%d')} - Daily Report (Fallback)",
                 "summary": "Failed to generate report via LLM.",

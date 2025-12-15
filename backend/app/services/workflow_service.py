@@ -1,7 +1,7 @@
 import os
 import subprocess
 import sys
-from typing import List, Optional
+from typing import List, Optional, Callable, Dict, Any
 from app.core.database import get_db
 from app.services.paper_service import paper_service
 from app.schemas.paper import PersonalizedPaper, RawPaperMetadata
@@ -45,7 +45,7 @@ class WorkflowService:
             print(f"Crawler failed: {e}")
             raise e
 
-    def analyze_public_papers(self):
+    def analyze_public_papers(self, progress_callback: Optional[Callable[[int, int, str], None]] = None):
         """
         处理公共论文分析。
         
@@ -55,7 +55,7 @@ class WorkflowService:
         [Modified] 分批处理：每批 20 篇，批次间等待 60 秒。
 
         Args:
-            None
+            progress_callback (Optional[Callable]): 进度回调。
 
         Returns:
             None
@@ -106,7 +106,22 @@ class WorkflowService:
                     batch = papers_to_analyze[i:i + batch_size]
                     print(f"Processing batch {i // batch_size + 1}/{(total_papers + batch_size - 1) // batch_size} (Size: {len(batch)})...")
                     
-                    batch_stats = paper_service.batch_analyze_papers(batch)
+                    # 传递 progress_callback
+                    # 注意：batch_analyze_papers 内部是针对 batch 的循环
+                    # 如果我们希望进度是全局的，我们需要在这里做一个适配器，或者让 batch_analyze_papers 只处理局部进度
+                    # 简单起见，我们让 batch_analyze_papers 处理局部进度，但这里我们无法轻易合并
+                    # 更好的方式是：在 analyze_public_papers 这里控制总进度
+                    
+                    # 定义局部回调适配器
+                    def batch_callback(current, total, msg):
+                        if progress_callback:
+                            # 计算全局进度
+                            # i 是当前批次的起始索引
+                            global_current = i + current
+                            global_total = total_papers
+                            progress_callback(global_current, global_total, msg)
+
+                    batch_stats = paper_service.batch_analyze_papers(batch, progress_callback=batch_callback)
                     
                     # 累加统计
                     if batch_stats:

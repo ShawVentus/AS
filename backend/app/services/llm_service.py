@@ -42,7 +42,7 @@ class QwenService:
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
-    def call_llm(self, prompt: str, model: str = None) -> tuple[str, Dict[str, Any]]:
+    def call_llm(self, prompt: str, model: str = None, response_format: Optional[Dict[str, Any]] = {"type": "json_object"}) -> tuple[str, Dict[str, Any]]:
         """
         调用 LLM API 执行请求 (包含重试机制)。
         支持动态切换模型，并解析 OpenRouter 的成本与缓存信息。
@@ -50,6 +50,7 @@ class QwenService:
         Args:
             prompt (str): 发送给 LLM 的完整提示词字符串。
             model (str, optional): 指定使用的模型。如果为 None，使用默认配置的模型。
+            response_format (Dict[str, Any], optional): API 返回格式配置。默认为 {"type": "json_object"}。
 
         Returns:
             tuple[str, Dict[str, Any]]: (内容字符串, 使用统计字典)。
@@ -63,6 +64,7 @@ class QwenService:
                                         如果调用失败，返回 ("{}", {})。
         """
         import time
+        import traceback
         
         if not self.client:
             print("✗ LLM 客户端未初始化，无法执行请求")
@@ -82,8 +84,8 @@ class QwenService:
                         {"role": "system", "content": self.read_prompt("system.md")},
                         {"role": "user", "content": prompt},
                     ],
-                    temperature=1,
-                    response_format={"type": "json_object"} # 强制JSON格式
+                    temperature=1.2,
+                    response_format=response_format # 使用传入的格式配置
                 )
                 response = completion.choices[0].message.content
                 
@@ -138,6 +140,9 @@ class QwenService:
                 
             except Exception as e:
                 error_str = str(e)
+                import traceback
+                traceback_str = traceback.format_exc()
+                
                 if "429" in error_str or "Rate limit" in error_str:
                     if attempt < max_retries:
                         delay = base_delay * (2 ** attempt)
@@ -146,6 +151,7 @@ class QwenService:
                         continue
                 
                 print(f"❌ LLM 调用错误: {e}")
+                print(f"🔍 错误堆栈: {traceback_str}")
                 # 非 429 错误或重试耗尽，返回空
                 return "{}", {}
                 
@@ -228,17 +234,88 @@ class QwenService:
             
         # 使用 replace 替代 format，避免 JSON 大括号冲突
         from datetime import datetime
-        date_str = datetime.now().strftime("%Y/%m/%d")
-        prompt = template.replace("{user_profile}", user_profile).replace("{papers}", papers_text).replace("{date}", date_str)
+        import time
+        import re
         
-        # 使用高性能模型生成报告
-        response, usage = self.call_llm(prompt, model=settings.OPENROUTER_MODEL_PERFORMANCE)
-        try:
-            result = json.loads(response)
-            result["_usage"] = usage
+        current_date = datetime.now().strftime("%Y/%m/%d")
+        prompt = template.replace("{user_profile}", user_profile).replace("{papers}", papers_text).replace("{date}", current_date)
+        
+        # 定义解析辅助函数
+        def _parse_report_response(response_text: str) -> Optional[Dict[str, Any]]:
+            """
+            解析 LLM 返回的 XML 标签格式报告。
+            
+            Args:
+                response_text (str): LLM 返回的原始文本。
+                
+            Returns:
+                Optional[Dict[str, Any]]: 解析后的字典，包含 title, summary, content。解析失败返回 None。
+            """
+            try:
+                # 使用非贪婪匹配提取标签内容，re.DOTALL 允许匹配换行符
+                title_match = re.search(r'<title>(.*?)</title>', response_text, re.DOTALL)
+                summary_match = re.search(r'<summary>(.*?)</summary>', response_text, re.DOTALL)
+                content_match = re.search(r'<content>(.*?)</content>', response_text, re.DOTALL)
+                
+                if not (title_match and summary_match and content_match):
+                    print(f"❌ Report parsing failed. Missing tags. Response preview: {response_text[:200]}...")
+                    return None
+                
+                return {
+                    "title": title_match.group(1).strip(),
+                    "summary": summary_match.group(1).strip(),
+                    "content": content_match.group(1).strip()
+                }
+            except Exception as e:
+                print(f"❌ Report parsing exception: {e}")
+                return None
+
+        # 定义重试逻辑
+        def try_generate(model_name, retries=3):
+            """
+            尝试使用指定模型生成报告。
+            
+            Args:
+                model_name (str): 模型名称。
+                retries (int): 重试次数。
+                
+            Returns:
+                Optional[Dict[str, Any]]: 生成并解析后的结果字典。
+            """
+            for i in range(retries):
+                print(f"Generating report with {model_name} (Attempt {i+1}/{retries})...")
+                # 移除 response_format={"type": "json_object"}，允许自由格式输出
+                # 显式传入 None 以覆盖默认的 JSON 模式
+                response, usage = self.call_llm(prompt, model=model_name, response_format=None)
+                
+                if usage and response and response != "{}":
+                    parsed_result = _parse_report_response(response)
+                    if parsed_result:
+                        parsed_result["_usage"] = usage
+                        return parsed_result
+                
+                if i < retries - 1:
+                    time.sleep(2) # 重试间隔
+            return None
+
+        # 1. 尝试主模型
+        result = try_generate(settings.OPENROUTER_MODEL_PERFORMANCE, retries=3)
+        
+        # 2. 如果主模型失败，尝试备用模型
+        if not result:
+            print(f"⚠️ Primary model {settings.OPENROUTER_MODEL_PERFORMANCE} failed after 3 attempts. Switching to fallback...")
+            fallback_model = "deepseek/deepseek-v3.2"
+            result = try_generate(fallback_model, retries=3)
+            
+        if result:
+            # 自动填充 ref_papers (直接使用输入的论文列表 ID)
+            result["ref_papers"] = [p['id'] for p in papers]
+            # 再次确认 fallback 模型成功日志
+            if result.get("_usage", {}).get("model") == "deepseek/deepseek-v3.2":
+                 print(f"✓ Report generated successfully with fallback model deepseek/deepseek-v3.2")
             return result
-        except json.JSONDecodeError:
-            print(f"report 解析 JSON 错误: {response}")
-            return {"_usage": usage}
+            
+        print("❌ All report generation attempts failed.")
+        return {"_usage": {}} # 返回空 usage 表示彻底失败
 
 llm_service = QwenService()

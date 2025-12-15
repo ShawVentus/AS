@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, Union
+from typing import List, Optional, Union, Callable, Dict, Any
 from datetime import datetime, timedelta
 import json
 import subprocess
@@ -384,7 +384,7 @@ class PaperService:
             print(f"Error crawling: {e}")
             return self.get_papers(user_id)
 
-    def process_pending_papers(self, user_id: str) -> FilterResponse:
+    def process_pending_papers(self, user_id: str, progress_callback: Optional[Callable[[int, int, str], None]] = None) -> FilterResponse:
         """
         处理用户的待处理论文 (Pending Papers)。
         
@@ -395,6 +395,7 @@ class PaperService:
         
         Args:
             user_id (str): 用户 ID。
+            progress_callback (Optional[Callable]): 进度回调。
             
         Returns:
             FilterResponse: 筛选结果统计。
@@ -457,7 +458,7 @@ class PaperService:
                 )
 
             # 3. 批量筛选
-            return self.filter_papers(papers, profile, user_id)
+            return self.filter_papers(papers, profile, user_id, progress_callback)
 
         except Exception as e:
             print(f"Error processing pending papers: {e}")
@@ -476,7 +477,7 @@ class PaperService:
                 rejected_papers=[]
             )
 
-    def filter_papers(self, papers: List[PersonalizedPaper], user_profile: UserProfile, user_id: str) -> FilterResponse:
+    def filter_papers(self, papers: List[PersonalizedPaper], user_profile: UserProfile, user_id: str, progress_callback: Optional[Callable[[int, int, str], None]] = None) -> FilterResponse:
         """
         使用 LLM 批量过滤论文 (Personalized Filter)。
         
@@ -588,9 +589,15 @@ class PaperService:
 
             # --- 3. 处理筛选结果 ---
             # 使用 tqdm 显示进度
-            for future in tqdm(as_completed(future_to_paper), total=len(future_to_paper), desc="Filtering Papers"):
+            total_tasks = len(future_to_paper)
+            
+            for future in tqdm(as_completed(future_to_paper), total=total_tasks, desc="Filtering Papers"):
                 p = future_to_paper[future]
                 processed_count += 1
+                
+                if progress_callback:
+                    progress_callback(processed_count, total_tasks, f"正在筛选: {p.meta.title[:30]}...")
+                
                 
                 try:
                     filter_result, retries = future.result()
@@ -713,8 +720,8 @@ class PaperService:
         analysis_dict = analyze_paper_content(paper_dict)
         
         # [Debug] 打印原始返回数据
-        if analysis_dict:
-            print(f"🔍 [DEBUG] Paper {paper.meta.id} LLM Raw Output Keys: {list(analysis_dict.keys())}")
+        # if analysis_dict:
+            # print(f"🔍 [DEBUG] Paper {paper.meta.id} LLM Raw Output Keys: {list(analysis_dict.keys())}")
             # 避免打印过长，只打印前 200 字符
             # print(f"🔍 [DEBUG] Content Preview: {str(analysis_dict)[:200]}...")
         
@@ -746,7 +753,7 @@ class PaperService:
             
         return update_data
 
-    def batch_analyze_papers(self, papers: List[PersonalizedPaper]) -> None:
+    def batch_analyze_papers(self, papers: List[PersonalizedPaper], progress_callback: Optional[Callable[[int, int, str], None]] = None) -> Dict[str, Any]:
         """
         并发批量分析论文 (Public Analysis)。
         [Modified] 并发分析后，批量写入 daily_papers 数据库。
@@ -754,6 +761,7 @@ class PaperService:
 
         Args:
             papers (List[PersonalizedPaper]): 待分析的论文列表。
+            progress_callback (Optional[Callable]): 进度回调函数。
         
         Returns:
             Dict[str, int]: Token 消耗统计 {"tokens_input": int, "tokens_output": int}
@@ -788,19 +796,26 @@ class PaperService:
             "request_count": 0
         }
 
+        failed_count = 0
+
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_paper = {executor.submit(self.analyze_paper, p): p for p in papers_to_analyze}
             
             # 使用 tqdm 显示进度
-            for future in tqdm(as_completed(future_to_paper), total=len(papers_to_analyze), desc="Analyzing Papers"):
+            completed_count = 0
+            total_count = len(papers_to_analyze)
+            
+            for future in tqdm(as_completed(future_to_paper), total=total_count, desc="Analyzing Papers"):
                 p = future_to_paper[future]
+                completed_count += 1
+                if progress_callback:
+                    progress_callback(completed_count, total_count, f"正在分析: {p.meta.title[:30]}...")
                 try:
                     data = future.result()
                     if data:
                         # 提取 usage (analyze_paper 已经将 _usage 放在顶层)
                         usage = data.pop("_usage", {})
                         
-                        # 累加统计数据
                         stats["tokens_input"] += usage.get("prompt_tokens", 0)
                         stats["tokens_output"] += usage.get("completion_tokens", 0)
                         stats["cost"] += usage.get("cost", 0.0)
@@ -808,27 +823,34 @@ class PaperService:
                         stats["request_count"] += 1
                         
                         results.append(data)
-                        # 静默模式：成功时不打印详细日志
-                        # print(f"✓ 论文 {p.meta.id} 分析完成")
-                        
-                        # [Modified] 每攒够 5 篇，或者最后一篇，立即写入数据库
-                        if len(results) >= write_batch_size:
-                            # print(f"Batch writing {len(results)} papers to DB...")
-                            try:
-                                self.db.table("daily_papers").upsert(results).execute()
-                                results = [] # 清空缓冲区
-                            except Exception as e:
-                                print(f"Batch write failed: {e}")
+                    else:
+                        failed_count += 1
+                        stats["request_count"] += 1 # 失败也算一次请求尝试
                 except Exception as e:
                     print(f"Error analyzing paper {p.meta.id}: {e}")
-        
-        # 处理剩余的
-        if results:
-            try:
-                self.db.table("daily_papers").upsert(results).execute()
-            except Exception as e:
-                print(f"Final batch write failed: {e}")
+                    failed_count += 1
+                    stats["request_count"] += 1
                 
+                # 批量写入 (每 write_batch_size 篇)
+                if len(results) >= write_batch_size:
+                    try:
+                        self.db.table("daily_papers").upsert(results).execute()
+                        # print(f"Saved {len(results)} analyzed papers.")
+                        results = []
+                    except Exception as e:
+                        print(f"Error saving batch analysis: {e}")
+
+            # 写入剩余的
+            if results:
+                try:
+                    self.db.table("daily_papers").upsert(results).execute()
+                    # print(f"Saved {len(results)} analyzed papers.")
+                except Exception as e:
+                    print(f"Error saving remaining analysis: {e}")
+        
+        if failed_count > 0:
+            print(f"⚠️ Analysis completed with {failed_count} failures.")
+
         return stats
 
     def get_paper_by_id(self, paper_id: str, user_id: str) -> Optional[PersonalizedPaper]:
@@ -994,5 +1016,48 @@ class PaperService:
         except Exception as e:
             print(f"Error fetching recommendations: {e}")
             return []
+
+    def archive_daily_papers(self) -> bool:
+        """
+        将 daily_papers 表中的数据归档到 papers 表。
+        [Fix] 使用批处理以避免 Errno 35 资源耗尽错误。
+        """
+        print("Starting archiving daily papers to public DB...")
+        try:
+            # 1. 获取所有 daily_papers
+            # 如果数据量非常大，这里也应该分页获取，但通常 daily_papers 不会太大 (几百条)
+            response = self.db.table("daily_papers").select("*").execute()
+            daily_papers = response.data
+            
+            if not daily_papers:
+                print("No daily papers to archive.")
+                return True
+                
+            print(f"Found {len(daily_papers)} papers to archive.")
+            
+            # 2. 批量插入到 papers 表
+            # 使用 upsert (on_conflict="id") 避免重复
+            # 分批处理，每批 50 条
+            batch_size = 50
+            total = len(daily_papers)
+            
+            for i in range(0, total, batch_size):
+                batch = daily_papers[i:i + batch_size]
+                try:
+                    self.db.table("papers").upsert(batch).execute()
+                    # print(f"Archived batch {i//batch_size + 1}/{(total + batch_size - 1)//batch_size}")
+                    # 小睡一下，释放资源
+                    time.sleep(0.1)
+                except Exception as e:
+                    print(f"Error archiving batch {i}: {e}")
+                    # 即使某批失败，也尝试继续下一批？或者直接失败？
+                    # 这里选择记录错误但继续，尽可能多地归档
+            
+            print("Daily papers archived successfully.")
+            return True
+            
+        except Exception as e:
+            print(f"Error archiving papers: {e}")
+            return False
 
 paper_service = PaperService()

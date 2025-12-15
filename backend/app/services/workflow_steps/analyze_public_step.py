@@ -24,7 +24,8 @@ class AnalyzePublicStep(WorkflowStep):
         执行公共分析逻辑。
         """
         # 调用 workflow_service 中的 analyze_public_papers
-        stats = workflow_service.analyze_public_papers()
+        # 传入 update_progress 作为回调
+        stats = workflow_service.analyze_public_papers(progress_callback=self.update_progress)
         
         # 记录消耗
         if stats:

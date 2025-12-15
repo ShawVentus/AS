@@ -106,7 +106,10 @@ export const RealReportAPI = {
 };
 
 export const RealWorkflowAPI = {
-    triggerDaily: () => fetchJSON<{ message: string; execution_id?: string }>('/workflow/trigger-daily', { method: 'POST' }),
+    triggerDaily: (targetUserId?: string) => fetchJSON<{ message: string; execution_id?: string }>('/workflow/trigger-daily', {
+        method: 'POST',
+        body: JSON.stringify({ target_user_id: targetUserId })
+    }),
     resumeWorkflow: (executionId: string) => fetchJSON<{ message: string }>('/workflow/resume', {
         method: 'POST',
         body: JSON.stringify({ execution_id: executionId })

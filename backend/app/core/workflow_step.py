@@ -37,7 +37,8 @@ class WorkflowStep(ABC):
         self.tokens_input: int = 0
         self.tokens_output: int = 0
         self.cost: float = 0.0
-        self.metrics: Dict[str, Any] = {}
+        self.metrics = {}
+        self.progress: Dict[str, Any] = {}
 
     @abstractmethod
     def execute(self, context: Dict[str, Any]) -> Dict[str, Any]:
@@ -54,6 +55,32 @@ class WorkflowStep(ABC):
             Exception: 执行失败时抛出异常。
         """
         pass
+
+    def update_progress(self, current: int, total: int, message: str):
+        """
+        更新步骤进度。
+        
+        Args:
+            current (int): 当前进度值。
+            total (int): 总进度值。
+            message (str): 进度描述信息。
+        """
+        self.progress = {
+            "current": current,
+            "total": total,
+            "message": message,
+            "updated_at": datetime.now().isoformat()
+        }
+        # 注意：这里只更新内存状态。
+        # 实际持久化需要 WorkflowEngine 在调用 execute 时注入回调，或者通过 context 传递 engine 引用。
+        # 为了解耦，我们建议 WorkflowEngine 轮询或注入一个 callback。
+        # 简单实现：我们可以在 WorkflowStep 中保存一个 callback 函数。
+        if hasattr(self, "_progress_callback") and self._progress_callback:
+            self._progress_callback(self.progress)
+
+    def set_progress_callback(self, callback):
+        """设置进度更新回调函数"""
+        self._progress_callback = callback
 
     def get_cost(self) -> float:
         """
@@ -74,3 +101,4 @@ class WorkflowStep(ABC):
         self.tokens_output = 0
         self.cost = 0.0
         self.metrics = {}
+        self.progress = {}

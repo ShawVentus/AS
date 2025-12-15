@@ -5,6 +5,11 @@ import os
 import re
 from jinja2 import Environment, FileSystemLoader
 from premailer import transform
+import cssutils
+import logging
+
+# 禁止 cssutils 输出不支持现代 CSS 属性的警告日志
+cssutils.log.setLevel(logging.CRITICAL)
 
 class EmailTemplates:
     """

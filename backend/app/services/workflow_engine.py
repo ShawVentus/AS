@@ -35,11 +35,11 @@ class WorkflowEngine:
     5. 实时进度监控
     """
     
-    def __init__(self):
+    def __init__(self, execution_id: Optional[str] = None):
         self.db = get_db()
         self.steps: List[WorkflowStep] = []
         self.context: Dict[str, Any] = {}
-        self.execution_id: Optional[str] = None
+        self.execution_id: Optional[str] = execution_id
         
         # 从环境变量读取配置
         self.admin_emails = os.environ.get("ADMIN_EMAILS", "").split(",")
@@ -72,6 +72,16 @@ class WorkflowEngine:
         """注册工作流步骤"""
         self.steps.append(step)
         logger.info(f"📝 注册步骤: [{step.name}]")
+
+    def create_execution(self, workflow_type: str, initial_context: Dict[str, Any] = None) -> str:
+        """
+        创建一个新的执行记录，但不立即执行。
+        用于异步任务场景，先返回 ID 给前端。
+        """
+        self.context = initial_context or {}
+        self.execution_id = self._create_execution_record(workflow_type)
+        logger.info(f"🆕 创建执行记录: {workflow_type} (ID: {self.execution_id})")
+        return self.execution_id
     
     def execute_workflow(self, workflow_type: str, initial_context: Dict[str, Any] = None):
         """
@@ -217,6 +227,18 @@ class WorkflowEngine:
         执行单个步骤（含重试逻辑）。
         """
         step_record_id = self._get_step_record_id(step.name)
+        
+        # 定义进度回调
+        def progress_callback(progress_data: Dict[str, Any]):
+            try:
+                self.db.table("workflow_steps").update({
+                    "progress": progress_data
+                }).eq("id", step_record_id).execute()
+            except Exception as e:
+                logger.error(f"更新步骤进度失败: {e}")
+        
+        # 注入回调
+        step.set_progress_callback(progress_callback)
         
         for attempt in range(1, step.max_retries + 1):
             try:
@@ -453,10 +475,10 @@ class WorkflowEngine:
         包含: 阶段名 | Model | Cost | Input | Output | Cache Hit | Requests | Time
         """
         try:
-            print("\n" + "="*95)
+            print("\n" + "="*120)
             print(f"📊 工作流执行汇总报告 (ID: {self.execution_id})")
-            print("="*95)
-            
+            print("="*120)
+             
             # 获取所有步骤记录
             response = self.db.table("workflow_steps") \
                 .select("*") \
@@ -467,7 +489,7 @@ class WorkflowEngine:
             steps = response.data
             
             # 表头
-            header = f"{'阶段名':<25} | {'Model':<15} | {'Cost ($)':<10} | {'Input':<8} | {'Output':<8} | {'Cache':<8} | {'Reqs':<5} | {'Time':<10}"
+            header = f"{'阶段名':<22} | {'Model':<15} | {'Cost ($)':<10} | {'Input':<8} | {'Output':<8} | {'Cache':<8} | {'Reqs':<5} | {'Time':<10}"
             print(header)
             print("-" * len(header))
             

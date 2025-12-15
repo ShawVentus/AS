@@ -22,6 +22,7 @@ class FetchDetailsStep(WorkflowStep):
         """
         # 调用现有的 fetch_and_update_details 函数
         # 默认针对 daily_papers 表
-        fetch_and_update_details(table_name="daily_papers")
+        # 传入 update_progress 作为回调
+        fetch_and_update_details(table_name="daily_papers", progress_callback=self.update_progress)
         
         return {"details_fetched": True}

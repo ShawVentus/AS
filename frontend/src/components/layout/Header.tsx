@@ -16,9 +16,10 @@ interface HeaderProps {
     setCurrentView: (view: string) => void;
     userProfile?: UserProfile | null;
     isLoading?: boolean;
+    onGenerateReport?: () => void;
 }
 
-export function Header({ currentView, setCurrentView, userProfile, isLoading }: HeaderProps) {
+export function Header({ currentView, setCurrentView, userProfile, isLoading, onGenerateReport }: HeaderProps) {
     const menuItems = [
         { id: 'dashboard', label: '主页', icon: LayoutDashboard },
         { id: 'reports', label: '研报', icon: FileText },
@@ -68,6 +69,17 @@ export function Header({ currentView, setCurrentView, userProfile, isLoading }: 
 
             {/* Right Side Actions */}
             <div className="flex items-center gap-4">
+                {/* Generate Report Button */}
+                {onGenerateReport && (
+                    <button
+                        onClick={onGenerateReport}
+                        className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+                    >
+                        <FileText size={14} />
+                        <span>生成日报</span>
+                    </button>
+                )}
+
                 {/* Search Bar (Visual only for now) */}
                 <div className="hidden lg:flex items-center bg-slate-900 rounded-full px-4 py-1.5 border border-slate-800 focus-within:border-slate-700 transition-colors">
                     <Search size={14} className="text-slate-500 mr-2" />

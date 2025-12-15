@@ -21,32 +21,18 @@ class PersonalizedFilterStep(WorkflowStep):
         """
         执行个性化筛选逻辑。
         """
-        # 假设我们为所有活跃用户运行筛选，或者从 context 获取特定用户
-        # 这里简化为：获取所有用户并运行 (实际应分批或异步)
-        # 为了演示，我们只处理 context 中指定的用户，或者如果没有指定，则处理所有活跃用户
+        # 1. 确定目标用户
+        target_user_id = context.get("target_user_id")
         
-        # 暂时只处理硬编码的一个用户或从 context 获取
-        # 实际生产中，这应该是一个循环处理所有用户的步骤，或者分发子任务
-        
-        # 假设 paper_service 有一个方法 process_all_users_pending_papers
-        # 但目前我们只有 process_pending_papers(user_id)
-        
-        # 我们先模拟处理一个用户，或者遍历所有用户
-        # TODO: 实现多用户循环
-        
-        # 暂时不做任何操作，因为 process_pending_papers 需要 user_id
-        # 假设 context 中有 user_id (如果是单用户触发)
-        from app.services.user_service import user_service
-        from app.core.config import settings
-
-        user_id = context.get("user_id")
         target_users = []
-        
-        if user_id:
-            target_users = [user_id]
+        if target_user_id:
+            target_users = [target_user_id]
+            self.update_progress(0, 1, f"准备为用户 {target_user_id} 进行筛选")
         else:
             # 获取所有活跃用户
+            from app.services.user_service import user_service
             target_users = user_service.get_all_active_users()
+            self.update_progress(0, len(target_users), f"准备为 {len(target_users)} 位用户进行筛选")
             
         total_input = 0
         total_output = 0
@@ -54,8 +40,23 @@ class PersonalizedFilterStep(WorkflowStep):
         total_cache_hits = 0
         total_requests = 0
         
+        processed_count = 0
+        total_users_count = len(target_users)
+        
         for uid in target_users:
-             filter_res = paper_service.process_pending_papers(uid)
+             processed_count += 1
+             
+             # 定义局部回调适配器，用于将 filter_papers 的内部进度映射到 step 的总体进度
+             # 这里的映射比较复杂，因为 filter_papers 内部是 0-100%
+             # 简单起见，我们只在用户级别更新进度，或者只传递 message
+             def user_filter_callback(current, total, msg):
+                 # 可以在这里做更细粒度的进度计算，例如:
+                 # global_progress = (processed_count - 1) / total_users_count + (current / total) / total_users_count
+                 # 但为了 UI 简洁，我们主要显示 "正在处理用户 X: msg"
+                 self.update_progress(processed_count, total_users_count, f"用户 {uid[:8]}...: {msg}")
+
+             filter_res = paper_service.process_pending_papers(uid, progress_callback=user_filter_callback)
+             
              total_input += filter_res.tokens_input or 0
              total_output += filter_res.tokens_output or 0
              total_cost += filter_res.cost or 0.0
@@ -66,9 +67,11 @@ class PersonalizedFilterStep(WorkflowStep):
         self.cost = total_cost
         self.metrics["cache_hit_tokens"] = total_cache_hits
         self.metrics["request_count"] = total_requests
+        from app.core.config import settings
         self.metrics["model_name"] = settings.OPENROUTER_MODEL_CHEAP
             
         self.tokens_input = total_input
         self.tokens_output = total_output
         
+        self.update_progress(100, 100, "个性化筛选完成")
         return {"personalized_filter_completed": True}

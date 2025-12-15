@@ -19,27 +19,33 @@ async def progress_stream(execution_id: str, request: Request):
     SSE 端点：实时推送工作流进度。
     """
     async def event_generator():
-        db = get_db()
+        # [Fix] Use global get_db() to ensure correct Service Key configuration and connection pooling
+        local_db = get_db()
+        print(f"[DEBUG] SSE connection started for execution_id: {execution_id}")
+        
         while True:
-            # 检查客户端是否断开
             if await request.is_disconnected():
                 logger.info(f"Client disconnected from stream {execution_id}")
                 break
                 
             try:
                 # 1. 查询执行状态
-                exec_res = db.table("workflow_executions").select("*").eq("id", execution_id).execute()
+                # Use asyncio.to_thread to prevent blocking, but wrap in try/except for connection errors
+                def fetch_data():
+                    exec_res = local_db.table("workflow_executions").select("*").eq("id", execution_id).execute()
+                    steps_res = local_db.table("workflow_steps").select("*").eq("execution_id", execution_id).order("step_order").execute()
+                    return exec_res, steps_res
+
+                exec_res, steps_res = await asyncio.to_thread(fetch_data)
+                
                 if not exec_res.data:
+                    logger.warning(f"SSE: Execution {execution_id} not found")
                     yield f"event: error\ndata: Execution not found\n\n"
                     break
                 
                 execution = exec_res.data[0]
-                
-                # 2. 查询步骤状态
-                steps_res = db.table("workflow_steps").select("*").eq("execution_id", execution_id).order("step_order").execute()
                 steps = steps_res.data
                 
-                # 3. 构造 payload
                 payload = {
                     "execution_id": execution.get("id"),
                     "status": execution.get("status"),
@@ -52,7 +58,8 @@ async def progress_stream(execution_id: str, request: Request):
                             "name": s.get("step_name"),
                             "status": s.get("status"),
                             "duration_ms": s.get("duration_ms"),
-                            "cost": s.get("cost")
+                            "cost": s.get("cost"),
+                            "progress": s.get("progress")
                         }
                         for s in steps
                     ]
@@ -60,15 +67,15 @@ async def progress_stream(execution_id: str, request: Request):
                 
                 yield f"event: progress\ndata: {json.dumps(payload)}\n\n"
                 
-                # 如果已完成或失败，发送最后一次后退出
                 if execution.get("status") in ["completed", "failed"]:
                     break
                     
             except Exception as e:
                 logger.error(f"SSE Error: {e}")
-                yield f"event: error\ndata: {str(e)}\n\n"
+                # Wait a bit longer on error before retrying
+                await asyncio.sleep(2)
+                continue
                 
-            # 等待 1 秒
             await asyncio.sleep(1)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
