@@ -48,6 +48,7 @@ export interface UserPaperState {
     user_accepted: boolean;
     user_liked?: boolean | null;
     user_feedback?: string;
+    note?: string;
 }
 
 export interface PersonalizedPaper {

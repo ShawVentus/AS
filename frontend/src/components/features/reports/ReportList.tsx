@@ -1,5 +1,6 @@
 import React from 'react';
 import { Plus, Loader2, ChevronRight } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ReportAPI } from '../../../services/api';
 import type { Report } from '../../../types';
 
@@ -8,14 +9,21 @@ interface ReportListProps {
 }
 
 export const ReportList: React.FC<ReportListProps> = ({ onSelectReport }) => {
-    const [reports, setReports] = React.useState<Report[]>([]);
+    const queryClient = useQueryClient();
     const [generating, setGenerating] = React.useState(false);
+
+    const { data: reports = [] } = useQuery({
+        queryKey: ['reports'],
+        queryFn: ReportAPI.getReports,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
 
     const handleGenerate = async () => {
         setGenerating(true);
         try {
-            const newReport = await ReportAPI.generateReport();
-            setReports(prev => [newReport, ...prev]);
+            await ReportAPI.generateReport();
+            // Invalidate query to refetch list
+            queryClient.invalidateQueries({ queryKey: ['reports'] });
         } catch (error) {
             console.error('Failed to generate report:', error);
             alert('生成失败');
@@ -24,14 +32,10 @@ export const ReportList: React.FC<ReportListProps> = ({ onSelectReport }) => {
         }
     };
 
-    React.useEffect(() => {
-        ReportAPI.getReports().then(setReports).catch(console.error);
-    }, []);
-
     return (
         <div className="p-6 max-w-4xl mx-auto animate-in fade-in">
             <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-white">历史研读报告</h2>
+                <h2 className="text-xl font-bold text-white">历史研报</h2>
                 <button
                     onClick={handleGenerate}
                     disabled={generating}

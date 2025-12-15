@@ -7,7 +7,7 @@ interface PaperCardProps {
     index: number;
     showIndex?: boolean; // 是否显示序号标签，默认 true
     onOpenDetail: (paper: Paper) => void;
-    onFeedback?: (paperId: string, isLike: boolean, reason?: string) => void;
+    onFeedback?: (paperId: string, data: { liked?: boolean, feedback?: string, note?: string }) => void;
 }
 
 export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = true, onOpenDetail, onFeedback }) => {
@@ -20,7 +20,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = 
         if (isLike) {
             // Like usually doesn't need a reason, but we could add tags later.
             // For now, just trigger it.
-            if (onFeedback) onFeedback(paper.meta.id, true);
+            if (onFeedback) onFeedback(paper.meta.id, { liked: true });
             setShowFeedbackMenu(false);
         } else {
             // Dislike triggers menu
@@ -30,7 +30,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = 
     };
 
     const submitDislike = (reason: string) => {
-        if (onFeedback) onFeedback(paper.meta.id, false, reason);
+        if (onFeedback) onFeedback(paper.meta.id, { liked: false, feedback: reason });
         setShowFeedbackMenu(false);
         setCustomReason('');
     };
@@ -53,7 +53,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = 
 
     return (
         <div
-            className="group relative flex flex-col bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl hover:border-cyan-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-900/10 cursor-pointer h-full"
+            className="group relative flex flex-col bg-slate-900/50 backdrop-blur-sm border border-slate-700 rounded-xl hover:border-cyan-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-cyan-900/10 cursor-pointer h-full"
             onClick={() => onOpenDetail(paper)}
         >
             {/* Index Tag */}
@@ -70,25 +70,25 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = 
                     {/* Placeholder for spacing if needed, or just margin */}
                 </div>
 
-                <h3 className="text-lg font-bold text-white mb-2 leading-snug group-hover:text-cyan-400 transition-colors line-clamp-2 mt-1">
+                <h3 className="text-base font-bold text-white mb-2 leading-snug group-hover:text-cyan-400 transition-colors line-clamp-2 mt-1">
                     {paper.meta.title}
                 </h3>
                 <p className="text-xs text-slate-500 mb-4 line-clamp-1">{paper.meta.authors.join(", ")}</p>
 
                 {/* Why This Paper - Highlight */}
                 {paper.user_state?.why_this_paper ? (
-                    <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-lg p-3 mb-4 relative overflow-hidden">
+                    <div className="bg-indigo-950/30 border border-indigo-500/20 rounded-lg p-3 mb-2 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500/50"></div>
-                        <div className="text-indigo-400 text-[10px] font-bold mb-1 flex items-center gap-1.5 uppercase tracking-wider">
-                            <Lightbulb size={10} />
+                        <div className="text-indigo-400 text-sm font-bold mb-1 flex items-center gap-1.5 uppercase tracking-wider">
+                            <Lightbulb size={16} />
                             推荐理由
                         </div>
-                        <p className="text-slate-300 text-xs leading-relaxed line-clamp-3">
+                        <p className="text-slate-300 text-sm leading-relaxed">
                             {paper.user_state.why_this_paper}
                         </p>
                     </div>
                 ) : (
-                    <div className="bg-slate-800/30 border border-slate-700/30 rounded-lg p-3 mb-4">
+                    <div className="bg-slate-800/30 border border-slate-700/30 rounded-lg p-3 mb-2">
                         <div className="text-slate-500 text-[10px] font-bold mb-1 uppercase tracking-wider">
                             一句话总结
                         </div>
@@ -100,7 +100,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = 
             </div>
 
             {/* Card Footer */}
-            <div className="p-4 pt-0 mt-auto flex items-center justify-between border-t border-slate-800/50 pt-3 relative">
+            <div className="p-4 pt-0 mt-auto flex items-center justify-between border-t border-slate-800/50 pt-2 relative">
                 <div className="flex flex-col gap-1.5 w-full">
                     {/* Bottom-Left Info: Score | Date | Category */}
                     <div className="flex items-center gap-2 text-xs font-medium flex-wrap">
@@ -127,6 +127,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = 
                 </div>
 
                 <div className="flex items-center gap-2">
+
                     <button
                         onClick={(e) => handleFeedbackClick(e, true)}
                         className={`p-1.5 rounded-full transition-colors ${paper.user_state?.user_liked === true ? 'text-green-400 bg-green-950/30' : 'text-slate-500 hover:text-green-400 hover:bg-green-950/30'}`}

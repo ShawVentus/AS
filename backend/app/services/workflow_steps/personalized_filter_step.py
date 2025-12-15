@@ -55,7 +55,31 @@ class PersonalizedFilterStep(WorkflowStep):
                  # 但为了 UI 简洁，我们主要显示 "正在处理用户 X: msg"
                  self.update_progress(processed_count, total_users_count, f"用户 {uid[:8]}...: {msg}")
 
-             filter_res = paper_service.process_pending_papers(uid, progress_callback=user_filter_callback)
+             # [Check Manual Override]
+             # 检查是否存在手动覆盖参数 (Manual Override)
+             manual_query = context.get("natural_query") if context.get("source") == "manual" else None
+             manual_authors = context.get("manual_authors") if context.get("source") == "manual" else None
+             manual_categories = context.get("manual_categories") if context.get("source") == "manual" else None
+             
+             if manual_query or manual_categories:
+                 print(f"[DEBUG] Using manual override for user {uid}: query={manual_query}, categories={manual_categories}")
+                 # 如果存在手动查询或手动分类，调用 process_pending_papers 并传入手动参数
+                 # [Force] 获取 force 参数
+                 force = context.get("force", False)
+                 
+                 filter_res = paper_service.process_pending_papers(
+                     uid, 
+                     progress_callback=user_filter_callback,
+                     manual_query=manual_query,
+                     manual_authors=manual_authors,
+                     manual_categories=manual_categories,
+                     force=force
+                 )
+             else:
+                 # 正常流程
+                 # [Force] 获取 force 参数
+                 force = context.get("force", False)
+                 filter_res = paper_service.process_pending_papers(uid, progress_callback=user_filter_callback, force=force)
              
              total_input += filter_res.tokens_input or 0
              total_output += filter_res.tokens_output or 0

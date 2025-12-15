@@ -318,4 +318,30 @@ class QwenService:
         print("❌ All report generation attempts failed.")
         return {"_usage": {}} # 返回空 usage 表示彻底失败
 
+    def extract_categories(self, text: str) -> Dict[str, Any]:
+        """
+        从自然语言中提取 Arxiv 类别和作者。
+
+        Args:
+            text (str): 用户输入的自然语言文本。
+
+        Returns:
+            Dict[str, Any]: 包含 categories 和 authors 的字典 (包含 _usage)。
+                            - categories: 提取出的 Arxiv 类别列表。
+                            - authors: 提取出的作者列表。
+        """
+        template = self.read_prompt("extract_categories.md")
+        prompt = template.replace("{user_input}", text)
+        
+        # 使用便宜的模型进行提取
+        response, usage = self.call_llm(prompt, model=settings.OPENROUTER_MODEL_CHEAP)
+        try:
+            result = json.loads(response)
+            result["_usage"] = usage
+            return result
+        except json.JSONDecodeError:
+            print(f"extract_categories 解析 JSON 错误: {response}")
+            # Fallback: 如果解析失败，尝试简单的关键词匹配或返回空
+            return {"categories": [], "authors": [], "_usage": usage}
+
 llm_service = QwenService()

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
+import { format } from 'date-fns';
 import { supabase } from './services/supabase';
 import { Header } from './components/layout/Header';
 import { ReportDetail } from './components/features/reports/ReportDetail';
@@ -9,8 +10,8 @@ import { PaperCard } from './components/features/papers/PaperCard';
 import { PaperDetailModal } from './components/shared/PaperDetailModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LoadingScreen } from './components/common/LoadingScreen';
-import type { Report, Paper, UserProfile } from './types';
-import { UserAPI, PaperAPI } from './services/api';
+import type { Report, Paper } from './types';
+import { UserAPI, PaperAPI, ReportAPI } from './services/api';
 
 import { useAuth } from './contexts/AuthContext';
 import { Login } from './components/auth/Login';
@@ -21,111 +22,195 @@ import { Settings } from './components/features/Settings';
 import { FeedbackPage } from './components/features/FeedbackPage';
 import { WorkflowPage } from './features/admin/WorkflowPage';
 import { ReportGenerationModal } from './components/features/ReportGenerationModal';
+import { ManualReportPage } from './components/features/ManualReportPage';
 
-function App() {
+// [NEW] Import React Query and ToastProvider
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ToastProvider } from './contexts/ToastContext';
+import { TaskProvider, useTaskContext } from './contexts/TaskContext';
+
+// [NEW] Initialize QueryClient
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 1000 * 60 * 5, // 5 minutes
+            retry: 1,
+            refetchOnWindowFocus: false,
+        },
+    },
+});
+
+function AppContent() {
     const { user, loading } = useAuth();
     const [showRegister, setShowRegister] = useState(false);
     const [currentView, setCurrentView] = useState('dashboard');
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-    const [recommendations, setRecommendations] = useState<Paper[]>([]);
+    // const [userProfile, setUserProfile] = useState<UserProfile | null>(null); // Removed: Handled by React Query
+    // const [recommendations, setRecommendations] = useState<Paper[]>([]); // Removed: Handled by React Query
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
     const [modalPaper, setModalPaper] = useState<Paper | null>(null);
     const [modalPapers, setModalPapers] = useState<Paper[]>([]); // 论文列表上下文
     const [modalPaperIndex, setModalPaperIndex] = useState(0); // 当前论文索引
-    const [latestReport, setLatestReport] = useState<Report | null>(null);
+    // const [latestReport, setLatestReport] = useState<Report | null>(null); // Removed: Derived from reports query
     const [dateFilter, setDateFilter] = useState<string | null>(null); // 论文列表日期筛选
     const [showReportModal, setShowReportModal] = useState(false);
 
-    // Data loading state
-    const [dataLoading, setDataLoading] = useState(true);
+    // [NEW] Use QueryClient for invalidation
+    const queryClient = useQueryClient();
+    const { registerNavigation } = useTaskContext();
 
+    // Register navigation handler for TaskContext
     React.useEffect(() => {
-        if (!user) {
-            setDataLoading(false);
-            return;
-        }
+        registerNavigation(async (view: string, data?: any) => {
+            console.log("TaskContext requested navigation:", view, data);
 
-        const fetchData = async () => {
-            try {
-                setDataLoading(true);
+            if (view === 'reports' && data?.selectLatest) {
+                // 1. Invalidate queries to ensure we have fresh data
+                await queryClient.invalidateQueries({ queryKey: ['reports'] });
 
-                // Parallel data fetching with individual error handling for profile
-                const [profileResult, recs, reports] = await Promise.all([
-                    UserAPI.getProfile().catch(err => ({ error: err })),
-                    PaperAPI.getRecommendations().catch(() => []),
-                    import('./services/api').then(m => m.ReportAPI.getReports()).catch(() => [])
-                ]);
+                // 2. Fetch the latest reports directly to ensure we get the new one immediately
+                // We use fetchQuery instead of relying on the hook's next render cycle
+                try {
+                    const latestReports = await queryClient.fetchQuery({
+                        queryKey: ['reports'],
+                        queryFn: ReportAPI.getReports,
+                        staleTime: 0 // Force fetch
+                    });
 
-                // Handle Profile Result
-                if ('error' in profileResult) {
-                    const error = profileResult.error as any;
-                    const errorStatus = error?.response?.status || error?.status;
-
-                    if (errorStatus === 404) {
-                        console.log("Profile not found, redirecting to onboarding");
-                        setCurrentView('onboarding');
-                        // Set a temporary empty profile to allow rendering if needed, 
-                        // though renderContent handles null profile for onboarding now.
+                    if (latestReports && latestReports.length > 0) {
+                        console.log("Selecting latest report:", latestReports[0].title);
+                        setSelectedReport(latestReports[0]);
+                        setCurrentView('reports');
                     } else {
-                        throw error; // Re-throw other errors to be caught by outer catch
+                        console.warn("No reports found after generation.");
+                        setCurrentView('reports');
                     }
-                } else {
-                    const profile = profileResult as UserProfile;
-                    setUserProfile(profile);
-
-                    // Check if profile is initialized (has focus category)
-                    if (!profile.focus?.category || profile.focus.category.length === 0) {
-                        setCurrentView('onboarding');
-                    }
+                } catch (err) {
+                    console.error("Failed to fetch reports for navigation:", err);
+                    setCurrentView('reports');
                 }
-
-                // Sort by relevance score descending and take top 3
-                recs.sort((a, b) => (b.user_state?.relevance_score || 0) - (a.user_state?.relevance_score || 0));
-                setRecommendations(recs.slice(0, 6));
-
-                if (reports && reports.length > 0) {
-                    setLatestReport(reports[0]);
-                }
-            } catch (error: any) {
-                console.error("Failed to fetch data:", error);
-
-                // 处理不同类型的错误
-                const errorStatus = error?.response?.status || error?.status;
-                const errorMessage = error?.message || '';
-
-                if (errorStatus === 404) {
-                    // API 返回 404 - Profile 不存在
-                    console.log("Profile not found, redirecting to onboarding");
-                    setCurrentView('onboarding');
-                } else if (errorStatus === 401) {
-                    // 401 Unauthorized - Token 失效
-                    console.log("Session expired, logging out");
-                    supabase.auth.signOut();
-                    // AuthContext should handle the user state update
-                } else if (error?.name === 'TypeError' && errorMessage.includes('fetch')) {
-                    // 网络错误
-                    console.error("Network error: Unable to connect to server");
-                    // TODO: 显示网络错误提示
-                } else if (errorStatus >= 500) {
-                    // 服务器错误
-                    console.error("Server error:", errorStatus);
-                    // TODO: 显示服务器错误页面
-                } else {
-                    // 其他未知错误
-                    console.error("Critical error fetching initial data:", error);
-                    // TODO: 显示通用错误页面
-                }
-            } finally {
-                // Add a small delay to prevent flickering on fast connections
-                // and ensure the loading animation is seen
-                setTimeout(() => {
-                    setDataLoading(false);
-                }, 800);
+            } else {
+                setCurrentView(view);
             }
-        };
-        fetchData();
-    }, [user]);
+        });
+    }, [registerNavigation, queryClient]);
+
+    // [Refactor] Use React Query for initial data
+    const { data: userProfile, isLoading: profileLoading, error: profileError } = useQuery({
+        queryKey: ['userProfile', user?.id],
+        queryFn: UserAPI.getProfile,
+        enabled: !!user,
+        retry: false,
+    });
+
+    const handleFeedback = async (paperId: string, data: { liked?: boolean, feedback?: string, note?: string }) => {
+        try {
+            console.log("Submitting feedback:", paperId, data);
+            await PaperAPI.submitFeedback(paperId, data);
+
+            // Invalidate queries to refresh data
+            queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+
+            // Optimistically update modal paper if it's the one being edited
+            if (modalPaper?.meta.id === paperId) {
+                setModalPaper(prev => {
+                    if (!prev) return null;
+                    // Ensure we have a valid user_state object with required fields
+                    const currentUserState = prev.user_state || {
+                        paper_id: paperId,
+                        user_id: user?.id || '',
+                        relevance_score: 0,
+                        why_this_paper: "Not Filtered",
+                        accepted: false,
+                        user_accepted: false
+                    };
+
+                    return {
+                        ...prev,
+                        user_state: {
+                            ...currentUserState,
+                            ...data
+                        }
+                    };
+                });
+            }
+        } catch (error) {
+            console.error("Failed to submit feedback:", error);
+            // Optionally show toast error
+        }
+    };
+
+    const { data: recommendations = [] } = useQuery({
+        queryKey: ['recommendations'],
+        queryFn: async () => {
+            const recs = await PaperAPI.getRecommendations();
+            // Sort by date descending first, then by relevance score descending
+            return recs.sort((a, b) => {
+                const dateA = new Date(a.meta.published_date).getTime();
+                const dateB = new Date(b.meta.published_date).getTime();
+                if (dateA !== dateB) return dateB - dateA;
+                return (b.user_state?.relevance_score || 0) - (a.user_state?.relevance_score || 0);
+            }).slice(0, 6);
+        },
+        enabled: !!user,
+        staleTime: 1000 * 60 * 5,
+    });
+
+    const { data: reports = [] } = useQuery({
+        queryKey: ['reports'],
+        queryFn: ReportAPI.getReports,
+        enabled: !!user,
+        staleTime: 1000 * 60 * 5,
+    });
+
+    const latestReport = reports.length > 0 ? reports[0] : null;
+
+    // [NEW] Prefetch Data Logic
+    useEffect(() => {
+        if (!user) return;
+
+        // 1. Prefetch Today's Papers (for Paper Library)
+        const todayStr = format(new Date(), 'yyyy-MM-dd');
+        queryClient.prefetchQuery({
+            queryKey: ['papers', todayStr],
+            queryFn: async () => {
+                const fetchedPapers = await PaperAPI.getRecommendations(todayStr);
+                fetchedPapers.sort((a, b) => (b.user_state?.relevance_score || 0) - (a.user_state?.relevance_score || 0));
+                return fetchedPapers;
+            },
+            staleTime: 1000 * 60 * 5,
+        });
+
+        // 2. Prefetch Latest Report's Referenced Papers (for Report Detail)
+        if (latestReport && latestReport.refPapers && latestReport.refPapers.length > 0) {
+            queryClient.prefetchQuery({
+                queryKey: ['papersByIds', latestReport.refPapers],
+                queryFn: () => PaperAPI.getPapersByIds(latestReport.refPapers),
+                staleTime: 1000 * 60 * 30,
+            });
+        }
+    }, [user, latestReport, queryClient]);
+    const dataLoading = profileLoading; // Simplified loading state
+
+    // Handle Profile Error / Onboarding Redirect
+    React.useEffect(() => {
+        if (profileError) {
+            const error = profileError as any;
+            const errorStatus = error?.response?.status || error?.status;
+            if (errorStatus === 404) {
+                console.log("Profile not found, redirecting to onboarding");
+                setCurrentView('onboarding');
+            } else if (errorStatus === 401) {
+                console.log("Session expired, logging out");
+                supabase.auth.signOut();
+            }
+        } else if (userProfile) {
+            // Check if profile is initialized (has focus category)
+            if (!userProfile.focus?.category || userProfile.focus.category.length === 0) {
+                setCurrentView('onboarding');
+            }
+        }
+    }, [userProfile, profileError]);
 
     if (loading) {
         return <LoadingScreen />;
@@ -175,6 +260,8 @@ function App() {
         }
     };
 
+
+
     const renderContent = () => {
         console.log("renderContent called. currentView:", currentView, "userProfile:", userProfile);
 
@@ -186,15 +273,12 @@ function App() {
                 onComplete={() => {
                     console.log("Onboarding complete, switching to dashboard");
                     // Refresh profile
-                    UserAPI.getProfile()
-                        .then((profile) => {
-                            setUserProfile(profile);
+                    queryClient.invalidateQueries({ queryKey: ['userProfile'] })
+                        .then(() => {
                             setCurrentView('dashboard');
                         })
                         .catch((err) => {
                             console.error("Failed to refresh profile after onboarding:", err);
-                            // If failed, stay on onboarding or show error?
-                            // For now, maybe retry or show alert
                             alert("初始化失败，请重试");
                         });
                 }}
@@ -216,7 +300,7 @@ function App() {
             return <Settings
                 userProfile={userProfile}
                 onUpdate={() => {
-                    UserAPI.getProfile().then(setUserProfile);
+                    queryClient.invalidateQueries({ queryKey: ['userProfile'] });
                 }}
                 onBack={() => setCurrentView('dashboard')}
                 onNavigate={setCurrentView}
@@ -233,13 +317,13 @@ function App() {
 
         if (currentView === 'dashboard') {
             return (
-                <div className="p-6 max-w-5xl mx-auto animate-in fade-in">
+                <div className="p-6 max-w-7xl mx-auto animate-in fade-in">
 
 
                     {/* Today's Report Push */}
                     {latestReport && (
                         <div className="mb-8">
-                            <h2 className="text-sm font-bold text-white mb-3">最新报告推送</h2>
+                            <h2 className="text-lg font-bold text-white mb-3">最新报告推送</h2>
                             <div
                                 onClick={() => {
                                     setSelectedReport(latestReport);
@@ -268,12 +352,10 @@ function App() {
                         </div>
                     )}
 
-
-
                     {/* Heatmap Removed as per request */}
 
                     <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-sm font-bold text-white">最新相关论文推荐</h2>
+                        <h2 className="text-lg font-bold text-white">最新相关论文推荐</h2>
                         <button
                             onClick={() => setCurrentView('papers')}
                             className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
@@ -287,13 +369,18 @@ function App() {
                                 key={p.meta?.id || Math.random()}
                                 paper={p}
                                 index={idx + 1}
-                                showIndex={false} // Hide index tag for recommendations
-                                onOpenDetail={(paper) => setModalPaper(paper)}
+                                showIndex={true} // Show index 1-6
+                                onOpenDetail={(paper) => {
+                                    setModalPaper(paper);
+                                    setModalPapers(recommendations); // Set context for navigation
+                                    setModalPaperIndex(idx);
+                                }}
+                                onFeedback={handleFeedback}
                             />
                         ))}
                     </div>
                 </div>
-            )
+            );
         }
 
         if (currentView === 'reports') {
@@ -316,6 +403,13 @@ function App() {
 
         if (currentView === 'workflow') {
             return <WorkflowPage />;
+        }
+
+        if (currentView === 'manual-report') {
+            return <ManualReportPage
+                userProfile={userProfile}
+                onBack={() => setCurrentView('dashboard')}
+            />;
         }
         return null;
     };
@@ -361,6 +455,7 @@ function App() {
                     setModalPaperIndex(prevIndex);
                     setModalPaper(modalPapers[prevIndex]);
                 } : undefined}
+                onFeedback={handleFeedback}
             />
 
             {/* Report Generation Modal */}
@@ -370,16 +465,26 @@ function App() {
                     onClose={() => setShowReportModal(false)}
                     userId={user.id}
                     onComplete={() => {
-                        // Refresh reports list if needed
-                        import('./services/api').then(m => m.ReportAPI.getReports()).then(reports => {
-                            if (reports && reports.length > 0) {
-                                setLatestReport(reports[0]);
-                            }
-                        });
+                        // Refresh reports list
+                        queryClient.invalidateQueries({ queryKey: ['reports'] });
                     }}
                 />
             )}
         </div>
+    );
+}
+
+
+
+function App() {
+    return (
+        <QueryClientProvider client={queryClient}>
+            <ToastProvider>
+                <TaskProvider>
+                    <AppContent />
+                </TaskProvider>
+            </ToastProvider>
+        </QueryClientProvider>
     );
 }
 

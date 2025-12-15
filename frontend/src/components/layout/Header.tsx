@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-    LayoutDashboard,
     FileText,
     BookOpen,
     Settings,
@@ -21,7 +20,6 @@ interface HeaderProps {
 
 export function Header({ currentView, setCurrentView, userProfile, isLoading, onGenerateReport }: HeaderProps) {
     const menuItems = [
-        { id: 'dashboard', label: '主页', icon: LayoutDashboard },
         { id: 'reports', label: '研报', icon: FileText },
         { id: 'papers', label: '论文库', icon: BookOpen },
         { id: 'settings', label: '设置', icon: Settings },
@@ -72,11 +70,11 @@ export function Header({ currentView, setCurrentView, userProfile, isLoading, on
                 {/* Generate Report Button */}
                 {onGenerateReport && (
                     <button
-                        onClick={onGenerateReport}
+                        onClick={() => setCurrentView('manual-report')}
                         className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
                     >
                         <FileText size={14} />
-                        <span>生成日报</span>
+                        <span>立即生成</span>
                     </button>
                 )}
 

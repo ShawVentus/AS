@@ -115,6 +115,19 @@ export const RealWorkflowAPI = {
         body: JSON.stringify({ execution_id: executionId })
     }),
     getStatus: (executionId: string) => fetchJSON<any>(`/workflow/status/${executionId}`),
+    // 手动触发工作流 (强制执行)
+    manualTrigger: (data: { user_id: string, natural_query: string, categories: string[], authors: string[] }) => fetchJSON<{ message: string; execution_id: string }>('/workflow/manual-trigger', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+};
+
+export const RealToolsAPI = {
+    // 提取分类和作者 (AI 辅助)
+    extractCategories: (text: string) => fetchJSON<{ categories: string[], authors: string[] }>('/tools/text-to-categories', {
+        method: 'POST',
+        body: JSON.stringify({ text })
+    }),
 };
 
 import { MockUserAPI, MockPaperAPI, MockReportAPI } from './mockApi';
@@ -125,4 +138,5 @@ export const UserAPI = useMock ? MockUserAPI : RealUserAPI;
 export const PaperAPI = useMock ? MockPaperAPI : RealPaperAPI;
 export const ReportAPI = useMock ? MockReportAPI : RealReportAPI;
 export const WorkflowAPI = RealWorkflowAPI; // 暂无 Mock
+export const ToolsAPI = RealToolsAPI; // 暂无 Mock
 

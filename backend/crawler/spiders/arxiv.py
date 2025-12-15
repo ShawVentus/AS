@@ -11,6 +11,19 @@ import re
 import os
 from crawler.items import PaperItem
 from dotenv import load_dotenv
+from scrapy.exceptions import CloseSpider
+from datetime import datetime
+import sys
+
+# 确保 backend 根目录在 sys.path 中，以便导入 app 模块
+# Ensure backend root is in sys.path to import app modules
+current_file = os.path.abspath(__file__)
+crawler_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+if crawler_dir not in sys.path:
+    sys.path.append(crawler_dir)
+
+from app.utils.email_sender import email_sender
+from app.core.database import get_db
 
 load_dotenv()
 
@@ -49,10 +62,16 @@ class ArxivSpider(scrapy.Spider):
         # 统计数据
         self.stats = {
             "total_found": 0,
+            "unique_found": 0, # [NEW] 去重后的数量
             "yielded": 0,
             "skipped_category": 0,
             "categories_found": set()
         }
+        self.seen_ids = set() # [NEW] 用于本次爬取会话去重
+        
+        # 数据库连接
+        self.db = get_db()
+        self.date_saved = False # 标志位，避免重复写入日期
 
     def parse(self, response):
         self.logger.info(f"正在解析页面: {response.url}")
@@ -60,6 +79,60 @@ class ArxivSpider(scrapy.Spider):
         # 获取当前页面的分类
         current_category = response.url.split("/list/")[-1].split("/")[0]
         self.stats["categories_found"].add(current_category)
+        
+        # --- [NEW] 严格日期解析 (Strict Date Parsing) ---
+        if not self.date_saved:
+            try:
+                # 尝试提取日期文本
+                # 目标格式: "Showing new listings for Monday, 15 December 2025"
+                # XPath: //div[@id="dlpage"]/h3
+                h3_text = response.xpath('//div[@id="dlpage"]/h3/text()').get()
+                
+                if not h3_text:
+                    raise ValueError("无法找到包含日期的 h3 标签 (h3 tag not found)")
+                
+                # 使用正则提取日期部分
+                # 匹配模式: 星期, 日 月 年 (e.g., Monday, 15 December 2025)
+                match = re.search(r'listings for\s+(?:[a-zA-Z]+,\s+)?(\d{1,2}\s+[a-zA-Z]+\s+\d{4})', h3_text)
+                
+                if not match:
+                    raise ValueError(f"日期格式不匹配 (Date format mismatch): {h3_text}")
+                
+                date_str = match.group(1)
+                # 解析为 datetime 对象
+                # %d %B %Y -> 15 December 2025
+                arxiv_date_obj = datetime.strptime(date_str, "%d %B %Y")
+                arxiv_date_iso = arxiv_date_obj.strftime("%Y-%m-%d")
+                
+                self.logger.info(f"✅ 成功解析 ArXiv 日期: {arxiv_date_iso} (from '{h3_text}')")
+                
+                # 存入数据库 system_status
+                self.db.table("system_status").upsert({
+                    "key": "latest_arxiv_date",
+                    "value": arxiv_date_iso,
+                    "updated_at": datetime.now().isoformat()
+                }).execute()
+                
+                self.date_saved = True
+                
+            except Exception as e:
+                error_msg = f"🛑 严重错误: ArXiv 日期解析失败 (Critical: Failed to parse ArXiv date).\nURL: {response.url}\nError: {str(e)}"
+                self.logger.error(error_msg)
+                
+                # 发送报警邮件
+                try:
+                    email_sender.send_email(
+                        to_email="2962326813@qq.com",
+                        subject="【系统报警】ArXiv 爬虫日期解析失败",
+                        html_content=f"<p>{error_msg}</p>",
+                        plain_content=error_msg
+                    )
+                except Exception as email_e:
+                    self.logger.error(f"发送报警邮件失败: {email_e}")
+                
+                # 严格模式：停止爬虫
+                raise CloseSpider(f"Date parsing failed: {str(e)}")
+        # ------------------------------------------------
         
         # 提取锚点
         anchors = []
@@ -91,6 +164,11 @@ class ArxivSpider(scrapy.Spider):
             
             arxiv_id = arxiv_id_text.replace("arXiv:", "").strip()
             self.logger.debug(f"发现论文: {arxiv_id}")
+            
+            # [NEW] 统计去重数量
+            if arxiv_id not in self.seen_ids:
+                self.seen_ids.add(arxiv_id)
+                self.stats["unique_found"] += 1
             
             # 提取所有分类 (Tags)
             # 结构: <div class="list-subjects">
@@ -173,7 +251,7 @@ class ArxivSpider(scrapy.Spider):
         print("="*50)
         print(f"📅 目标分类: {', '.join(self.target_categories)}")
         print(f"📂 实际扫描分类: {', '.join(self.stats['categories_found'])}")
-        print(f"📄 总共发现论文: {self.stats['total_found']}")
+        print(f"📄 总共发现论文 (去重后): {self.stats['unique_found']} (原始抓取: {self.stats['total_found']})")
         print(f"✅ 捕获并提交处理: {self.stats['yielded']}")
         print(f"🚫 因分类不符跳过: {self.stats['skipped_category']}")
         

@@ -41,3 +41,15 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile }) => {
         </div>
     );
 };
+
+export const UserMenu: React.FC<{ onNavigate: (view: string) => void }> = ({ onNavigate }) => {
+    return (
+        <button
+            onClick={() => onNavigate('settings')}
+            className="flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-white transition-colors"
+        >
+            <Avatar name="User" size="sm" />
+            <span>我的账户</span>
+        </button>
+    );
+};

@@ -83,7 +83,8 @@ async def submit_paper_feedback(
         user_id=user_id,
         paper_id=paper_id,
         liked=feedback_data.liked,
-        feedback=feedback_data.feedback
+        feedback=feedback_data.feedback,
+        note=feedback_data.note
     )
     
     if not success:

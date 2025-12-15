@@ -146,8 +146,9 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                 </div>
                 <div className="flex items-start gap-8">
                     {/* 左侧：头像上传 */}
-                    <div className="flex flex-col items-center gap-3">
-                        <div className="relative group cursor-pointer">
+                    {/* 左侧：头像上传 */}
+                    <div className="flex flex-col items-center gap-3 pt-2 pl-2">
+                        <div className="relative group cursor-pointer w-20 h-20">
                             <input
                                 type="file"
                                 accept="image/*"
@@ -182,17 +183,17 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                                         setLoading(false);
                                     }
                                 }}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 rounded-full"
                             />
                             {formData.avatar ? (
-                                <img src={formData.avatar} alt="Avatar" className="w-24 h-24 rounded-full object-cover border-4 border-slate-800 shadow-lg group-hover:opacity-75 transition-opacity" />
+                                <img src={formData.avatar} alt="Avatar" className="w-full h-full rounded-full object-cover border-4 border-slate-800 shadow-lg group-hover:opacity-75 transition-opacity" />
                             ) : (
-                                <div className="w-24 h-24 group-hover:opacity-75 transition-opacity">
-                                    <Avatar name={formData.nickname} size="xl" />
+                                <div className="w-full h-full group-hover:opacity-75 transition-opacity">
+                                    <Avatar name={formData.nickname} size="xl" className="!w-full !h-full !text-3xl" />
                                 </div>
                             )}
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                <span className="bg-black/50 text-white text-xs px-2 py-1 rounded">更换头像</span>
+                                <span className="bg-black/50 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">更换头像</span>
                             </div>
                         </div>
                         <span className="text-xs text-slate-500">点击头像更换</span>
@@ -221,19 +222,21 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                             />
                         </div>
 
-                        <div>
-                            <div className="text-sm font-medium text-white">每日报告推送</div>
-                            <div className="text-xs text-slate-500">每天自动发送最新论文报告到您的邮箱</div>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <div className="text-sm font-medium text-white">每日报告推送</div>
+                                <div className="text-xs text-slate-500">每天自动发送最新论文报告到您的邮箱</div>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.receive_email}
+                                    onChange={(e) => setFormData({ ...formData, receive_email: e.target.checked })}
+                                    className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                            </label>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={formData.receive_email}
-                                onChange={(e) => setFormData({ ...formData, receive_email: e.target.checked })}
-                                className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-                        </label>
                     </div>
                 </div>
             </section>

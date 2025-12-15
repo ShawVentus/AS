@@ -101,8 +101,8 @@ function parseLine(text: string): ContentFragment[] {
         // 2. 提取引用 ID
         const refIds = extractRefsFromSentence(sentence);
 
-        // 3. 清理标签获取纯文本
-        const cleanText = cleanRefTags(sentence);
+        // 3. 清理标签获取纯文本，并移除标点符号前的空格
+        const cleanText = cleanRefTags(sentence).replace(/\s+([。？！?!])/g, '$1');
 
         if (refIds.length > 0) {
             // 4. 如果有引用，创建 ref-sentence 片段

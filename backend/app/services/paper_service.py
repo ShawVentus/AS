@@ -284,15 +284,16 @@ class PaperService:
             print(f"Error fetching papers by categories: {e}")
             return []
 
-    def update_user_feedback(self, user_id: str, paper_id: str, liked: Optional[bool], feedback: Optional[str]) -> bool:
+    def update_user_feedback(self, user_id: str, paper_id: str, liked: Optional[bool], feedback: Optional[str], note: Optional[str] = None) -> bool:
         """
-        更新用户对论文的反馈 (Like/Dislike, Reason)。存储到数据库对应字段中
+        更新用户对论文的反馈 (Like/Dislike, Reason, Note)。存储到数据库对应字段中
 
         Args:
             user_id (str): 用户 ID。
             paper_id (str): 论文 ID。
             liked (Optional[bool]): 是否喜欢。
             feedback (Optional[str]): 反馈内容。
+            note (Optional[str]): 用户笔记。
 
         Returns:
             bool: 是否更新成功。
@@ -308,6 +309,8 @@ class PaperService:
                 update_data["user_liked"] = liked
             if feedback is not None:
                 update_data["user_feedback"] = feedback
+            if note is not None:
+                update_data["note"] = note
             
             # 使用 upsert，确保如果记录不存在也能创建 (虽然理论上应该先有 filter 记录)
             # 但为了健壮性，如果用户直接对某篇未 filter 的论文操作 (极少情况)，也能记录
@@ -355,7 +358,8 @@ class PaperService:
                             "accepted": False,
                             "user_accepted": False,
                             "user_liked": None,
-                            "user_feedback": None
+                            "user_feedback": None,
+                            "note": None
                         }
                     results.append(self.merge_paper_state(p, state))
                 except Exception as validation_error:
@@ -384,21 +388,24 @@ class PaperService:
             print(f"Error crawling: {e}")
             return self.get_papers(user_id)
 
-    def process_pending_papers(self, user_id: str, progress_callback: Optional[Callable[[int, int, str], None]] = None) -> FilterResponse:
+    def process_pending_papers(self, user_id: str, progress_callback: Optional[Callable[[int, int, str], None]] = None, manual_query: Optional[str] = None, manual_authors: Optional[List[str]] = None, manual_categories: Optional[List[str]] = None, force: bool = False) -> FilterResponse:
         """
         处理用户的待处理论文 (Pending Papers)。
         
         流程:
         1. 获取用户画像 (Profile)。
-        2. 根据画像中的关注类别 (Focus.category) 获取候选论文。
+        2. 根据画像中的关注类别 (Focus.category) 或手动输入的类别获取候选论文。
         3. 调用 filter_papers 进行批量筛选 (LLM)。
         
         Args:
             user_id (str): 用户 ID。
-            progress_callback (Optional[Callable]): 进度回调。
+            progress_callback (Optional[Callable]): 进度回调函数，用于更新任务进度。
+            manual_query (Optional[str]): 手动输入的自然语言需求 (覆盖用户画像中的描述)。
+            manual_authors (Optional[List[str]]): 手动输入的作者列表 (覆盖用户画像中的作者)。
+            manual_categories (Optional[List[str]]): 手动输入的类别列表 (覆盖用户画像中的类别)。
             
         Returns:
-            FilterResponse: 筛选结果统计。
+            FilterResponse: 筛选结果统计对象，包含已接受、已拒绝的论文列表及统计信息。
         """
         try:
             # 1. 获取用户画像
@@ -408,10 +415,11 @@ class PaperService:
             print(f"Start processing pending papers for user: {profile.info.name}")
             
             # 2. 获取候选论文
-            # 使用用户关注的类别
-            categories = profile.focus.category
+            # 优先使用手动输入的类别，否则使用用户画像中的类别
+            categories = manual_categories if manual_categories else profile.focus.category
+            
             if not categories:
-                print(f"User {profile.info.name} ({user_id}) has no focus categories.")
+                print(f"User {profile.info.name} ({user_id}) has no focus categories (and no manual categories provided).")
                 # 返回空结果
                 from app.schemas.paper import FilterResponse
                 from datetime import datetime
@@ -434,10 +442,6 @@ class PaperService:
             # [Fix] 增加 limit，否则默认只取 1 条，如果该条已处理则会导致无结果
             papers = self.get_papers_by_categories(categories, user_id, limit=200, table_name="daily_papers")
             
-            # 如果 daily_papers 没有找到，是否回退到 papers? 
-            # 根据 "减少计算量" 的初衷，应该只处理 daily_papers。
-            # 但为了测试方便，如果 daily_papers 为空，暂时不回退，直接返回空。
-            
             
             paper_ids = [p.meta.id for p in papers]
             print(f"Collected Paper IDs for {profile.info.name}: {paper_ids}")
@@ -458,7 +462,7 @@ class PaperService:
                 )
 
             # 3. 批量筛选
-            return self.filter_papers(papers, profile, user_id, progress_callback)
+            return self.filter_papers(papers, profile, user_id, progress_callback, manual_query, manual_authors, force=force)
 
         except Exception as e:
             print(f"Error processing pending papers: {e}")
@@ -477,7 +481,7 @@ class PaperService:
                 rejected_papers=[]
             )
 
-    def filter_papers(self, papers: List[PersonalizedPaper], user_profile: UserProfile, user_id: str, progress_callback: Optional[Callable[[int, int, str], None]] = None) -> FilterResponse:
+    def filter_papers(self, papers: List[PersonalizedPaper], user_profile: UserProfile, user_id: str, progress_callback: Optional[Callable[[int, int, str], None]] = None, manual_query: Optional[str] = None, manual_authors: Optional[List[str]] = None, force: bool = False) -> FilterResponse:
         """
         使用 LLM 批量过滤论文 (Personalized Filter)。
         
@@ -496,6 +500,9 @@ class PaperService:
             papers (List[PersonalizedPaper]): 待过滤的论文列表。
             user_profile (UserProfile): 用户画像对象，包含 Focus (关注点) 和 Status (当前任务/阶段)。
             user_id (str): 用户 ID。
+            progress_callback (Optional[Callable]): 进度回调函数。
+            manual_query (Optional[str]): 手动输入的自然语言需求 (覆盖用户画像)。
+            manual_authors (Optional[List[str]]): 手动输入的作者 (覆盖用户画像)。
 
         Returns:
             FilterResponse: 包含统计信息和所有处理过的论文结果列表。
@@ -513,6 +520,20 @@ class PaperService:
         if "category" in focus_dict:
             del focus_dict["category"]
             
+        # [Manual Override] 如果有手动输入，覆盖 focus 中的 keywords/description
+        if manual_query:
+            print(f"[DEBUG] Applying manual query override: {manual_query}")
+            # 假设 natural_query 对应 description 或 keywords
+            # 为了让 LLM 明确知道这是当前需求，我们可以直接替换 description
+            focus_dict["description"] = manual_query
+            # 清空 keywords 以避免干扰，或者保留？通常 description 更具体
+            focus_dict["keywords"] = [] 
+            
+        if manual_authors:
+            print(f"[DEBUG] Applying manual authors override: {manual_authors}")
+            # 假设 focus 中有 authors 字段，如果没有则添加
+            focus_dict["authors"] = manual_authors
+
         profile_context = {
             "focus": focus_dict,
             "context": user_profile.context.model_dump()
@@ -560,7 +581,8 @@ class PaperService:
             future_to_paper = {}
             for p in papers:
                 # 优化：如果已经有推荐理由且不是默认值，说明已处理过
-                if p.user_state and p.user_state.why_this_paper and p.user_state.why_this_paper != "Not Filtered":
+                # [Force] 如果 force=True，则忽略已处理状态，强制重新分析
+                if not force and p.user_state and p.user_state.why_this_paper and p.user_state.why_this_paper != "Not Filtered":
                     # 已处理过的也要加入统计
                     item = FilterResultItem(
                         paper_id=p.meta.id,
@@ -618,7 +640,8 @@ class PaperService:
                         "why_this_paper": filter_result["why_this_paper"],
                         "accepted": filter_result["accepted"],
                         "user_liked": None,
-                        "user_feedback": None
+                        "user_feedback": None,
+                        "note": None
                     }
 
                     # [Batch Update] 收集数据，不立即写入

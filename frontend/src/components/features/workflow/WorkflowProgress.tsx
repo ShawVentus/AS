@@ -1,85 +1,100 @@
-import React from 'react';
-import type { WorkflowProgress as WorkflowProgressType } from '../../../hooks/useWorkflowProgress';
+import React, { useEffect, useRef } from 'react';
+import { CheckCircle, Circle, Loader2, AlertCircle, Clock } from 'lucide-react';
+import type { StepProgress } from '../../../contexts/TaskContext';
 
-interface Props {
-    progress: WorkflowProgressType | null;
-    isConnected: boolean;
-    error: string | null;
+interface WorkflowProgressProps {
+    steps: StepProgress[]; // 步骤列表
 }
 
-export const WorkflowProgress: React.FC<Props> = ({ progress, isConnected, error }) => {
-    if (error) {
-        return <div className="text-red-500 p-4 bg-red-50 rounded">Error: {error}</div>;
-    }
+export const WorkflowProgress: React.FC<WorkflowProgressProps> = ({ steps }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
 
-    if (!progress && !isConnected) {
-        return null;
-    }
-
-    if (!progress && isConnected) {
-        return <div className="text-gray-500 p-4">Connecting to workflow stream...</div>;
-    }
-
-    if (!progress) return null;
-
-    const percent = Math.round((progress.completed_steps / progress.total_steps) * 100);
+    // Auto-scroll to bottom when steps update
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [steps]);
 
     return (
-        <div className="bg-white shadow rounded-lg p-6 max-w-2xl mx-auto mt-4">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-gray-800">工作流进度</h2>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${progress.status === 'running' ? 'bg-blue-100 text-blue-800' :
-                    progress.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        progress.status === 'failed' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                    }`}>
-                    {progress.status.toUpperCase()}
-                </span>
-            </div>
+        <div ref={scrollRef} className="p-6 overflow-y-auto flex-1 scroll-smooth h-full">
+            <div className="space-y-0">
+                {steps.map((step, index) => {
+                    const isLast = index === steps.length - 1;
+                    const isActive = step.status === 'running';
+                    const isCompletedStep = step.status === 'completed';
+                    const isFailed = step.status === 'failed';
+                    const isPending = step.status === 'pending';
 
-            {/* 进度条 */}
-            <div className="w-full bg-gray-200 rounded-full h-4 mb-6">
-                <div
-                    className={`h-4 rounded-full transition-all duration-500 ${progress.status === 'failed' ? 'bg-red-500' : 'bg-blue-600'
-                        }`}
-                    style={{ width: `${percent}%` }}
-                ></div>
-            </div>
-
-            <div className="flex justify-between text-sm text-gray-600 mb-6">
-                <span>步骤: {progress.completed_steps} / {progress.total_steps}</span>
-                <span>总成本: ${progress.total_cost?.toFixed(6) || '0.000000'}</span>
-            </div>
-
-            {/* 步骤列表 */}
-            <div className="space-y-3">
-                {progress.steps.map((step, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-100">
-                        <div className="flex items-center space-x-3">
-                            <div className={`w-2 h-2 rounded-full ${step.status === 'completed' ? 'bg-green-500' :
-                                step.status === 'running' ? 'bg-blue-500 animate-pulse' :
-                                    step.status === 'failed' ? 'bg-red-500' :
-                                        'bg-gray-300'
-                                }`}></div>
-                            <span className="font-medium text-gray-700">{step.name}</span>
-                        </div>
-                        <div className="flex items-center space-x-4 text-sm">
-                            {step.duration_ms > 0 && (
-                                <span className="text-gray-500">{(step.duration_ms / 1000).toFixed(1)}s</span>
+                    return (
+                        <div key={step.name} className="relative flex gap-4">
+                            {/* Left Timeline Line */}
+                            {!isLast && (
+                                <div
+                                    className={`absolute left-[15px] top-[30px] bottom-[-20px] w-[2px] 
+                                    ${isCompletedStep ? 'bg-green-200 dark:bg-green-900/50' : 'bg-gray-100 dark:bg-gray-800'}`}
+                                />
                             )}
-                            {step.cost > 0 && (
-                                <span className="text-gray-500">${step.cost.toFixed(6)}</span>
-                            )}
-                            <span className={`text-xs px-2 py-0.5 rounded ${step.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                step.status === 'running' ? 'bg-blue-100 text-blue-700' :
-                                    step.status === 'failed' ? 'bg-red-100 text-red-700' :
-                                        'bg-gray-200 text-gray-600'
-                                }`}>
-                                {step.status}
-                            </span>
+
+                            {/* Icon Indicator */}
+                            <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300
+                                ${isCompletedStep ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
+                                    isActive ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 ring-4 ring-blue-50 dark:ring-blue-900/20' :
+                                        isFailed ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
+                                            'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500'
+                                }`}
+                            >
+                                {isCompletedStep ? (
+                                    <CheckCircle size={18} />
+                                ) : isActive ? (
+                                    <div className="w-3 h-3 bg-blue-600 rounded-full animate-ping" />
+                                ) : isFailed ? (
+                                    <AlertCircle size={18} />
+                                ) : (
+                                    <Circle size={18} />
+                                )}
+                            </div>
+
+                            {/* Content */}
+                            <div className={`flex-1 pb-8 ${isPending ? 'opacity-50' : 'opacity-100'} transition-opacity duration-300`}>
+                                <div className="flex justify-between items-start">
+                                    <h3 className={`font-medium text-base ${isActive ? 'text-blue-600 dark:text-blue-400' :
+                                        isCompletedStep ? 'text-gray-900 dark:text-gray-100' :
+                                            'text-gray-500 dark:text-gray-500'
+                                        }`}>
+                                        {step.label}
+                                    </h3>
+                                    {step.duration_ms && (
+                                        <span className="text-xs text-gray-400 flex items-center gap-1 bg-gray-50 dark:bg-gray-800/50 px-2 py-0.5 rounded-full">
+                                            <Clock size={10} />
+                                            {(step.duration_ms / 1000).toFixed(1)}s
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Dynamic Message */}
+                                {(isActive || step.message) && (
+                                    <div className={`mt-2 text-sm flex items-center gap-2 
+                                        ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}
+                                    >
+                                        {isActive && <Loader2 size={12} className="animate-spin" />}
+                                        <span>{step.message || (isActive ? "正在处理..." : "")}</span>
+                                    </div>
+                                )}
+
+                                {/* Progress Bar (Only for running step) */}
+                                {isActive && step.progress > 0 && (
+                                    <div className="mt-3 h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
+                                            style={{ width: `${step.progress}%` }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

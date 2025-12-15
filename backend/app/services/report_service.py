@@ -45,13 +45,14 @@ class ReportService:
     def generate_daily_report(self, papers: List[PersonalizedPaper], user_profile: UserProfile) -> tuple[Report, Dict[str, int]]:
         """
         生成每日报告并自动发送邮件。
+        Generate daily report and send email automatically.
 
         Args:
-            papers (List[PersonalizedPaper]): 用于生成报告的论文列表。
-            user_profile (UserProfile): 用户画像，用于定制报告内容。
+            papers (List[PersonalizedPaper]): 用于生成报告的论文列表 (List of papers for the report)。
+            user_profile (UserProfile): 用户画像，用于定制报告内容 (User profile for customization)。
 
         Returns:
-            Report: 生成的报告对象。
+            tuple[Report, Dict[str, int]]: 生成的报告对象和 Usage 统计 (Generated report object and usage stats)。
         """
         # 1. 准备数据供 LLM 使用
         papers_data = []
@@ -89,13 +90,27 @@ class ReportService:
         total_count = len(papers)
         recommended_count = sum(1 for p in papers if (p.user_state and p.user_state.relevance_score >= 0.7))
         
+        # [NEW] 获取 ArXiv 日期作为报告日期
+        # Get ArXiv date from system_status
+        try:
+            status_res = self.db.table("system_status").select("value").eq("key", "latest_arxiv_date").execute()
+            if status_res.data:
+                report_date = status_res.data[0]["value"]
+                print(f"Using ArXiv date for report: {report_date}")
+            else:
+                report_date = datetime.now().strftime("%Y-%m-%d")
+                print(f"Warning: ArXiv date not found, using system date: {report_date}")
+        except Exception as e:
+            print(f"Error fetching ArXiv date: {e}")
+            report_date = datetime.now().strftime("%Y-%m-%d")
+        
         # 4. 创建 Report 对象
         report = Report(
             id=str(uuid.uuid4()),
             user_id=user_profile.info.id,
             email=user_profile.info.email,  # [Add] 填充 email 字段
             title=llm_result.get("title", "Daily Report"),
-            date=datetime.now().strftime("%Y-%m-%d"),
+            date=report_date, # [MODIFIED] 使用 ArXiv 日期
             summary=llm_result.get("summary", ""),
             content=llm_result.get("content", ""),
             ref_papers=llm_result.get("ref_papers", []),

@@ -18,6 +18,8 @@ interface RefSentenceProps {
     onMouseLeave: () => void;
     /** 点击事件 */
     onClick: (refIds: string[]) => void;
+    /** 额外的 CSS 类名 */
+    className?: string;
 }
 
 /**
@@ -35,12 +37,14 @@ export const RefSentence: React.FC<RefSentenceProps> = ({
     isSelected,
     onMouseEnter,
     onMouseLeave,
-    onClick
+    onClick,
+    className
 }) => {
     return (
         <span
             className={cn(
-                "cursor-pointer transition-all duration-150 rounded px-1 mx-0.5",
+                "cursor-pointer transition-all duration-150 rounded px-1",
+                className,
                 // 基础样式：更亮的虚线下划线
                 "border-b border-dashed border-slate-400/70",
 

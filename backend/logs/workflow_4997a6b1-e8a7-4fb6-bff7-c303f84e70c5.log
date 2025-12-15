@@ -1,0 +1,33 @@
+2025-12-15 15:55:33,682 - app.services.workflow_engine - INFO - 📂 日志文件已创建: /Users/mac/Desktop/AS/backend/logs/workflow_4997a6b1-e8a7-4fb6-bff7-c303f84e70c5.log
+2025-12-15 15:55:33,682 - app.services.workflow_engine - INFO - 🚀 开始执行工作流: manual_report (ID: 4997a6b1-e8a7-4fb6-bff7-c303f84e70c5)
+2025-12-15 15:55:38,410 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-15 15:55:38,411 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 1/4)...
+2025-12-15 15:55:38,411 - app.services.workflow_engine - INFO - ==================================================
+2025-12-15 15:55:44,698 - app.services.workflow_engine - INFO - ✅ 步骤 [run_crawler] 完成。耗时: 2098ms, 成本: $0.000000
+2025-12-15 15:55:45,212 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-15 15:55:45,212 - app.services.workflow_engine - INFO - 👉 执行步骤 [fetch_details] (尝试 1/4)...
+2025-12-15 15:55:45,212 - app.services.workflow_engine - INFO - ==================================================
+2025-12-15 15:55:50,990 - app.services.workflow_engine - INFO - ✅ 步骤 [fetch_details] 完成。耗时: 1048ms, 成本: $0.000000
+2025-12-15 15:55:51,506 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-15 15:55:51,507 - app.services.workflow_engine - INFO - 👉 执行步骤 [analyze_public_papers] (尝试 1/4)...
+2025-12-15 15:55:51,507 - app.services.workflow_engine - INFO - ==================================================
+2025-12-15 15:55:57,282 - app.services.workflow_engine - INFO - ✅ 步骤 [analyze_public_papers] 完成。耗时: 2097ms, 成本: $0.000000
+2025-12-15 15:55:57,797 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-15 15:55:57,797 - app.services.workflow_engine - INFO - 👉 执行步骤 [archive_daily_papers] (尝试 1/4)...
+2025-12-15 15:55:57,797 - app.services.workflow_engine - INFO - ==================================================
+2025-12-15 15:56:09,026 - app.services.workflow_engine - INFO - ✅ 步骤 [archive_daily_papers] 完成。耗时: 6932ms, 成本: $0.000000
+2025-12-15 15:56:09,448 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-15 15:56:09,448 - app.services.workflow_engine - INFO - 👉 执行步骤 [personalized_filter] (尝试 1/4)...
+2025-12-15 15:56:09,448 - app.services.workflow_engine - INFO - ==================================================
+2025-12-15 15:56:16,154 - app.services.workflow_engine - INFO - ✅ 步骤 [personalized_filter] 完成。耗时: 3138ms, 成本: $0.000000
+2025-12-15 15:56:17,201 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-15 15:56:17,202 - app.services.workflow_engine - INFO - 👉 执行步骤 [generate_report] (尝试 1/4)...
+2025-12-15 15:56:17,202 - app.services.workflow_engine - INFO - ==================================================
+2025-12-15 15:56:57,096 - app.services.workflow_engine - INFO - ✅ 步骤 [generate_report] 完成。耗时: 35652ms, 成本: $0.006296
+2025-12-15 15:56:57,566 - app.services.workflow_engine - INFO - ✅ 工作流执行完成: 4997a6b1-e8a7-4fb6-bff7-c303f84e70c5

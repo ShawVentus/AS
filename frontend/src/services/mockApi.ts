@@ -38,6 +38,11 @@ export const MockUserAPI = {
         console.log(`[Mock] Updated NL profile: ${text}`);
         return USER_PROFILE;
     },
+    updateFocus: async (focus: any) => {
+        await delay(500);
+        console.log(`[Mock] Updated focus:`, focus);
+        return { ...USER_PROFILE, focus: { ...USER_PROFILE.focus, ...focus } };
+    },
 };
 
 export const MockPaperAPI = {

@@ -72,13 +72,14 @@ class UserPaperState(BaseModel):
     user_id: str # 用于确保仅对应用户可以访问
     
     # --- 推荐引擎生成 (LLM) ---
-    why_this_paper: str # 针对该用户的推荐理由，必须要有
+    why_this_paper: Optional[str] = "Not Filtered" # 针对该用户的推荐理由
     relevance_score: float = 0.0 # 0.0 ~ 1.0
-    accepted: bool # LLM 建议是否接受
+    accepted: bool = False # LLM 建议是否接受
 
     # --- 用户交互状态 (User Action) ---
     user_liked: Optional[bool] = None # Like (True) / Dislike (False) / None
     user_feedback: Optional[str] = None # 用户反馈的具体原因
+    note: Optional[str] = None # 用户个人笔记
 
 class PersonalizedPaper(BaseModel):
     """
@@ -126,6 +127,7 @@ class PaperFeedbackRequest(BaseModel):
     """用户反馈请求模型"""
     liked: Optional[bool] = None
     feedback: Optional[str] = None
+    note: Optional[str] = None
 
 class PaperExportRequest(BaseModel):
     """

@@ -1,0 +1,4 @@
+Paper ID: 2512.11534
+Expected Note: 这是一个测试笔记 - 自动保存验证
+Actual Note: 这是一个测试笔记 - 自动保存验证
+Match: True

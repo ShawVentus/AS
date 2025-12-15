@@ -33,6 +33,10 @@ export interface Context {
     futureGoal: string;
     /** 研究偏好 (自然语言描述) */
     preferences: string;
+    /** 阶段 (可选) */
+    stage?: string;
+    /** 学习模式 (可选) */
+    learningMode?: string;
 }
 
 export interface UserFeedback {

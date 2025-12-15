@@ -104,8 +104,10 @@ def fetch_and_update_details(table_name: str = "papers", progress_callback: Opti
             missing_ids = set(ids) - found_ids
             if missing_ids:
                 print(f"Warning: {len(missing_ids)} papers not found, marking as failed. IDs: {missing_ids}")
-                failed_updates = [{"id": mid, "status": "failed"} for mid in missing_ids]
-                db.table(table_name).upsert(failed_updates).execute()
+                # Use update instead of upsert to avoid "null value in column category" error
+                # because upsert requires all non-null columns for the INSERT case.
+                # Since we know these IDs exist (we just fetched them), update is safe.
+                db.table(table_name).update({"status": "failed"}).in_("id", list(missing_ids)).execute()
 
         except Exception as e:
             print(f"API or Database Error: {e}")

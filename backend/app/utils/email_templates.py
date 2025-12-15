@@ -258,7 +258,7 @@ class EmailTemplates:
             stats (Dict): 统计数据
             
         Returns:
-            str: 处理后的完整 HTML 内容
+            str: 处理后的完整 HTML 内容 (Processed complete HTML content)
         """
         # 1. 准备基础上下文
         frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
@@ -290,7 +290,8 @@ class EmailTemplates:
                 "total_papers": stats.get('total_papers', 0),
                 "recommended_papers": stats.get('recommended_papers', 0),
                 "avg_relevance_score": stats.get('avg_relevance_score', 0.0),
-                "category_list": category_list
+                "category_list": category_list,
+                "generated_at": stats.get('generated_at', '') # [NEW] 传递生成时间
             },
             "papers": papers_data,
             "highlight": None,

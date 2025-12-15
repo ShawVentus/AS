@@ -1,0 +1,11 @@
+2025-12-15 12:10:45,684 - app.services.workflow_engine - INFO - 📂 日志文件已创建: /Users/mac/Desktop/AS/backend/logs/workflow_44268be5-348e-4795-b186-56a3606ed38b.log
+2025-12-15 12:10:45,685 - app.services.workflow_engine - INFO - 🚀 开始执行工作流: daily_update (ID: 44268be5-348e-4795-b186-56a3606ed38b)
+2025-12-15 12:10:50,930 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-15 12:10:50,930 - app.services.workflow_engine - INFO - 👉 执行步骤 [clear_daily_db] (尝试 1/4)...
+2025-12-15 12:10:50,930 - app.services.workflow_engine - INFO - ==================================================
+2025-12-15 12:10:55,655 - app.services.workflow_engine - INFO - ✅ 步骤 [clear_daily_db] 完成。耗时: 1758ms, 成本: $0.000000
+2025-12-15 12:10:56,170 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-15 12:10:56,170 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 1/4)...
+2025-12-15 12:10:56,170 - app.services.workflow_engine - INFO - ==================================================

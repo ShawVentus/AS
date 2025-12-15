@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { X, Download, ExternalLink, FileText, Brain, Microscope, Lightbulb, Target, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Save } from 'lucide-react';
+import { X, ExternalLink, FileText, Brain, Microscope, Lightbulb, Target, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown, Save, FlaskConical } from 'lucide-react';
 import type { Paper } from '../../types';
 
 interface PaperDetailModalProps {
@@ -9,10 +9,39 @@ interface PaperDetailModalProps {
     onClose: () => void;
     onNext?: () => void;
     onPrev?: () => void;
-    onFeedback?: (paperId: string, isLike: boolean, reason?: string) => void;
+    onFeedback?: (paperId: string, data: { liked?: boolean, feedback?: string, note?: string }) => void;
 }
 
+/**
+ * 论文详情模态框组件
+ * 
+ * 展示论文的详细信息，包括元数据、分析结果和用户交互（Like/Dislike, Note）。
+ * 支持键盘左右切换和 ESC 关闭。
+ */
 export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index, total, onClose, onNext, onPrev, onFeedback }) => {
+    const [note, setNote] = React.useState(paper?.user_state?.note || '');
+    const [isSaving, setIsSaving] = React.useState(false);
+
+    // Sync note state when paper changes
+    useEffect(() => {
+        setNote(paper?.user_state?.note || '');
+    }, [paper]);
+
+    // 自动保存笔记处理函数
+    const handleSaveNote = async () => {
+        if (!paper || !onFeedback) return;
+
+        setIsSaving(true);
+        try {
+            // 调用父组件回调更新状态并发送 API
+            await onFeedback(paper.meta.id, { note: note });
+            // 模拟短暂延迟以显示保存状态
+            setTimeout(() => setIsSaving(false), 500);
+        } catch (error) {
+            console.error("Failed to save note:", error);
+            setIsSaving(false);
+        }
+    };
     // Analysis state removed as per request to remove Deep Analysis section
     // const [analysis, setAnalysis] = useState<PaperAnalysis | null>(null);
     // const [loadingAnalysis, setLoadingAnalysis] = useState(false);
@@ -88,12 +117,28 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
                     </div>
                 )}
 
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors z-10"
-                >
-                    <X size={24} />
-                </button>
+                <div className="absolute top-4 right-4 flex flex-col items-center gap-2 z-10">
+                    <button
+                        onClick={onClose}
+                        className="text-slate-400 hover:text-white transition-colors p-1"
+                    >
+                        <X size={24} />
+                    </button>
+                    <button
+                        onClick={() => onFeedback && onFeedback(paper.meta.id, { liked: true })}
+                        className={`p-2 rounded-full transition-colors ${paper.user_state?.user_liked === true ? 'text-green-400 bg-green-950/30' : 'text-slate-500 hover:text-green-400 hover:bg-green-950/30'}`}
+                        title="喜欢"
+                    >
+                        <ThumbsUp size={18} />
+                    </button>
+                    <button
+                        onClick={() => onFeedback && onFeedback(paper.meta.id, { liked: false })}
+                        className={`p-2 rounded-full transition-colors ${paper.user_state?.user_liked === false ? 'text-red-400 bg-red-950/30' : 'text-slate-500 hover:text-red-400 hover:bg-red-950/30'}`}
+                        title="不喜欢"
+                    >
+                        <ThumbsDown size={18} />
+                    </button>
+                </div>
 
                 {/* Header */}
                 <div className="p-6 border-b border-slate-800 bg-slate-900/30 shrink-0 pr-16 rounded-t-2xl">
@@ -118,25 +163,10 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
                                 </div>
                             </div>
 
-                            <h2 className="text-xl md:text-2xl font-bold text-white mb-2 leading-snug">{paper.meta.title}</h2>
+                            <h2 className="text-lg md:text-xl font-bold text-white mb-2 leading-snug">{paper.meta.title}</h2>
                             <p className="text-slate-400 text-sm">{paper.meta.authors.join(", ")}</p>
                         </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => onFeedback && onFeedback(paper.meta.id, true)}
-                                className={`p-2 rounded-full transition-colors ${paper.user_state?.user_liked === true ? 'text-green-400 bg-green-950/30' : 'text-slate-500 hover:text-green-400 hover:bg-green-950/30'}`}
-                                title="喜欢"
-                            >
-                                <ThumbsUp size={20} />
-                            </button>
-                            <button
-                                onClick={() => onFeedback && onFeedback(paper.meta.id, false)}
-                                className={`p-2 rounded-full transition-colors ${paper.user_state?.user_liked === false ? 'text-red-400 bg-red-950/30' : 'text-slate-500 hover:text-red-400 hover:bg-red-950/30'}`}
-                                title="不喜欢"
-                            >
-                                <ThumbsDown size={20} />
-                            </button>
-                        </div>
+
                     </div>
                 </div>
 
@@ -160,8 +190,8 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
 
 
                     {/* TLDR */}
-                    <div className="bg-slate-900/50 p-5 rounded-lg border border-slate-800/50">
-                        <h3 className="text-slate-300 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <div className="bg-slate-900/50 p-5 rounded-lg border border-slate-700">
+                        <h3 className="text-slate-300 font-bold text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
                             <span className="font-mono font-bold">TL;DR（一句话总结）</span>
                         </h3>
                         <p className="text-slate-300 font-medium text-sm leading-relaxed">
@@ -173,33 +203,33 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
                     {/* Grid for Details */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Motivation */}
-                        <div className="bg-slate-900/20 p-4 rounded-lg border border-slate-800/30">
-                            <h3 className="text-slate-300 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <Target size={14} /> Motivation（研究动机）
+                        <div className="bg-slate-900/20 p-4 rounded-lg border border-slate-700/50">
+                            <h3 className="text-slate-300 font-bold text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <Target size={16} /> Motivation（研究动机）
                             </h3>
                             <p className="text-slate-400 text-sm leading-relaxed">{paper.analysis?.motivation || "暂无"}</p>
                         </div>
 
                         {/* Method */}
-                        <div className="bg-slate-900/20 p-4 rounded-lg border border-slate-800/30">
-                            <h3 className="text-slate-300 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <Brain size={14} /> Method（研究方法）
+                        <div className="bg-slate-900/20 p-4 rounded-lg border border-slate-700/50">
+                            <h3 className="text-slate-300 font-bold text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <Brain size={16} /> Method（研究方法）
                             </h3>
                             <p className="text-slate-400 text-sm leading-relaxed">{paper.analysis?.method || "暂无"}</p>
                         </div>
 
                         {/* Result */}
-                        <div className="bg-slate-900/20 p-4 rounded-lg border border-slate-800/30">
-                            <h3 className="text-slate-300 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <Brain size={14} /> Result（实验结果）
+                        <div className="bg-slate-900/20 p-4 rounded-lg border border-slate-700/50">
+                            <h3 className="text-slate-300 font-bold text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <FlaskConical size={16} /> Result（实验结果）
                             </h3>
                             <p className="text-slate-400 text-sm leading-relaxed">{paper.analysis?.result || "暂无"}</p>
                         </div>
 
                         {/* Conclusion */}
-                        <div className="bg-slate-900/20 p-4 rounded-lg border border-slate-800/30">
-                            <h3 className="text-slate-300 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <Microscope size={14} /> Conclusion（结论）
+                        <div className="bg-slate-900/20 p-4 rounded-lg border border-slate-700/50">
+                            <h3 className="text-slate-300 font-bold text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <Microscope size={16} /> Conclusion（结论）
                             </h3>
                             <p className="text-slate-400 text-sm leading-relaxed">{paper.analysis?.conclusion || "暂无"}</p>
                         </div>
@@ -207,8 +237,8 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
 
                     {/* Abstract (Moved to bottom) */}
                     <div>
-                        <h3 className="text-slate-500 font-bold text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
-                            <FileText size={14} /> Abstract（摘要）
+                        <h3 className="text-slate-500 font-bold text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+                            <FileText size={16} /> Abstract（摘要）
                         </h3>
                         <p className="text-slate-300 leading-7 text-sm text-justify">{paper.meta.abstract}</p>
                     </div>
@@ -224,12 +254,21 @@ export const PaperDetailModal: React.FC<PaperDetailModalProps> = ({ paper, index
                         </label>
                         <div className="flex gap-2">
                             <textarea
+                                value={note}
+                                onChange={(e) => setNote(e.target.value)}
+                                onBlur={handleSaveNote}
                                 className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm text-slate-300 focus:border-cyan-500 focus:outline-none resize-none h-20"
-                                placeholder="记录对此论文的想法、启发或备忘..."
+                                placeholder="记录对此论文的想法、启发或备忘... (失去焦点自动保存)"
                             ></textarea>
-                            <button className="h-20 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-colors flex flex-col items-center justify-center gap-1">
+                            <button
+                                onClick={handleSaveNote}
+                                disabled={isSaving}
+                                className={`h-20 px-4 border rounded-lg text-xs font-medium transition-colors flex flex-col items-center justify-center gap-1 ${isSaving
+                                    ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-wait'
+                                    : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400 hover:text-white'
+                                    }`}>
                                 <Save size={16} />
-                                保存
+                                {isSaving ? '保存中' : '保存'}
                             </button>
                         </div>
                     </div>

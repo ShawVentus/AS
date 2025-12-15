@@ -129,7 +129,30 @@ export const WorkflowPage: React.FC = () => {
             </div>
 
             {/* 实时进度 */}
-            <WorkflowProgress progress={progress} isConnected={isConnected} error={error} />
+            {error && (
+                <div className="mb-4 p-3 bg-red-50 text-red-700 rounded border border-red-200">
+                    连接错误: {error}
+                </div>
+            )}
+
+            {progress && (
+                <div className="mt-8">
+                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        实时监控
+                        {isConnected && <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
+                    </h2>
+                    <WorkflowProgress
+                        steps={progress.steps.map(s => ({
+                            name: s.name,
+                            label: s.name, // Use name as label fallback
+                            status: s.status as any, // Cast status
+                            duration_ms: s.duration_ms,
+                            progress: s.status === 'completed' ? 100 : 0, // Simple progress mapping
+                            message: s.status === 'running' ? 'Running...' : undefined
+                        }))}
+                    />
+                </div>
+            )}
         </div>
     );
 };

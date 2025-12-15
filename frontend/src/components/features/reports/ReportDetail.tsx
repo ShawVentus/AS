@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Brain, Microscope, ArrowRightCircle, Compass, Mail, Loader2, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronLeft, Microscope, ArrowRightCircle, Compass, Mail, Loader2, X, Target, Quote } from 'lucide-react';
 import type { Report, Paper } from '../../../types';
 import { PaperAPI } from '../../../services/api/paper';
 import { ReportAPI } from '../../../services/api/report';
@@ -21,26 +22,25 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
     const [lockedRefIds, setLockedRefIds] = useState<string[]>([]); // 锁定的引用 ID（用于右侧显示）
     const [viewMode, setViewMode] = useState<'all' | 'preview'>('all'); // 显示模式: 'all' 显示全部, 'preview' 显示预览
     const [hoveredPaperId, setHoveredPaperId] = useState<string | null>(null); // 悬停的论文 ID (右侧)
-    const [papers, setPapers] = useState<Paper[]>([]);
-    const [loadingPapers, setLoadingPapers] = useState(false);
+
     const [parsedContent, setParsedContent] = useState<ParsedParagraph[]>([]);
     const [sendingEmail, setSendingEmail] = useState(false);
+
+    // [Refactor] Use React Query for fetching referenced papers
+    const { data: papers = [], isLoading: loadingPapers } = useQuery({
+        queryKey: ['papersByIds', report.refPapers],
+        queryFn: async () => {
+            if (!report.refPapers || report.refPapers.length === 0) return [];
+            return PaperAPI.getPapersByIds(report.refPapers);
+        },
+        enabled: !!report.refPapers && report.refPapers.length > 0,
+        staleTime: 1000 * 60 * 30, // 30 minutes (report refs rarely change)
+    });
 
     useEffect(() => {
         // 1. 解析 Markdown 内容
         if (report.content) {
             setParsedContent(parseMarkdown(report.content));
-        }
-
-        // 2. 异步加载引用论文
-        if (report.refPapers && report.refPapers.length > 0) {
-            setLoadingPapers(true);
-            PaperAPI.getPapersByIds(report.refPapers)
-                .then(setPapers)
-                .catch((err: any) => console.error("Failed to load referenced papers:", err))
-                .finally(() => setLoadingPapers(false));
-        } else {
-            setPapers([]);
         }
     }, [report]);
 
@@ -152,11 +152,21 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
 
                 <div className="flex-1 overflow-y-auto p-6 md:p-8">
                     <div className="max-w-3xl mx-auto pb-20">
-                        <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-800 mb-6">
-                            <h3 className="text-emerald-500 font-bold text-xs mb-1.5 flex items-center gap-1.5">
-                                <Brain size={14} /> 核心摘要
-                            </h3>
-                            <p className="text-sm text-slate-300 leading-relaxed">{report.summary}</p>
+                        <div className="relative bg-gradient-to-br from-slate-900 via-slate-900 to-purple-950/40 border border-purple-800/50 rounded-xl p-6 shadow-xl shadow-purple-900/20 overflow-hidden mb-8 group">
+                            {/* Decorative Background Icon */}
+                            <Quote className="absolute top-4 right-6 text-purple-600/10 rotate-12 transform scale-150" size={80} />
+
+                            <div className="relative z-10">
+                                <h3 className="flex items-center gap-2 text-lg font-bold mb-4">
+                                    <Target size={18} className="text-purple-500" />
+                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-violet-500">
+                                        核心摘要
+                                    </span>
+                                </h3>
+                                <p className="text-base md:text-lg text-slate-300 leading-relaxed italic border-l-2 border-purple-700/50 pl-4">
+                                    {report.summary}
+                                </p>
+                            </div>
                         </div>
 
                         <div className="space-y-6 text-base md:text-lg leading-relaxed text-slate-300">
@@ -191,6 +201,7 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
                                                             onMouseEnter={handleRefMouseEnter}
                                                             onMouseLeave={handleRefMouseLeave}
                                                             onClick={handleRefClick}
+                                                            className={fragIdx === 0 ? "-ml-1" : ""}
                                                         />
                                                     ) : (
                                                         <span key={fragIdx}>{frag.content}</span>
@@ -217,6 +228,7 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
                                                         onMouseEnter={handleRefMouseEnter}
                                                         onMouseLeave={handleRefMouseLeave}
                                                         onClick={handleRefClick}
+                                                        className={fragIdx === 0 ? "-ml-1" : ""}
                                                     />
                                                 ) : (
                                                     <span key={fragIdx}>{frag.content}</span>
@@ -302,10 +314,10 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
                                 <p className="text-xs text-slate-500 mb-2 line-clamp-1">{activePaper!.meta.authors.join(", ")}</p>
 
                                 {/* 内容区域：优先显示推荐理由 (无颜色高亮) */}
-                                <div className="text-xs text-slate-400 leading-relaxed mb-3 line-clamp-4">
+                                <div className="text-sm text-slate-400 leading-relaxed mb-3 line-clamp-4">
                                     {activePaper!.user_state?.why_this_paper && activePaper!.user_state.why_this_paper !== "Not Filtered" ? (
                                         <span>
-                                            <span className="font-bold text-slate-500 mr-1">推荐理由:</span>
+                                            <span className="font-bold text-slate-400 mr-1 text-base">推荐理由:</span>
                                             {activePaper!.user_state.why_this_paper}
                                         </span>
                                     ) : (

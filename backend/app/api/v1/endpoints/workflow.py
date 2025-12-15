@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from app.core.auth import get_current_user_id
 from app.services.scheduler import scheduler_service
 import threading
@@ -90,3 +90,78 @@ async def trigger_report_only(user_id: str = Depends(get_current_user_id)):
         "status": "started",
         "message": "报告生成已在后台启动"
     }
+
+from typing import List
+from app.services.workflow_engine import WorkflowEngine
+
+class ManualTriggerRequest(BaseModel):
+    user_id: str
+    natural_query: str
+    categories: List[str]
+    authors: List[str]
+
+@router.post("/manual-trigger")
+async def manual_trigger_workflow(request: ManualTriggerRequest):
+    """
+    手动触发每日工作流 (强制执行)。
+    使用传入的参数覆盖用户默认设置。
+
+    Args:
+        request (ManualTriggerRequest): 手动触发请求对象。
+            - user_id: 用户 ID。
+            - natural_query: 自然语言查询描述。
+            - categories: 关注的 Arxiv 分类列表。
+            - authors: 关注的作者列表。
+
+    Returns:
+        dict: 包含执行 ID 和消息的字典。
+    """
+    try:
+        # 构造上下文，包含手动输入的参数
+        initial_context = {
+            "target_user_id": request.user_id,
+            "force": True, # 强制执行
+            "natural_query": request.natural_query,
+            "manual_categories": request.categories, # 传递手动选择的分类
+            "manual_authors": request.authors,       # 传递手动输入的作者
+            "categories": request.categories,        # 爬虫步骤直接使用这个 key
+            "source": "manual"
+        }
+        
+        # 初始化引擎
+        engine = WorkflowEngine()
+        
+        # 先创建执行记录以获取 ID
+        engine.create_execution("manual_report", initial_context=initial_context)
+        
+        # 注册步骤 (复用 daily_update 的步骤)
+        from app.services.workflow_steps.run_crawler_step import RunCrawlerStep
+        from app.services.workflow_steps.fetch_details_step import FetchDetailsStep
+        from app.services.workflow_steps.analyze_public_step import AnalyzePublicStep
+        from app.services.workflow_steps.archive_step import ArchiveStep
+        from app.services.workflow_steps.personalized_filter_step import PersonalizedFilterStep
+        from app.services.workflow_steps.generate_report_step import GenerateReportStep
+        
+        # 注意：手动触发不清除每日数据 (ClearDailyStep)，也不检查更新 (CheckUpdateStep)
+        # 直接开始爬取 -> 详情 -> 分析 -> 归档 -> 筛选 -> 报告
+        engine.register_step(RunCrawlerStep())
+        engine.register_step(FetchDetailsStep())
+        engine.register_step(AnalyzePublicStep())
+        engine.register_step(ArchiveStep())
+        engine.register_step(PersonalizedFilterStep())
+        engine.register_step(GenerateReportStep())
+        
+        # 异步运行
+        # 使用 execute_workflow 而不是 run
+        thread = threading.Thread(
+            target=engine.execute_workflow,
+            kwargs={"workflow_type": "manual_report", "initial_context": initial_context}
+        )
+        thread.start()
+        
+        return {"message": "Manual workflow started", "execution_id": engine.execution_id}
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
