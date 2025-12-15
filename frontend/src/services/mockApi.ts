@@ -87,6 +87,10 @@ export const MockPaperAPI = {
         // Return some mock dates
         return [`${year}-${String(month).padStart(2, '0')}-01`, `${year}-${String(month).padStart(2, '0')}-15`];
     },
+    getPapersByIds: async (ids: string[]) => {
+        await delay(400);
+        return MOCK_PAPERS.filter(p => ids.includes(p.meta.id));
+    },
 };
 
 export const MockReportAPI = {

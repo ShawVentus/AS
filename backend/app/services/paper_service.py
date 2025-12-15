@@ -229,15 +229,17 @@ class PaperService:
 
         return PersonalizedPaper(meta=meta, analysis=analysis, user_state=user_state)
 
-    def get_papers_by_categories(self, categories: List[str], user_id: str, limit: int = 1, table_name: str = "papers") -> List[PersonalizedPaper]:
+    def get_papers_by_categories(self, categories: List[str], user_id: str, limit: int = 1, table_name: str = "papers", force: bool = False) -> List[PersonalizedPaper]:
         """
         根据用户关注的类别获取候选论文。
         排除已在 user_paper_states 中存在的论文。
-
+        
         Args:
             categories (List[str]): 用户关注的类别列表。
             user_id (str): 用户 ID。
             limit (int): 限制数量。
+            table_name (str): 表名。
+            force (bool): 是否强制获取（忽略已存在的状态）。
 
         Returns:
             List[PersonalizedPaper]: 候选论文列表。
@@ -247,12 +249,14 @@ class PaperService:
                 return []
 
             # 1. 获取用户已真正处理过的 paper_ids (排除 "Not Filtered" 状态的论文)
-            existing_states = self.db.table("user_paper_states")\
-                .select("paper_id")\
-                .eq("user_id", user_id)\
-                .neq("why_this_paper", "Not Filtered")\
-                .execute()
-            existing_ids = [row['paper_id'] for row in existing_states.data] if existing_states.data else []
+            existing_ids = []
+            if not force:
+                existing_states = self.db.table("user_paper_states")\
+                    .select("paper_id")\
+                    .eq("user_id", user_id)\
+                    .neq("why_this_paper", "Not Filtered")\
+                    .execute()
+                existing_ids = [row['paper_id'] for row in existing_states.data] if existing_states.data else []
 
             # 2. 查询符合类别的论文
             # 使用 overlaps (数组重叠) 匹配类别
@@ -274,7 +278,7 @@ class PaperService:
             # 内存过滤 (为了保险起见，或者如果 not_in 语法有问题)
             candidates = []
             for p in papers_data:
-                if p['id'] not in existing_ids:
+                if force or p['id'] not in existing_ids:
                     # 构造默认状态 (None)
                     candidates.append(self.merge_paper_state(p, None))
             
@@ -440,7 +444,8 @@ class PaperService:
             
             # 临时修改 get_papers_by_categories 支持指定表名
             # [Fix] 增加 limit，否则默认只取 1 条，如果该条已处理则会导致无结果
-            papers = self.get_papers_by_categories(categories, user_id, limit=200, table_name="daily_papers")
+            # [Fix] Pass force parameter
+            papers = self.get_papers_by_categories(categories, user_id, limit=200, table_name="daily_papers", force=force)
             
             
             paper_ids = [p.meta.id for p in papers]

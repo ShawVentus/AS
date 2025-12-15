@@ -81,8 +81,12 @@ class RunCrawlerStep(WorkflowStep):
             print(f"[DEBUG] RunCrawlerStep: Force mode enabled. Target: {target_categories}, Existing: {existing_categories}, Missing: {missing_categories}")
         
         if not missing_categories:
-            self.update_progress(100, 100, f"所有分类 ({', '.join(categories)}) 已爬取，跳过")
-            return {"crawler_run": False, "skipped": True}
+            if force:
+                print(f"[DEBUG] RunCrawlerStep: Force mode enabled. Re-crawling all target categories: {target_categories}")
+                missing_categories = list(target_categories)
+            else:
+                self.update_progress(100, 100, f"所有分类 ({', '.join(categories)}) 已爬取，跳过")
+                return {"crawler_run": False, "skipped": True}
         
         self.update_progress(0, 100, f"准备爬取: {', '.join(missing_categories)}")
         

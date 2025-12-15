@@ -22,6 +22,8 @@ class Report(BaseModel):
     # 统计字段
     total_papers_count: Optional[int] = Field(default=0, alias='totalPapersCount')
     recommended_papers_count: Optional[int] = Field(default=0, alias='recommendedPapersCount')
+    
+    created_at: Optional[str] = None
 
 class ReportFeedback(BaseModel):
     """

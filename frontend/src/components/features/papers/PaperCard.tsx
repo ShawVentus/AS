@@ -2,6 +2,8 @@ import React from 'react';
 import { Lightbulb, Maximize2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import type { Paper } from '../../../types';
 
+import { formatReportTime } from '../../../utils/date';
+
 interface PaperCardProps {
     paper: Paper;
     index: number;
@@ -113,7 +115,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = 
                         </span>
                         <span className="text-slate-600">|</span>
                         {/* Published Date (Now using Created At) */}
-                        <span className="text-slate-400">{paper.meta.created_at?.split('T')[0] || paper.meta.published_date}</span>
+                        <span className="text-slate-400">{formatReportTime(paper.meta.created_at || paper.meta.published_date)}</span>
                         <span className="text-slate-600">|</span>
                         {/* Category - Show All */}
                         <div className="flex gap-1 flex-wrap">

@@ -40,7 +40,7 @@ async def progress_stream(execution_id: str, request: Request):
                 
                 if not exec_res.data:
                     logger.warning(f"SSE: Execution {execution_id} not found")
-                    yield f"event: error\ndata: Execution not found\n\n"
+                    yield f"event: system_error\ndata: Execution not found\n\n"
                     break
                 
                 execution = exec_res.data[0]

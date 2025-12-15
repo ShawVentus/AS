@@ -98,4 +98,13 @@ class PersonalizedFilterStep(WorkflowStep):
         self.tokens_output = total_output
         
         self.update_progress(100, 100, "个性化筛选完成")
-        return {"personalized_filter_completed": True}
+        
+        # Extract selected paper IDs for the next step
+        selected_paper_ids = []
+        if hasattr(filter_res, 'selected_papers'):
+            selected_paper_ids = [p.paper_id for p in filter_res.selected_papers]
+            
+        return {
+            "personalized_filter_completed": True,
+            "selected_paper_ids": selected_paper_ids
+        }

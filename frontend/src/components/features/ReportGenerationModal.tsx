@@ -71,6 +71,20 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
         }
     };
 
+    const handleSSEError = (errorMessage: string) => {
+        console.error("SSE Error:", errorMessage);
+        setError(errorMessage);
+        cleanupSSE();
+
+        // Force update running/pending steps to failed to stop UI spinners
+        setSteps(prevSteps => prevSteps.map(step => {
+            if (step.status === 'running' || step.status === 'pending') {
+                return { ...step, status: 'failed', message: '任务中断' };
+            }
+            return step;
+        }));
+    };
+
     const connectToSSE = (executionId: string) => {
         // Close existing connection if any
         cleanupSSE();
@@ -97,19 +111,29 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
                     if (onComplete) onComplete();
                     return;
                 }
+
+                // Handle failed status from backend payload
+                if (data.status === 'failed') {
+                    handleSSEError("任务执行失败");
+                    return;
+                }
             } catch (e) {
                 console.error("Error parsing SSE data", e);
             }
         });
 
+        // [Fix] Listen for explicit system_error events from backend
+        eventSource.addEventListener('system_error', (event: MessageEvent) => {
+            handleSSEError(event.data || "生成出错");
+        });
+
         eventSource.onerror = (err) => {
-            console.error("SSE Error", err);
-            // If the connection was closed intentionally, don't treat as error
-            if (eventSource.readyState === EventSource.CLOSED) {
-                return;
-            }
-            // Optional: cleanup on error to prevent infinite loops if backend is down
-            // cleanupSSE(); 
+            console.error("SSE Connection Error", err);
+            // Always treat onerror as a failure in this context
+            // because we expect a continuous stream until completion.
+            // If it breaks, it's an error.
+
+            handleSSEError("连接中断，任务可能已停止");
         };
     };
 
@@ -171,6 +195,11 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
                                 <>
                                     <CheckCircle className="text-green-500 w-6 h-6" />
                                     <span>生成完成</span>
+                                </>
+                            ) : error ? (
+                                <>
+                                    <AlertCircle className="text-red-500 w-6 h-6" />
+                                    <span>生成失败</span>
                                 </>
                             ) : (
                                 <>

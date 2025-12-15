@@ -10,6 +10,8 @@ import type { ParsedParagraph } from '../../../utils/markdownParser';
 import { RefSentence } from './RefSentence';
 
 
+import { formatReportTime } from '../../../utils/date';
+
 interface ReportDetailProps {
     report: Report;
     onBack: () => void;
@@ -131,7 +133,7 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
                         <div>
                             <h2 className="text-base font-bold text-white leading-tight">{report.title}</h2>
                             <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[11px] text-slate-500">{report.createdAt?.split('T')[0] || report.date}</span>
+                                <span className="text-[11px] text-slate-500">{report.created_at ? report.created_at.substring(0, 16).replace('T', ' ') : report.date}</span>
                             </div>
                         </div>
                     </div>

@@ -322,7 +322,7 @@ class SchedulerService:
         except Exception as e:
             print(f"Error in process_personalized_papers: {e}")
 
-    def generate_report_job(self, force: bool = False, target_user_id: Optional[str] = None, progress_callback: Optional[Callable[[int, int, str], None]] = None):
+    def generate_report_job(self, force: bool = False, target_user_id: Optional[str] = None, progress_callback: Optional[Callable[[int, int, str], None]] = None, manual_query: Optional[str] = None, manual_categories: Optional[List[str]] = None, manual_authors: Optional[List[str]] = None, specific_paper_ids: Optional[List[str]] = None):
         """
         生成并发送每日报告的任务。
         
@@ -335,6 +335,10 @@ class SchedulerService:
             force (bool): 是否强制生成报告（即使今日已生成）。
             target_user_id (Optional[str]): 指定生成报告的用户 ID。
             progress_callback (Optional[Callable]): 进度回调。
+            manual_query (Optional[str]): 手动输入的查询 (用于即时报告)。
+            manual_categories (Optional[List[str]]): 手动输入的分类。
+            manual_authors (Optional[List[str]]): 手动输入的作者。
+            specific_paper_ids (Optional[List[str]]): 指定要包含在报告中的论文 ID 列表。
 
         Returns:
             Dict[str, Any]: 统计数据 (tokens_input, tokens_output, cost, etc.)
@@ -387,6 +391,16 @@ class SchedulerService:
                     # 2.1 获取用户画像（使用 user_service 确保数据清洗）
                     user_profile = user_service.get_profile(user_id)
                     
+                    # [Manual Override] 如果有手动参数，临时修改 User Profile
+                    custom_title = None
+                    if manual_query:
+                        print(f"[DEBUG] Applying manual query for report: {manual_query}")
+                        # Set custom title
+                        custom_title = f"{manual_query} - Instant Report"
+                        
+                    if manual_authors:
+                        user_profile.focus.authors = manual_authors
+                    
                     # 检查用户是否有邮箱
                     if not user_profile.info.email:
                         print(f"用户 {user_profile.info.name} 未设置邮箱，跳过")
@@ -395,7 +409,8 @@ class SchedulerService:
                     print(f"\n处理用户: {user_profile.info.name} ({user_id})")
 
                     # [New] 检查今日是否已生成报告
-                    if not force:
+                    # 如果是手动查询 (Instant Report)，则不检查重复，允许生成多份
+                    if not force and not manual_query:
                         from datetime import datetime
                         today_str = datetime.now().strftime("%Y-%m-%d")
                         existing_reports = self.db.table("reports") \
@@ -409,21 +424,38 @@ class SchedulerService:
                             continue
                     
                     # === 3. 获取今日的个性化论文 ===
-                    from datetime import datetime
-                    today = datetime.now().strftime("%Y-%m-%d")
-                    
-                    # 3.1 查询今天筛选的、被接受的论文
-                    states_response = self.db.table("user_paper_states") \
-                        .select("*") \
-                        .eq("user_id", user_id) \
-                        .eq("accepted", True) \
-                        .gte("created_at", f"{today} 00:00:00") \
-                        .order("relevance_score", desc=True) \
-                        .limit(int(os.environ.get("REPORT_PAPER_LIMIT", 50))) \
-                        .execute()
+                    # 如果指定了 paper_ids，直接使用
+                    if specific_paper_ids is not None:
+                        print(f"Using specific paper IDs: {len(specific_paper_ids)}")
+                        if not specific_paper_ids:
+                             print(f"用户 {user_id} 指定的论文列表为空，跳过")
+                             continue
+                             
+                        # Fetch states for these papers
+                        states_response = self.db.table("user_paper_states") \
+                            .select("*") \
+                            .eq("user_id", user_id) \
+                            .in_("paper_id", specific_paper_ids) \
+                            .execute()
+                    elif manual_query:
+                        print(f"用户 {user_id} 手动查询模式下未提供特定论文 (Filter Step skipped?), 跳过")
+                        continue
+                    else:
+                        from datetime import datetime
+                        today = datetime.now().strftime("%Y-%m-%d")
+                        
+                        # 3.1 查询今天筛选的、被接受的论文
+                        states_response = self.db.table("user_paper_states") \
+                            .select("*") \
+                            .eq("user_id", user_id) \
+                            .eq("accepted", True) \
+                            .gte("created_at", f"{today} 00:00:00") \
+                            .order("relevance_score", desc=True) \
+                            .limit(int(os.environ.get("REPORT_PAPER_LIMIT", 50))) \
+                            .execute()
                     
                     if not states_response.data:
-                        print(f"用户 {user_id} 今天没有推荐论文，跳过")
+                        print(f"用户 {user_id} 今天没有推荐论文 (或指定的论文未找到状态)，跳过")
                         continue
                     
                     print(f"找到 {len(states_response.data)} 篇推荐论文")
@@ -454,7 +486,8 @@ class SchedulerService:
                     
                     # === 6. 生成报告（内部会自动发送邮件）===
                     # [Fix] 正确解包返回值 (report, usage)
-                    report, usage = report_service.generate_daily_report(papers, user_profile)
+                    # Pass custom_title if exists
+                    report, usage = report_service.generate_daily_report(papers, user_profile, custom_title=custom_title, manual_query=manual_query)
                     
                     # 累加统计
                     if usage:

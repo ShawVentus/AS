@@ -7,6 +7,7 @@ export interface Report {
     date: string;
     /** 创建时间 (ISO 8601) */
     createdAt?: string;
+    created_at?: string;
     /** 摘要 */
     summary: string;
     /** 内容 (Markdown 格式) */

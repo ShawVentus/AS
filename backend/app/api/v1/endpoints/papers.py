@@ -24,7 +24,20 @@ async def fetch_papers(limit: int = 100, user_id: str = Depends(get_current_user
     return paper_service.crawl_arxiv_new(user_id, limit)
 
 @router.get("/batch", response_model=List[PersonalizedPaper])
-async def get_papers_by_ids(ids: List[str] = Query(...), user_id: Optional[str] = Depends(get_current_user_id_optional)):
+async def get_papers_by_ids_get(
+    ids: List[str] = Query(...), 
+    user_id: Optional[str] = Depends(get_current_user_id_optional)
+):
+    """
+    批量获取论文详情 (GET 方式，支持前端调用)。
+    """
+    return paper_service.get_papers_by_ids_with_user(ids, user_id)
+
+@router.post("/batch", response_model=List[PersonalizedPaper])
+async def get_papers_by_ids(
+    ids: List[str] = Body(..., embed=True), 
+    user_id: Optional[str] = Depends(get_current_user_id_optional)
+):
     """
     批量获取论文详情。
 

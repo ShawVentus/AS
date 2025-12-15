@@ -23,10 +23,20 @@ class GenerateReportStep(WorkflowStep):
         force = context.get("force", False)
         target_user_id = context.get("target_user_id")
         
+        # Extract manual override parameters
+        manual_query = context.get("natural_query") if context.get("source") == "manual" else None
+        manual_categories = context.get("manual_categories") if context.get("source") == "manual" else None
+        manual_authors = context.get("manual_authors") if context.get("source") == "manual" else None
+        selected_paper_ids = context.get("selected_paper_ids")
+        
         stats = scheduler_service.generate_report_job(
             force=force, 
             target_user_id=target_user_id,
-            progress_callback=self.update_progress
+            progress_callback=self.update_progress,
+            manual_query=manual_query,
+            manual_categories=manual_categories,
+            manual_authors=manual_authors,
+            specific_paper_ids=selected_paper_ids
         )
         
         if stats:

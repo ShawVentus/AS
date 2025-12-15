@@ -134,14 +134,19 @@ class ArxivSpider(scrapy.Spider):
                 raise CloseSpider(f"Date parsing failed: {str(e)}")
         # ------------------------------------------------
         
-        # 提取锚点
-        anchors = []
+        # 提取 "Replacements" 的锚点
+        replacement_anchor = None
         for li in response.css("div[id=dlpage] ul li"):
+            a_text = li.css("a::text").get()
             href = li.css("a::attr(href)").get()
-            if href and "item" in href:
-                anchors.append(int(href.split("item")[-1]))
-        
-        self.logger.debug(f"找到 {len(anchors)} 个锚点")
+            # Check for "Replacements" or "Replacement submissions"
+            if a_text and "Replacement" in a_text and href and "item" in href:
+                try:
+                    replacement_anchor = int(href.split("item")[-1])
+                    self.logger.info(f"Found Replacements anchor: {replacement_anchor}")
+                    break
+                except ValueError:
+                    pass
         
         dt_elements = response.xpath('//dl[@id="articles"]/dt')
         dd_elements = response.xpath('//dl[@id="articles"]/dd')
@@ -154,9 +159,14 @@ class ArxivSpider(scrapy.Spider):
             # 提取ArXiv ID
             paper_anchor = dt.xpath('./a[@name]/@name').get()
             if paper_anchor and "item" in paper_anchor:
-                paper_id_num = int(paper_anchor.split("item")[-1])
-                if anchors and paper_id_num >= anchors[-1]:
-                    continue
+                try:
+                    paper_id_num = int(paper_anchor.split("item")[-1])
+                    # 只有当找到了 replacement_anchor 且当前 ID 大于等于它时才跳过
+                    if replacement_anchor is not None and paper_id_num >= replacement_anchor:
+                        self.logger.debug(f"Skipping replacement paper at anchor {paper_id_num}")
+                        continue
+                except ValueError:
+                    pass
 
             arxiv_id_text = dt.xpath('.//a[@title="Abstract"]/text()').get()
             if not arxiv_id_text:

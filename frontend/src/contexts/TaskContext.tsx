@@ -82,6 +82,18 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const eventSource = new EventSource(url);
         eventSourceRef.current = eventSource;
 
+        // [Fix] Listen for explicit system_error events from backend
+        eventSource.addEventListener('system_error', (event: MessageEvent) => {
+            console.error("SSE System Error:", event.data);
+            completeTask(false, event.data || "生成出错");
+            // Force update steps to failed
+            setSteps(prev => prev.map(s =>
+                (s.status === 'running' || s.status === 'pending')
+                    ? { ...s, status: 'failed', message: '任务中断' }
+                    : s
+            ));
+        });
+
         eventSource.addEventListener('progress', (event: MessageEvent) => {
             try {
                 const data = JSON.parse(event.data);
@@ -98,6 +110,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 } else if (data.status === 'failed') {
                     console.log("Task failed:", id);
                     completeTask(false, data.error);
+                    // Force update steps to failed
+                    setSteps(prev => prev.map(s =>
+                        (s.status === 'running' || s.status === 'pending')
+                            ? { ...s, status: 'failed', message: '任务失败' }
+                            : s
+                    ));
                 }
             } catch (e) {
                 console.error("Error parsing SSE data", e);
@@ -106,8 +124,15 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         eventSource.onerror = (err) => {
             console.error("SSE Error:", err);
-            // 连接错误通常意味着连接中断，EventSource 会自动重连
-            // 但如果是 404 或其他致命错误，可能需要手动处理
+            // Treat connection error as failure
+            completeTask(false, "连接中断，任务可能已停止");
+
+            // Force update steps to failed
+            setSteps(prev => prev.map(s =>
+                (s.status === 'running' || s.status === 'pending')
+                    ? { ...s, status: 'failed', message: '连接中断' }
+                    : s
+            ));
         };
     };
 

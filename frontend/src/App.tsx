@@ -3,8 +3,6 @@ import { FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from './services/supabase';
 import { Header } from './components/layout/Header';
-import { ReportDetail } from './components/features/reports/ReportDetail';
-import { ReportList } from './components/features/reports/ReportList';
 import { PaperList } from './components/features/papers/PaperList';
 import { PaperCard } from './components/features/papers/PaperCard';
 import { PaperDetailModal } from './components/shared/PaperDetailModal';
@@ -17,14 +15,10 @@ import { useAuth } from './contexts/AuthContext';
 import { Login } from './components/auth/Login';
 import { Register } from './components/auth/Register';
 
-import { Onboarding } from './components/features/Onboarding';
-import { Settings } from './components/features/Settings';
-import { FeedbackPage } from './components/features/FeedbackPage';
-import { WorkflowPage } from './features/admin/WorkflowPage';
 import { ReportGenerationModal } from './components/features/ReportGenerationModal';
-import { ManualReportPage } from './components/features/ManualReportPage';
 
-// [NEW] Import React Query and ToastProvider
+import { MainView } from './components/layout/MainView';
+
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ToastProvider } from './contexts/ToastContext';
 import { TaskProvider, useTaskContext } from './contexts/TaskContext';
@@ -260,158 +254,8 @@ function AppContent() {
         }
     };
 
-
-
-    const renderContent = () => {
-        console.log("renderContent called. currentView:", currentView, "userProfile:", userProfile);
-
-        // 1. Onboarding view should be rendered regardless of userProfile status
-        // This must be checked BEFORE the null check for userProfile
-        if (currentView === 'onboarding') {
-            console.log("Rendering Onboarding component");
-            return <Onboarding
-                onComplete={() => {
-                    console.log("Onboarding complete, switching to dashboard");
-                    // Refresh profile
-                    queryClient.invalidateQueries({ queryKey: ['userProfile'] })
-                        .then(() => {
-                            setCurrentView('dashboard');
-                        })
-                        .catch((err) => {
-                            console.error("Failed to refresh profile after onboarding:", err);
-                            alert("初始化失败，请重试");
-                        });
-                }}
-                initialName={userProfile?.info?.name}
-            />;
-        }
-
-        // 2. For all other views, userProfile is strictly required
-        if (!userProfile) {
-            console.log("userProfile is null, showing LoadingScreen inside renderContent");
-            return (
-                <div className="flex items-center justify-center h-full">
-                    <LoadingScreen />
-                </div>
-            );
-        }
-
-        if (currentView === 'settings') {
-            return <Settings
-                userProfile={userProfile}
-                onUpdate={() => {
-                    queryClient.invalidateQueries({ queryKey: ['userProfile'] });
-                }}
-                onBack={() => setCurrentView('dashboard')}
-                onNavigate={setCurrentView}
-            />;
-        }
-
-        if (currentView === 'reports' && selectedReport) {
-            return <ReportDetail
-                report={selectedReport}
-                onBack={() => setSelectedReport(null)}
-                onNavigateToPaper={handleNavigateToPaper}
-            />;
-        }
-
-        if (currentView === 'dashboard') {
-            return (
-                <div className="p-6 max-w-7xl mx-auto animate-in fade-in">
-
-
-                    {/* Today's Report Push */}
-                    {latestReport && (
-                        <div className="mb-8">
-                            <h2 className="text-lg font-bold text-white mb-3">最新报告推送</h2>
-                            <div
-                                onClick={() => {
-                                    setSelectedReport(latestReport);
-                                    setCurrentView('reports');
-                                }}
-                                className="bg-gradient-to-r from-indigo-900/50 to-slate-900 border border-indigo-500/30 rounded-lg p-4 cursor-pointer hover:border-indigo-500/50 transition-all group"
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <FileText size={16} className="text-indigo-400" />
-                                        <span className="font-bold text-white group-hover:text-indigo-300 transition-colors">
-                                            {latestReport.title}
-                                        </span>
-                                        <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
-                                            {latestReport.createdAt?.split('T')[0] || latestReport.date}
-                                        </span>
-                                    </div>
-                                    <div className="text-xs text-indigo-400 group-hover:translate-x-1 transition-transform">
-                                        阅读报告 &rarr;
-                                    </div>
-                                </div>
-                                <p className="text-sm text-slate-400 line-clamp-2">
-                                    {latestReport.summary}
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Heatmap Removed as per request */}
-
-                    <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-lg font-bold text-white">最新相关论文推荐</h2>
-                        <button
-                            onClick={() => setCurrentView('papers')}
-                            className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
-                        >
-                            查看更多 &rarr;
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-10">
-                        {recommendations.map((p, idx) => (
-                            <PaperCard
-                                key={p.meta?.id || Math.random()}
-                                paper={p}
-                                index={idx + 1}
-                                showIndex={true} // Show index 1-6
-                                onOpenDetail={(paper) => {
-                                    setModalPaper(paper);
-                                    setModalPapers(recommendations); // Set context for navigation
-                                    setModalPaperIndex(idx);
-                                }}
-                                onFeedback={handleFeedback}
-                            />
-                        ))}
-                    </div>
-                </div>
-            );
-        }
-
-        if (currentView === 'reports') {
-            return <ReportList onSelectReport={setSelectedReport} />;
-        }
-
-        if (currentView === 'papers') {
-            return <PaperList
-                onOpenDetail={(paper) => setModalPaper(paper)}
-                selectedPaper={selectedPaper}
-                setSelectedPaper={setSelectedPaper}
-                dateFilter={dateFilter}
-                onClearDateFilter={() => setDateFilter(null)}
-            />
-        }
-
-        if (currentView === 'feedback') {
-            return <FeedbackPage />;
-        }
-
-        if (currentView === 'workflow') {
-            return <WorkflowPage />;
-        }
-
-        if (currentView === 'manual-report') {
-            return <ManualReportPage
-                userProfile={userProfile}
-                onBack={() => setCurrentView('dashboard')}
-            />;
-        }
-        return null;
+    const handleRefreshProfile = async () => {
+        await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
     };
 
     return (
@@ -430,7 +274,28 @@ function AppContent() {
             <main className="flex-1 h-full overflow-hidden relative">
                 <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
                     <ErrorBoundary>
-                        {renderContent()}
+                        <MainView
+                            currentView={currentView}
+                            userProfile={userProfile}
+                            selectedReport={selectedReport}
+                            selectedPaper={selectedPaper}
+                            recommendations={recommendations}
+                            latestReport={latestReport}
+                            loadingPapers={dataLoading}
+                            dateFilter={dateFilter}
+                            onNavigate={setCurrentView}
+                            onSelectReport={setSelectedReport}
+                            onSelectPaper={setSelectedPaper}
+                            onNavigateToPaper={handleNavigateToPaper}
+                            onFeedback={handleFeedback}
+                            onOpenDetail={(paper) => {
+                                setModalPaper(paper);
+                                setModalPapers(recommendations);
+                                setModalPaperIndex(recommendations.findIndex(p => p.meta.id === paper.meta.id));
+                            }}
+                            onClearDateFilter={() => setDateFilter(null)}
+                            onRefreshProfile={handleRefreshProfile}
+                        />
                     </ErrorBoundary>
                 </div>
             </main>

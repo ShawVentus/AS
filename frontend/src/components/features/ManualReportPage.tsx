@@ -325,7 +325,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                                 <h4 className="text-xs font-bold text-white mb-1">计费规则</h4>
                                 <ul className="text-xs text-slate-400 space-y-1">
-                                    <li>• 基础消耗: 99 光子 (处理论文数在200篇以内)</li>
+                                    <li>• 基础消耗: 99 光子 (200篇内论文)</li>
                                     <li>• 处理论文数在201-300篇之间: 149光子</li>
                                     <li>• 以此类推...</li>
                                 </ul>
@@ -378,10 +378,10 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
                     <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl">
                         <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                             <AlertTriangle className="text-amber-500" />
-                            确认强制生成？
+                            确认生成？
                         </h3>
                         <p className="text-slate-400 mb-6">
-                            这将强制执行新的分析流程，可能会覆盖您今日已生成的报告数据。
+                            这将执行新的分析流程，可能会覆盖您今日已生成的部分论文数据。
                             <br /><br />
                             预计消耗光子: <span className="text-amber-400 font-bold">{estimatedCost}</span>
                         </p>

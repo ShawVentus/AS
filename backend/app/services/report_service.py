@@ -34,7 +34,7 @@ class ReportService:
             List[Report]: 报告对象列表，按日期倒序排列。
         """
         try:
-            response = self.db.table("reports").select("*").order("date", desc=True).execute()
+            response = self.db.table("reports").select("*").order("created_at", desc=True).execute()
             if response.data:
                 return [Report(**r) for r in response.data]
             return []
@@ -42,7 +42,7 @@ class ReportService:
             print(f"Error fetching reports: {e}")
             return []
 
-    def generate_daily_report(self, papers: List[PersonalizedPaper], user_profile: UserProfile) -> tuple[Report, Dict[str, int]]:
+    def generate_daily_report(self, papers: List[PersonalizedPaper], user_profile: UserProfile, custom_title: Optional[str] = None, manual_query: Optional[str] = None) -> tuple[Report, Dict[str, int]]:
         """
         生成每日报告并自动发送邮件。
         Generate daily report and send email automatically.
@@ -50,6 +50,8 @@ class ReportService:
         Args:
             papers (List[PersonalizedPaper]): 用于生成报告的论文列表 (List of papers for the report)。
             user_profile (UserProfile): 用户画像，用于定制报告内容 (User profile for customization)。
+            custom_title (Optional[str]): 自定义报告标题 (Custom report title)。
+            manual_query (Optional[str]): 手动输入的查询 (Manual query for instant report)。
 
         Returns:
             tuple[Report, Dict[str, int]]: 生成的报告对象和 Usage 统计 (Generated report object and usage stats)。
@@ -65,7 +67,29 @@ class ReportService:
             papers_data.append(flat_p)
         
         # 2. 调用 LLM 生成报告
-        profile_str = json.dumps(user_profile.model_dump(), ensure_ascii=False, indent=2)
+        profile_dict = user_profile.model_dump()
+        
+        # [Manual Override] Inject manual query into profile dict
+        if manual_query:
+            # Completely replace context to avoid "contamination" from old profile
+            profile_dict["context"] = {
+                "preferences": "User is requesting an instant report on a specific topic.",
+                "currentTask": f"Researching: {manual_query}",
+                "futureGoal": "Get a quick overview of the latest papers on this topic."
+            }
+            
+            # Re-construct focus to only include manual query
+            # We keep the structure but clear the lists
+            profile_dict["focus"] = {
+                "category": [], 
+                "keywords": [manual_query],
+                "authors": [],
+                "institutions": [],
+                "description": manual_query, # Explicitly set description
+                "manual_query_instruction": f"User explicitly requested a report on: '{manual_query}'. Please focus the summary ONLY on this topic and IGNORE any previous user context."
+            }
+            
+        profile_str = json.dumps(profile_dict, ensure_ascii=False, indent=2)
         llm_result = llm_service.generate_report(papers_data, profile_str)
         print(f"DEBUG: LLM Report Result: {json.dumps(llm_result, ensure_ascii=False, indent=2)}")
         
@@ -105,11 +129,14 @@ class ReportService:
             report_date = datetime.now().strftime("%Y-%m-%d")
         
         # 4. 创建 Report 对象
+        # Use custom_title if provided, otherwise use LLM result title
+        final_title = custom_title if custom_title else llm_result.get("title", "Daily Report")
+        
         report = Report(
             id=str(uuid.uuid4()),
             user_id=user_profile.info.id,
             email=user_profile.info.email,  # [Add] 填充 email 字段
-            title=llm_result.get("title", "Daily Report"),
+            title=final_title,
             date=report_date, # [MODIFIED] 使用 ArXiv 日期
             summary=llm_result.get("summary", ""),
             content=llm_result.get("content", ""),

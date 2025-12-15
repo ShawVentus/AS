@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ReportAPI } from '../../../services/api';
 import type { Report } from '../../../types';
 
+import { formatReportTime } from '../../../utils/date';
+
 interface ReportListProps {
     onSelectReport: (report: Report) => void;
 }
@@ -52,7 +54,12 @@ export const ReportList: React.FC<ReportListProps> = ({ onSelectReport }) => {
                             <h3 className="text-sm font-bold text-slate-200 group-hover:text-cyan-400 mb-1 transition-colors">{report.title}</h3>
                             <p className="text-xs text-slate-500 line-clamp-1">{report.summary}</p>
                         </div>
-                        <ChevronRight size={16} className="text-slate-600 group-hover:text-cyan-500 transition-colors" />
+                        <div className="flex items-center gap-3 ml-4 shrink-0">
+                            <span className="text-xs text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">
+                                {formatReportTime(report.created_at || report.date)}
+                            </span>
+                            <ChevronRight size={16} className="text-slate-600 group-hover:text-cyan-500 transition-colors" />
+                        </div>
                     </div>
                 ))}
             </div>

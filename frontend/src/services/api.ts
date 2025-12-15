@@ -92,6 +92,10 @@ export const RealPaperAPI = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(feedback)
     }),
+    getPapersByIds: (ids: string[]) => fetchJSON<Paper[]>('/papers/batch', {
+        method: 'POST',
+        body: JSON.stringify({ ids })
+    }),
 };
 
 export const RealReportAPI = {
