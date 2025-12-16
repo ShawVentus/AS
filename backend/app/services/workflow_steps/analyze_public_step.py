@@ -49,7 +49,8 @@ class AnalyzePublicStep(WorkflowStep):
             analyzed_count = stats.get("analyzed_count", 0)
             
             from app.core.config import settings
-            self.metrics["model_name"] = settings.OPENROUTER_MODEL_CHEAP
+            # 使用通用模型配置，优先新配置，回退到旧配置以保持兼容
+            self.metrics["model_name"] = getattr(settings, 'MODEL_CHEAP', settings.OPENROUTER_MODEL_CHEAP)
         
         # 【新增】归档论文到永久表
         # 将 daily_papers 中的论文归档到 papers 表，确保数据持久化

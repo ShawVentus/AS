@@ -26,15 +26,22 @@ class ReportService:
     def __init__(self):
         self.db = get_db()
 
-    def get_reports(self) -> List[Report]:
+    def get_reports(self, user_id: str) -> List[Report]:
         """
-        从数据库获取所有生成的报告。
+        从数据库获取指定用户的报告。
+
+        Args:
+            user_id (str): 用户ID
 
         Returns:
-            List[Report]: 报告对象列表，按日期倒序排列。
+            List[Report]: 该用户的报告对象列表,按日期倒序排列。
         """
         try:
-            response = self.db.table("reports").select("*").order("created_at", desc=True).execute()
+            response = self.db.table("reports")\
+                .select("*")\
+                .eq("user_id", user_id)\
+                .order("created_at", desc=True)\
+                .execute()
             if response.data:
                 return [Report(**r) for r in response.data]
             return []

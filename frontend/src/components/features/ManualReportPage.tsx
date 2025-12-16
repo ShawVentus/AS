@@ -437,7 +437,6 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
                     </div>
                 )}
             </div>
-            // ...
 
             {/* Confirm Modal */}
             {showConfirm && (

@@ -29,7 +29,9 @@ def filter_single_paper(paper_str: str, user_profile_str: str) -> Dict[str, Any]
         # 3. 调用 LLM
         # [Fix] 使用配置的 Cheap Model，并捕获 usage
         from app.core.config import settings
-        response_str, usage = llm_service.call_llm(prompt, model=settings.OPENROUTER_MODEL_CHEAP)
+        # 使用通用模型配置，优先新配置，回退到旧配置以保持兼容
+        cheap_model = getattr(settings, 'MODEL_CHEAP', settings.OPENROUTER_MODEL_CHEAP)
+        response_str, usage = llm_service.call_llm(prompt, model=cheap_model)
         
         # 4. 解析结果
         result = json.loads(response_str)

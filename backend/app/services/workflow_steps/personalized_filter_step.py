@@ -160,7 +160,8 @@ class PersonalizedFilterStep(WorkflowStep):
         self.metrics["cache_hit_tokens"] = total_cache_hits
         self.metrics["request_count"] = total_requests
         from app.core.config import settings
-        self.metrics["model_name"] = settings.OPENROUTER_MODEL_CHEAP
+        # 使用通用模型配置，优先新配置，回退到旧配置以保持兼容
+        self.metrics["model_name"] = getattr(settings, 'MODEL_CHEAP', settings.OPENROUTER_MODEL_CHEAP)
             
         self.tokens_input = total_input
         self.tokens_output = total_output

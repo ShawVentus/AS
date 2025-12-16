@@ -1,15 +1,17 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from app.schemas.report import Report
 from app.services.report_service import report_service
 from app.services.paper_service import paper_service
 from app.services.user_service import user_service
+from app.core.auth import get_current_user_id
 
 router = APIRouter()
 
 @router.get("/", response_model=List[Report])
-async def get_reports():
-    return report_service.get_reports()
+async def get_reports(user_id: str = Depends(get_current_user_id)):
+    """获取当前用户的所有报告"""
+    return report_service.get_reports(user_id)
 
 @router.post("/generate", response_model=Report)
 async def generate_report():

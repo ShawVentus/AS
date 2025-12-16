@@ -93,42 +93,63 @@ class QwenService:
                 )
                 response = completion.choices[0].message.content
                 
-                # 解析 Usage 和 Cost
+                # ========== 解析 Usage 统计信息 ==========
                 usage = completion.usage
                 usage_dict = {
                     "prompt_tokens": usage.prompt_tokens if usage else 0,
                     "completion_tokens": usage.completion_tokens if usage else 0,
                     "total_tokens": usage.total_tokens if usage else 0,
-                    "model": target_model
+                    "model": target_model,
+                    "cache_hit_tokens": 0,  # 初始化缓存命中token数
+                    "cost": 0.0  # 初始化成本
                 }
 
-                # 尝试解析 OpenRouter 特有字段 (cost, cache)
-                # 注意: OpenAI Python 客户端可能将额外字段放在 model_extra 或直接属性中
-                # 这里的处理尝试兼容不同的返回结构
-                
-                # 1. 尝试获取缓存命中数
-                # OpenRouter 通常在 prompt_tokens_details 中返回 cached_tokens
-                if usage and hasattr(usage, 'prompt_tokens_details') and usage.prompt_tokens_details:
-                     # 检查是否为对象或字典
-                    details = usage.prompt_tokens_details
-                    if isinstance(details, dict):
-                        usage_dict["cache_hit_tokens"] = details.get("cached_tokens", 0)
-                    elif hasattr(details, 'cached_tokens'):
-                        usage_dict["cache_hit_tokens"] = details.cached_tokens
-                    else:
-                        usage_dict["cache_hit_tokens"] = 0
-                else:
-                    usage_dict["cache_hit_tokens"] = 0
+                # ========== Provider特定字段解析 ==========
+                # 某些Provider（如OpenRouter）会返回额外的统计信息
+                if self.provider == "openrouter":
+                    # OpenRouter 支持缓存命中统计
+                    if usage and hasattr(usage, 'prompt_tokens_details') and usage.prompt_tokens_details:
+                        details = usage.prompt_tokens_details
+                        if isinstance(details, dict):
+                            usage_dict["cache_hit_tokens"] = details.get("cached_tokens", 0)
+                        elif hasattr(details, 'cached_tokens'):
+                            usage_dict["cache_hit_tokens"] = details.cached_tokens
+                    
+                    # OpenRouter 可能在响应中直接返回成本信息
+                    if hasattr(completion, 'usage') and isinstance(completion.usage, dict):
+                        usage_dict["cost"] = completion.usage.get("cost", 0.0)
+                    elif hasattr(completion, 'model_extra') and completion.model_extra:
+                        usage_info = completion.model_extra.get('usage', {})
+                        if isinstance(usage_info, dict):
+                            usage_dict["cost"] = usage_info.get('cost', 0.0)
+                elif self.provider == "bohrium":
+                    # Bohrium API 也支持缓存命中统计
+                    if usage and hasattr(usage, 'prompt_tokens_details') and usage.prompt_tokens_details:
+                        details = usage.prompt_tokens_details
+                        if isinstance(details, dict):
+                            usage_dict["cache_hit_tokens"] = details.get("cached_tokens", 0)
+                        elif hasattr(details, 'cached_tokens'):
+                            usage_dict["cache_hit_tokens"] = details.cached_tokens
 
-                # 2. 尝试获取 Cost (OpenRouter 特有)
-                # 某些客户端版本可能将非标准字段放在 extra_fields 或 model_extra
-                # 如果无法直接获取，后续 WorkflowEngine 会根据 Token 计算
-                if hasattr(completion, 'usage') and isinstance(completion.usage, dict):
-                     usage_dict["cost"] = completion.usage.get("cost", 0.0)
-                elif hasattr(completion, 'model_extra') and completion.model_extra:
-                     usage_info = completion.model_extra.get('usage', {})
-                     if isinstance(usage_info, dict):
-                         usage_dict["cost"] = usage_info.get('cost', 0.0)
+                # ========== 通用成本计算 ==========
+                # 当API不返回成本时，根据token数量和配置的价格自动计算
+                if usage_dict["cost"] == 0.0 and usage_dict["total_tokens"] > 0:
+                    from app.core.config import settings
+                    
+                    # 从配置获取该模型的定价
+                    pricing = settings.get_model_pricing(target_model)
+                    
+                    # 计算成本 (USD)
+                    # 公式：成本 = (输入tokens / 1,000,000) × 输入价格 + (输出tokens / 1,000,000) × 输出价格
+                    input_cost = (usage_dict["prompt_tokens"] / 1_000_000) * pricing["input_price"]
+                    output_cost = (usage_dict["completion_tokens"] / 1_000_000) * pricing["output_price"]
+                    usage_dict["cost"] = input_cost + output_cost
+                    
+                    print(f"[成本计算] 模型: {target_model} | "
+                          f"输入: {usage_dict['prompt_tokens']} tokens (${input_cost:.6f}) | "
+                          f"输出: {usage_dict['completion_tokens']} tokens (${output_cost:.6f}) | "
+                          f"总计: ${usage_dict['cost']:.6f}")
+
                 
                 # 清理可能的 markdown 代码块标记
                 response = response.strip()
@@ -164,13 +185,21 @@ class QwenService:
     def filter_paper(self, paper: Dict, user_profile: str) -> Dict[str, Any]:
         """
         使用 LLM 检查论文是否与用户画像相关。
+        
+        功能说明：
+            调用LLM对论文进行相关性评估，判断论文是否符合用户的研究兴趣。
+            使用便宜的模型以降低成本。
 
         Args:
-            paper (Dict): 论文元数据字典。
-            user_profile (str): 用户画像字符串。
+            paper (Dict): 论文元数据字典，包含title、abstract、category等字段
+            user_profile (str): 用户画像字符串，描述用户的研究方向和兴趣
 
         Returns:
-            Dict[str, Any]: 筛选结果字典 (包含 _usage)。
+            Dict[str, Any]: 筛选结果字典，包含以下字段：
+                - is_relevant (bool): 是否相关
+                - score (int): 相关性评分 (0-10)
+                - reason (str): 判断理由
+                - _usage (dict): API调用统计信息
         """
         template = self.read_prompt("filter.md")
         prompt = template.format(
@@ -180,26 +209,33 @@ class QwenService:
             category=paper.get("category", "")
         )
         
-        # 使用便宜的模型进行筛选
-        response, usage = self.call_llm(prompt, model=settings.OPENROUTER_MODEL_CHEAP)
+        # 使用通用的便宜模型配置，优先使用新配置，回退到旧配置以保持兼容
+        cheap_model = getattr(settings, 'MODEL_CHEAP', settings.OPENROUTER_MODEL_CHEAP)
+        response, usage = self.call_llm(prompt, model=cheap_model)
         try:
             result = json.loads(response)
-            result["_usage"] = usage # 注入 usage 信息
+            result["_usage"] = usage  # 注入 usage 统计信息
             return result
         except json.JSONDecodeError:
-            print(f"filter 解析 JSON 错误: {response}")
-            return {"is_relevant": False, "score": 0, "reason": "Parse Error", "_usage": usage}
+            print(f"[错误] filter_paper 解析 JSON 失败: {response[:100]}...")
+            return {"is_relevant": False, "score": 0, "reason": "JSON解析错误", "_usage": usage}
 
     def analyze_paper(self, abstract: str, comment: str = "") -> Dict[str, Any]:
         """
         使用 LLM 分析论文详情。
+        
+        功能说明：
+            对论文摘要进行深度分析，提取关键信息、创新点、方法等。
+            使用便宜的模型以控制成本。
 
         Args:
-            abstract (str): 论文摘要。
-            comment (str): 论文备注 (可选)。
+            abstract (str): 论文摘要文本
+            comment (str, optional): 论文的额外备注信息。默认为空字符串。
 
         Returns:
-            Dict[str, Any]: 分析结果字典 (包含 _usage)。
+            Dict[str, Any]: 分析结果字典，包含：
+                - 各种分析字段（具体取决于analyze.md模板的定义）
+                - _usage (dict): API调用统计信息
         """
         template = self.read_prompt("analyze.md")
         
@@ -208,14 +244,15 @@ class QwenService:
             comment=comment
         )
         
-        # 使用便宜的模型进行分析
-        response, usage = self.call_llm(prompt, model=settings.OPENROUTER_MODEL_CHEAP)
+        # 使用通用的便宜模型配置
+        cheap_model = getattr(settings, 'MODEL_CHEAP', settings.OPENROUTER_MODEL_CHEAP)
+        response, usage = self.call_llm(prompt, model=cheap_model)
         try:
             result = json.loads(response)
             result["_usage"] = usage
             return result
         except json.JSONDecodeError:
-            print(f"analyze 解析 JSON 错误: {response}")
+            print(f"[错误] analyze_paper 解析 JSON 失败: {response[:100]}...")
             return {"_usage": usage}
 
     def generate_report(self, papers: list, user_profile: str) -> Dict[str, Any]:
@@ -302,12 +339,13 @@ class QwenService:
                     time.sleep(2) # 重试间隔
             return None
 
-        # 1. 尝试主模型
-        result = try_generate(settings.OPENROUTER_MODEL_PERFORMANCE, retries=3)
+        # 1. 尝试主模型（使用通用配置）
+        performance_model = getattr(settings, 'MODEL_PERFORMANCE', settings.OPENROUTER_MODEL_PERFORMANCE)
+        result = try_generate(performance_model, retries=3)
         
         # 2. 如果主模型失败，尝试备用模型
         if not result:
-            print(f"⚠️ Primary model {settings.OPENROUTER_MODEL_PERFORMANCE} failed after 3 attempts. Switching to fallback...")
+            print(f"⚠️ 主模型 {performance_model} 在3次尝试后失败。切换到备用模型...")
             fallback_model = "deepseek/deepseek-v3.2"
             result = try_generate(fallback_model, retries=3)
             
@@ -325,27 +363,33 @@ class QwenService:
     def extract_categories(self, text: str) -> Dict[str, Any]:
         """
         从自然语言中提取 Arxiv 类别和作者。
+        
+        功能说明：
+            解析用户的自然语言查询，提取其中提到的Arxiv分类和作者名称。
+            用于手动查询功能，将用户输入转化为结构化的查询参数。
 
         Args:
-            text (str): 用户输入的自然语言文本。
+            text (str): 用户输入的自然语言文本
 
         Returns:
-            Dict[str, Any]: 包含 categories 和 authors 的字典 (包含 _usage)。
-                            - categories: 提取出的 Arxiv 类别列表。
-                            - authors: 提取出的作者列表。
+            Dict[str, Any]: 提取结果字典，包含以下字段：
+                - categories (list): 提取出的 Arxiv 类别列表（如 ["cs.CV", "cs.AI"]）
+                - authors (list): 提取出的作者列表
+                - _usage (dict): API调用统计信息
         """
         template = self.read_prompt("extract_categories.md")
         prompt = template.replace("{user_input}", text)
         
-        # 使用便宜的模型进行提取
-        response, usage = self.call_llm(prompt, model=settings.OPENROUTER_MODEL_CHEAP)
+        # 使用通用的便宜模型配置
+        cheap_model = getattr(settings, 'MODEL_CHEAP', settings.OPENROUTER_MODEL_CHEAP)
+        response, usage = self.call_llm(prompt, model=cheap_model)
         try:
             result = json.loads(response)
             result["_usage"] = usage
             return result
         except json.JSONDecodeError:
-            print(f"extract_categories 解析 JSON 错误: {response}")
-            # Fallback: 如果解析失败，尝试简单的关键词匹配或返回空
+            print(f"[错误] extract_categories 解析 JSON 失败: {response[:100]}...")
+            # Fallback: 如果解析失败，返回空列表
             return {"categories": [], "authors": [], "_usage": usage}
 
 llm_service = QwenService()

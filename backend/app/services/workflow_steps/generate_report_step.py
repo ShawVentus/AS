@@ -45,8 +45,8 @@ class GenerateReportStep(WorkflowStep):
             self.cost = stats.get("cost", 0.0)
             self.metrics["cache_hit_tokens"] = stats.get("cache_hit_tokens", 0)
             self.metrics["request_count"] = stats.get("request_count", 0)
-            
             from app.core.config import settings
-            self.metrics["model_name"] = settings.OPENROUTER_MODEL_PERFORMANCE
+            # 使用通用模型配置，优先新配置，回退到旧配置以保持兼容
+            self.metrics["model_name"] = getattr(settings, 'MODEL_PERFORMANCE', settings.OPENROUTER_MODEL_PERFORMANCE)
         
         return {"report_generated": True}

@@ -311,6 +311,23 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                     />
                 </div>
             </section>
+
+            {/* 退出登录 */}
+            <section className="bg-slate-900/50 rounded-xl p-5 border border-slate-800 backdrop-blur-sm">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-semibold text-white mb-1">退出登录</h2>
+                        <p className="text-sm text-slate-500">登出当前账户</p>
+                    </div>
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 bg-red-600/10 hover:bg-red-600/20 text-red-400 font-medium py-2 px-6 rounded-lg border border-red-600/30 hover:border-red-600/50 transition-all"
+                    >
+                        <LogOut size={16} />
+                        退出登录
+                    </button>
+                </div>
+            </section>
         </div>
     );
 }

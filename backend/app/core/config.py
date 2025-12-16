@@ -40,11 +40,21 @@ class Settings:
     # 高性能模型 (用于报告生成)
     OPENROUTER_MODEL_PERFORMANCE: str = os.getenv("OPENROUTER_MODEL_PERFORMANCE", "qwen/qwen3-max")
     
+    # 通用模型配置（不绑定特定Provider）
+    MODEL_CHEAP: str = os.getenv("MODEL_CHEAP", "qwen-plus")
+    MODEL_PERFORMANCE: str = os.getenv("MODEL_PERFORMANCE", "qwen3-max")
+    
     # Qwen-Plus 定价 (USD per 1M tokens)
     QWEN_PLUS_PRICE_INPUT: float = float(os.getenv("QWEN_PLUS_PRICE_INPUT", "0.40"))
     QWEN_PLUS_PRICE_OUTPUT: float = float(os.getenv("QWEN_PLUS_PRICE_OUTPUT", "1.20"))
     QWEN_MAX_PRICE_INPUT: float = float(os.getenv("QWEN_MAX_PRICE_INPUT", "1.60")) # 假设价格，需确认
     QWEN_MAX_PRICE_OUTPUT: float = float(os.getenv("QWEN_MAX_PRICE_OUTPUT", "4.80"))
+    
+    # Bohrium API 定价 (USD per 1M tokens)
+    BOHRIUM_PLUS_PRICE_INPUT: float = float(os.getenv("BOHRIUM_PLUS_PRICE_INPUT", "0.40"))
+    BOHRIUM_PLUS_PRICE_OUTPUT: float = float(os.getenv("BOHRIUM_PLUS_PRICE_OUTPUT", "1.20"))
+    BOHRIUM_MAX_PRICE_INPUT: float = float(os.getenv("BOHRIUM_MAX_PRICE_INPUT", "1.20"))
+    BOHRIUM_MAX_PRICE_OUTPUT: float = float(os.getenv("BOHRIUM_MAX_PRICE_OUTPUT", "6.00"))
 
     # 兼容旧配置
     ACCESS_KEY: str = os.getenv("ACCESS_KEY", "")
@@ -74,7 +84,7 @@ class Settings:
             },
             "bohrium": {
                 "api_key": self.BOHRIUM_API_KEY or self.ACCESS_KEY,
-                "base_url": "https://api.bohrium.dp.tech/v1",
+                "base_url": "https://openapi.dp.tech/openapi/v1",  # 修正为正确的玻尔API地址
                 "model": self.BOHRIUM_MODEL,
             }
         }
@@ -87,6 +97,74 @@ class Settings:
             raise ValueError(f"未设置 {provider} 的 API Key。")
             
         return config
+    
+    def get_model_pricing(self, model: str) -> dict:
+        """
+        根据模型名称获取定价信息。
+        
+        功能说明：
+            根据当前配置的 LLM Provider 和模型名称，返回该模型的输入和输出token定价。
+            支持 OpenRouter、Bohrium、DashScope 三种 Provider。
+            使用模糊匹配查找模型定价，如果找不到则返回默认定价。
+        
+        Args:
+            model (str): 模型名称（如 "qwen-plus", "qwen3-max", "qwen/qwen-plus"）
+        
+        Returns:
+            dict: 包含以下字段的字典：
+                - input_price (float): 输入token价格（USD per 1M tokens）
+                - output_price (float): 输出token价格（USD per 1M tokens）
+        
+        示例：
+            >>> settings.get_model_pricing("qwen-plus")
+            {'input_price': 0.40, 'output_price': 1.20}
+        """
+        provider = self.LLM_PROVIDER.lower()
+        
+        # 模型定价映射表
+        pricing_map = {
+            "openrouter": {
+                "qwen-plus": {
+                    "input_price": self.QWEN_PLUS_PRICE_INPUT,
+                    "output_price": self.QWEN_PLUS_PRICE_OUTPUT
+                },
+                "qwen3-max": {
+                    "input_price": self.QWEN_MAX_PRICE_INPUT,
+                    "output_price": self.QWEN_MAX_PRICE_OUTPUT
+                }
+            },
+            "bohrium": {
+                "qwen-plus": {
+                    "input_price": self.BOHRIUM_PLUS_PRICE_INPUT,
+                    "output_price": self.BOHRIUM_PLUS_PRICE_OUTPUT
+                },
+                "qwen3-max": {
+                    "input_price": self.BOHRIUM_MAX_PRICE_INPUT,
+                    "output_price": self.BOHRIUM_MAX_PRICE_OUTPUT
+                }
+            },
+            "dashscope": {
+                "qwen-plus": {
+                    "input_price": self.QWEN_PLUS_PRICE_INPUT,
+                    "output_price": self.QWEN_PLUS_PRICE_OUTPUT
+                },
+                "qwen3-max": {
+                    "input_price": self.QWEN_MAX_PRICE_INPUT,
+                    "output_price": self.QWEN_MAX_PRICE_OUTPUT
+                }
+            }
+        }
+        
+        # 获取当前Provider的定价配置
+        provider_pricing = pricing_map.get(provider, pricing_map["openrouter"])
+        
+        # 查找模型定价，使用模糊匹配（支持 "qwen/qwen-plus" 和 "qwen-plus" 两种格式）
+        for model_key, pricing in provider_pricing.items():
+            if model_key in model or model in model_key:
+                return pricing
+        
+        # 默认返回 qwen-plus 的定价
+        return provider_pricing.get("qwen-plus", {"input_price": 0.40, "output_price": 1.20})
     
     # 邮件配置
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "")
