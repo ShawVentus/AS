@@ -13,18 +13,24 @@ class EmailFormatter:
     3. 生成纯文本备选邮件内容
     """
     
-    def get_statistics(self, papers: List[PersonalizedPaper]) -> Dict[str, any]:
+    def get_statistics(self, papers: List[PersonalizedPaper], 
+                      total_count: int = None, recommended_count: int = None) -> Dict[str, any]:
         """
         计算统计数据
         
         Args:
             papers (List[PersonalizedPaper]): 论文列表
+            total_count (int, optional): 爬取的总论文数（从外部传入）
+            recommended_count (int, optional): 推荐的论文数（从外部传入）
             
         Returns:
             Dict[str, any]: 统计数据字典
         """
-        total = len(papers)
-        recommended = sum(1 for p in papers if (p.user_state and p.user_state.relevance_score >= 0.7))
+        # 【修复】优先使用传入的统计数据，否则从 papers 列表计算
+        total = total_count if total_count is not None else len(papers)
+        recommended = recommended_count if recommended_count is not None else sum(
+            1 for p in papers if (p.user_state and p.user_state.relevance_score >= 0.7)
+        )
         
         # 统计分类
         category_stats = {}
@@ -45,21 +51,24 @@ class EmailFormatter:
             'generated_at': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
     
-    def format_report_to_html(self, report: Report, papers: List[PersonalizedPaper]) -> Tuple[str, str, Dict]:
+    def format_report_to_html(self, report: Report, papers: List[PersonalizedPaper],
+                             total_count: int = None, recommended_count: int = None) -> Tuple[str, str, Dict]:
         """
         将报告格式化为 HTML 邮件
         
         Args:
             report (Report): 报告对象
             papers (List[PersonalizedPaper]): 论文列表
+            total_count (int, optional): 爬取的总论文数
+            recommended_count (int, optional): 推荐的论文数
             
         Returns:
             Tuple[str, str, Dict]: (HTML内容, 纯文本内容, 统计数据)
         """
         from app.utils.email_templates import EmailTemplates
         
-        # 计算统计
-        stats = self.get_statistics(papers)
+        # 计算统计，使用传入的数据
+        stats = self.get_statistics(papers, total_count=total_count, recommended_count=recommended_count)
         
         # 生成 HTML
         templates = EmailTemplates()

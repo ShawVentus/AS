@@ -240,10 +240,13 @@ class WorkflowEngine:
         # 注入回调
         step.set_progress_callback(progress_callback)
         
-        for attempt in range(1, step.max_retries + 1):
+        # max_retries 是重试次数，所以总尝试次数是 max_retries + 1
+        total_attempts = step.max_retries + 1
+        
+        for attempt in range(1, total_attempts + 1):
             try:
                 logger.info("\n" + "="*50)
-                logger.info(f"👉 执行步骤 [{step.name}] (尝试 {attempt}/{step.max_retries + 1})...")
+                logger.info(f"👉 执行步骤 [{step.name}] (尝试 {attempt}/{total_attempts})...")
                 logger.info("="*50)
                 
                 # 更新步骤状态为 running
@@ -321,7 +324,7 @@ class WorkflowEngine:
                 error_stack = traceback.format_exc()
                 logger.error(f"❌ 步骤 [{step.name}] 执行失败 (尝试 {attempt}): {error_msg}")
                 
-                if attempt < step.max_retries + 1:
+                if attempt < total_attempts:
                     # 指数退避
                     delay = 2 ** (attempt - 1) * int(os.environ.get("WORKFLOW_RETRY_DELAY_BASE", "2"))
                     logger.info(f"⏳ {delay}秒后重试...")

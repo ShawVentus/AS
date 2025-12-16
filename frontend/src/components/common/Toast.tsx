@@ -50,9 +50,9 @@ export const Toast: React.FC<ToastProps> = ({
     }, [id, duration, onClose]);
 
     const icons = {
-        success: <CheckCircle className="w-5 h-5 text-green-400" />,
-        error: <AlertCircle className="w-5 h-5 text-red-400" />,
-        info: <Info className="w-5 h-5 text-blue-400" />
+        success: <CheckCircle className="w-7 h-7 text-green-400" />,
+        error: <AlertCircle className="w-7 h-7 text-red-400" />,
+        info: <Info className="w-7 h-7 text-blue-400" />
     };
 
     const bgColors = {
@@ -68,20 +68,20 @@ export const Toast: React.FC<ToastProps> = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.9 }}
             className={`
-                flex items-center gap-3 p-4 rounded-lg border shadow-xl 
-                ${bgColors[type]} backdrop-blur-sm min-w-[300px] max-w-md pointer-events-auto
+                flex items-center gap-4 p-6 rounded-lg border shadow-xl 
+                ${bgColors[type]} backdrop-blur-sm min-w-[400px] max-w-md pointer-events-auto
             `}
         >
             <div className="shrink-0">
                 {icons[type]}
             </div>
-            <div className="flex-1 text-sm text-slate-200">
+            <div className="flex-1 text-base text-slate-200">
                 {message}
             </div>
             {action && (
                 <button
                     onClick={action.onClick}
-                    className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors px-2 py-1 rounded hover:bg-white/5"
+                    className="text-sm font-medium text-indigo-400 hover:text-indigo-300 transition-colors px-3 py-2 rounded hover:bg-white/5"
                 >
                     {action.label}
                 </button>

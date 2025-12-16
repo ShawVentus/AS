@@ -19,6 +19,5 @@ dist/
 
 # Else
 Latex/
-OpenResourceRepo
+OpenResourceRepo/
 .claude
-spec-kit

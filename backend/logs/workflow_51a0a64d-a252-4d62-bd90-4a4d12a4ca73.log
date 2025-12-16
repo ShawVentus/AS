@@ -1,0 +1,39 @@
+2025-12-16 10:23:06,070 - app.services.workflow_engine - INFO - 📂 日志文件已创建: /Users/mac/Desktop/AS/backend/logs/workflow_51a0a64d-a252-4d62-bd90-4a4d12a4ca73.log
+2025-12-16 10:23:06,070 - app.services.workflow_engine - INFO - 🚀 开始执行工作流: manual_report (ID: 51a0a64d-a252-4d62-bd90-4a4d12a4ca73)
+2025-12-16 10:23:10,784 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 10:23:10,785 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 1/4)...
+2025-12-16 10:23:10,786 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 10:23:25,994 - app.services.workflow_engine - INFO - ✅ 步骤 [run_crawler] 完成。耗时: 10996ms, 成本: $0.000000
+2025-12-16 10:23:26,509 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 10:23:26,510 - app.services.workflow_engine - INFO - 👉 执行步骤 [fetch_details] (尝试 1/4)...
+2025-12-16 10:23:26,510 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 10:23:32,301 - app.services.workflow_engine - INFO - ✅ 步骤 [fetch_details] 完成。耗时: 1049ms, 成本: $0.000000
+2025-12-16 10:23:32,799 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 10:23:32,799 - app.services.workflow_engine - INFO - 👉 执行步骤 [analyze_public_papers] (尝试 1/4)...
+2025-12-16 10:23:32,799 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 10:23:34,022 - app.services.workflow_engine - ERROR - ❌ 步骤 [analyze_public_papers] 执行失败 (尝试 1): [Errno 35] Resource temporarily unavailable
+2025-12-16 10:23:34,022 - app.services.workflow_engine - INFO - ⏳ 2秒后重试...
+2025-12-16 10:23:36,027 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 10:23:36,027 - app.services.workflow_engine - INFO - 👉 执行步骤 [analyze_public_papers] (尝试 2/4)...
+2025-12-16 10:23:36,027 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 10:23:41,722 - app.services.workflow_engine - INFO - ✅ 步骤 [analyze_public_papers] 完成。耗时: 401ms, 成本: $0.000000
+2025-12-16 10:23:42,239 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 10:23:42,240 - app.services.workflow_engine - INFO - 👉 执行步骤 [archive_daily_papers] (尝试 1/4)...
+2025-12-16 10:23:42,240 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 10:23:56,404 - app.services.workflow_engine - INFO - ✅ 步骤 [archive_daily_papers] 完成。耗时: 11098ms, 成本: $0.000000
+2025-12-16 10:23:57,449 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 10:23:57,449 - app.services.workflow_engine - INFO - 👉 执行步骤 [personalized_filter] (尝试 1/4)...
+2025-12-16 10:23:57,451 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 10:24:09,525 - app.services.workflow_engine - INFO - ✅ 步骤 [personalized_filter] 完成。耗时: 7868ms, 成本: $0.000581
+2025-12-16 10:24:10,035 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 10:24:10,036 - app.services.workflow_engine - INFO - 👉 执行步骤 [generate_report] (尝试 1/4)...
+2025-12-16 10:24:10,036 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 10:24:33,104 - app.services.workflow_engine - INFO - ✅ 步骤 [generate_report] 完成。耗时: 17296ms, 成本: $0.001978
+2025-12-16 10:24:33,618 - app.services.workflow_engine - INFO - ✅ 工作流执行完成: 51a0a64d-a252-4d62-bd90-4a4d12a4ca73

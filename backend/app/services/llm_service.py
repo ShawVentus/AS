@@ -21,7 +21,11 @@ class QwenService:
             )
             self.model = config["model"]
             self.provider = settings.LLM_PROVIDER
-            print(f"✓ LLM 服务初始化成功 | 源: {self.provider} | 模型: {self.model}")
+            
+            if self.provider == "bohrium":
+                print(f"✓ LLM Service initialized with Bohrium (Model: {self.model})")
+            else:
+                print(f"✓ LLM 服务初始化成功 | 源: {self.provider} | 模型: {self.model}")
         except Exception as e:
             print(f"✗ LLM 服务初始化失败: {e}")
             self.client = None

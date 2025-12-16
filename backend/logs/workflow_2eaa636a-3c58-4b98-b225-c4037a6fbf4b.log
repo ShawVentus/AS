@@ -1,0 +1,46 @@
+2025-12-16 14:52:13,944 - app.services.workflow_engine - INFO - 📂 日志文件已创建: /Users/mac/Desktop/AS/backend/logs/workflow_2eaa636a-3c58-4b98-b225-c4037a6fbf4b.log
+2025-12-16 14:52:13,944 - app.services.workflow_engine - INFO - 🚀 开始执行工作流: manual_report (ID: 2eaa636a-3c58-4b98-b225-c4037a6fbf4b)
+2025-12-16 14:52:18,013 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 14:52:18,014 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 1/4)...
+2025-12-16 14:52:18,014 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 14:52:35,837 - app.services.workflow_engine - INFO - ✅ 步骤 [run_crawler] 完成。耗时: 14149ms, 成本: $0.000000
+2025-12-16 14:52:37,421 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 14:52:37,421 - app.services.workflow_engine - INFO - 👉 执行步骤 [fetch_details] (尝试 1/4)...
+2025-12-16 14:52:37,421 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 14:52:44,229 - app.services.workflow_engine - INFO - ✅ 步骤 [fetch_details] 完成。耗时: 2092ms, 成本: $0.000000
+2025-12-16 14:52:44,764 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 14:52:44,765 - app.services.workflow_engine - INFO - 👉 执行步骤 [analyze_public_papers] (尝试 1/4)...
+2025-12-16 14:52:44,766 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 14:52:50,011 - app.services.workflow_engine - INFO - ✅ 步骤 [analyze_public_papers] 完成。耗时: 1583ms, 成本: $0.000000
+2025-12-16 14:52:50,521 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 14:52:50,521 - app.services.workflow_engine - INFO - 👉 执行步骤 [archive_daily_papers] (尝试 1/4)...
+2025-12-16 14:52:50,522 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 14:53:06,780 - app.services.workflow_engine - INFO - ✅ 步骤 [archive_daily_papers] 完成。耗时: 10193ms, 成本: $0.000000
+2025-12-16 14:53:07,916 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 14:53:07,916 - app.services.workflow_engine - INFO - 👉 执行步骤 [personalized_filter] (尝试 1/4)...
+2025-12-16 14:53:07,916 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 14:53:08,878 - app.services.workflow_engine - ERROR - ❌ 步骤 [personalized_filter] 执行失败 (尝试 1): name 'arxiv_date' is not defined
+2025-12-16 14:53:08,879 - app.services.workflow_engine - INFO - ⏳ 2秒后重试...
+2025-12-16 14:53:10,884 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 14:53:10,884 - app.services.workflow_engine - INFO - 👉 执行步骤 [personalized_filter] (尝试 2/4)...
+2025-12-16 14:53:10,884 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 14:53:12,026 - app.services.workflow_engine - ERROR - ❌ 步骤 [personalized_filter] 执行失败 (尝试 2): name 'arxiv_date' is not defined
+2025-12-16 14:53:12,026 - app.services.workflow_engine - INFO - ⏳ 4秒后重试...
+2025-12-16 14:53:16,031 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 14:53:16,032 - app.services.workflow_engine - INFO - 👉 执行步骤 [personalized_filter] (尝试 3/4)...
+2025-12-16 14:53:16,032 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 14:53:17,264 - app.services.workflow_engine - ERROR - ❌ 步骤 [personalized_filter] 执行失败 (尝试 3): name 'arxiv_date' is not defined
+2025-12-16 14:53:17,264 - app.services.workflow_engine - INFO - ⏳ 8秒后重试...
+2025-12-16 14:53:25,265 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 14:53:25,266 - app.services.workflow_engine - INFO - 👉 执行步骤 [personalized_filter] (尝试 4/4)...
+2025-12-16 14:53:25,266 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 14:53:26,706 - app.services.workflow_engine - ERROR - ❌ 步骤 [personalized_filter] 执行失败 (尝试 4): name 'arxiv_date' is not defined
+2025-12-16 14:53:27,221 - app.services.workflow_engine - ERROR - ❌ 工作流执行失败: name 'arxiv_date' is not defined

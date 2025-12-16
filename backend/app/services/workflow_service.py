@@ -11,6 +11,47 @@ class WorkflowService:
     def __init__(self):
         self.db = get_db()
 
+    def get_active_execution(self, user_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        获取当前活跃的执行记录 (running or pending)。
+        """
+        import json
+        try:
+            # 查找状态为 running 或 pending 的记录
+            response = self.db.table("workflow_executions") \
+                .select("*") \
+                .in_("status", ["running", "pending"]) \
+                .order("created_at", desc=True) \
+                .execute()
+            
+            executions = response.data
+            if not executions:
+                return None
+                
+            for exec_record in executions:
+                # 检查 metadata 中的 target_user_id
+                metadata_str = exec_record.get("metadata", "{}")
+                # Handle case where metadata might be dict or string
+                if isinstance(metadata_str, dict):
+                    metadata = metadata_str
+                else:
+                    metadata = json.loads(metadata_str)
+                
+                target_user_id = metadata.get("target_user_id")
+                
+                # 如果指定了 user_id，必须匹配
+                if user_id:
+                    if target_user_id == user_id:
+                        return exec_record
+                else:
+                    # 如果没指定 user_id，返回第一个找到的
+                    return exec_record
+                    
+            return None
+        except Exception as e:
+            print(f"Error getting active execution: {e}")
+            return None
+
     def run_crawler(self, categories: Optional[List[str]] = None):
         """
         运行 ArXiv 爬虫任务。
@@ -137,6 +178,9 @@ class WorkflowService:
                         time.sleep(delay_seconds)
             else:
                 print("No papers need public analysis.")
+                
+            # [Modified] Add analyzed_count to stats
+            total_stats["analyzed_count"] = total_papers
                 
             return total_stats
 

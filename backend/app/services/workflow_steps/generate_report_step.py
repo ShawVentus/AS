@@ -36,7 +36,7 @@ class GenerateReportStep(WorkflowStep):
             manual_query=manual_query,
             manual_categories=manual_categories,
             manual_authors=manual_authors,
-            specific_paper_ids=selected_paper_ids
+            specific_paper_ids=None # [Modified] Always query DB for user's accepted papers
         )
         
         if stats:

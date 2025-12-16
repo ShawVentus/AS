@@ -12,6 +12,9 @@ CREATE TABLE IF NOT EXISTS workflow_executions (
     total_tokens_input INT DEFAULT 0, -- 输入 Token 总消耗
     total_tokens_output INT DEFAULT 0, -- 输出 Token 总消耗
     total_cost DECIMAL(10, 6) DEFAULT 0, -- 总成本（美元）
+    error TEXT, -- 错误信息
+    error_stack TEXT, -- 错误堆栈
+    updated_at TIMESTAMPTZ DEFAULT NOW(), -- 最后更新时间
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

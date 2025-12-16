@@ -278,3 +278,13 @@ class ArxivSpider(scrapy.Spider):
             print(f"   ❌ 处理失败: {failed}")
         
         print("="*50 + "\n")
+        
+        # [NEW] 输出机器可读的统计信息，供 WorkflowStep 解析
+        # 必须确保 unique_found 是去重后的数量
+        import json
+        # Convert sets to list for JSON serialization if any
+        stats_serializable = self.stats.copy()
+        if "categories_found" in stats_serializable:
+            stats_serializable["categories_found"] = list(stats_serializable["categories_found"])
+            
+        print(f"JSON_STATS:{json.dumps(stats_serializable)}")

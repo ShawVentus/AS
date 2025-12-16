@@ -124,6 +124,48 @@ export const RealWorkflowAPI = {
         method: 'POST',
         body: JSON.stringify(data)
     }),
+    getActiveExecution: () => fetchJSON<{ active: boolean; execution_id?: string; status?: string; steps?: any[] }>('/workflow/active'),
+
+    /**
+     * 验证工作流执行是否真的在运行
+     * @param executionId 执行记录 ID
+     * @param options 可选配置，包含超时时间
+     * @returns 验证结果
+     */
+    verifyExecution: async (executionId: string, options?: { timeout?: number }): Promise<{
+        active: boolean;
+        status?: string;
+        reason?: string;
+        current_step?: string;
+        message?: string;
+        last_update?: string;
+        elapsed_seconds?: number;
+    }> => {
+        const controller = new AbortController();
+        const timeout = options?.timeout || 3000; // 默认 3 秒超时
+
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+        try {
+            const response = await fetch(
+                `${API_BASE}/workflow/verify-execution/${executionId}`,
+                { signal: controller.signal }
+            );
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error: any) {
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                throw new Error('验证接口超时');
+            }
+            throw error;
+        }
+    }
 };
 
 export const RealToolsAPI = {

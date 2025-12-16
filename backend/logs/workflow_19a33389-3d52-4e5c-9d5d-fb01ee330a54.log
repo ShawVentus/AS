@@ -1,0 +1,18 @@
+2025-12-16 12:26:35,412 - app.services.workflow_engine - INFO - 📂 日志文件已创建: /Users/mac/Desktop/AS/backend/logs/workflow_19a33389-3d52-4e5c-9d5d-fb01ee330a54.log
+2025-12-16 12:26:35,412 - app.services.workflow_engine - INFO - 🚀 开始执行工作流: manual_report (ID: 19a33389-3d52-4e5c-9d5d-fb01ee330a54)
+2025-12-16 12:26:40,124 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 12:26:40,125 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 1/4)...
+2025-12-16 12:26:40,125 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 12:26:55,340 - app.services.workflow_engine - ERROR - ❌ 步骤 [run_crawler] 执行失败 (尝试 1): name 'os' is not defined
+2025-12-16 12:26:55,340 - app.services.workflow_engine - INFO - ⏳ 2秒后重试...
+2025-12-16 12:26:57,343 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 12:26:57,343 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 2/4)...
+2025-12-16 12:26:57,343 - app.services.workflow_engine - INFO - ==================================================
+2025-12-16 12:27:10,535 - app.services.workflow_engine - ERROR - ❌ 步骤 [run_crawler] 执行失败 (尝试 2): name 'os' is not defined
+2025-12-16 12:27:10,536 - app.services.workflow_engine - INFO - ⏳ 4秒后重试...
+2025-12-16 12:27:14,537 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-16 12:27:14,538 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 3/4)...
+2025-12-16 12:27:14,538 - app.services.workflow_engine - INFO - ==================================================

@@ -327,21 +327,31 @@ class SchedulerService:
         生成并发送每日报告的任务。
         
         功能说明：
-        1. 获取所有用户画像。
-        2. 为每个用户获取今日的个性化推荐论文。
+        1. 获取目标用户（所有用户或指定用户）的画像。
+        2. 为每个用户获取今日的个性化推荐论文或用户指定的论文。
         3. 调用 report_service.generate_daily_report() 生成报告（内部自动发送邮件）。
+        4. 支持手动查询模式：即使没有找到论文，也允许生成提示性报告。
 
         Args:
-            force (bool): 是否强制生成报告（即使今日已生成）。
-            target_user_id (Optional[str]): 指定生成报告的用户 ID。
-            progress_callback (Optional[Callable]): 进度回调。
-            manual_query (Optional[str]): 手动输入的查询 (用于即时报告)。
-            manual_categories (Optional[List[str]]): 手动输入的分类。
-            manual_authors (Optional[List[str]]): 手动输入的作者。
-            specific_paper_ids (Optional[List[str]]): 指定要包含在报告中的论文 ID 列表。
+            force (bool): 是否强制生成报告（即使今日已生成），默认 False
+            target_user_id (Optional[str]): 指定生成报告的用户 ID，None 表示为所有用户生成
+            progress_callback (Optional[Callable[[int, int, str], None]]): 进度回调函数，
+                接收参数：(当前进度, 总进度, 进度消息)
+            manual_query (Optional[str]): 手动输入的查询（用于即时报告），
+                例如："量化金融"
+            manual_categories (Optional[List[str]]): 手动输入的分类列表，
+                例如：["cs.AI", "cs.LG"]
+            manual_authors (Optional[List[str]]): 手动输入的作者列表，
+                例如：["Yann LeCun", "Geoffrey Hinton"]
+            specific_paper_ids (Optional[List[str]]): 指定要包含在报告中的论文 ID 列表
 
         Returns:
-            Dict[str, Any]: 统计数据 (tokens_input, tokens_output, cost, etc.)
+            Dict[str, Any]: 统计数据字典，包含以下字段：
+                - tokens_input (int): 输入 token 总数
+                - tokens_output (int): 输出 token 总数
+                - cost (float): 总成本（美元）
+                - cache_hit_tokens (int): 缓存命中的 token 数
+                - request_count (int): LLM 请求次数
         """
         print("开始生成每日报告...")
         
@@ -428,23 +438,25 @@ class SchedulerService:
                     if specific_paper_ids is not None:
                         print(f"Using specific paper IDs: {len(specific_paper_ids)}")
                         if not specific_paper_ids:
-                             print(f"用户 {user_id} 指定的论文列表为空，跳过")
-                             continue
-                             
-                        # Fetch states for these papers
-                        states_response = self.db.table("user_paper_states") \
-                            .select("*") \
-                            .eq("user_id", user_id) \
-                            .in_("paper_id", specific_paper_ids) \
-                            .execute()
-                    elif manual_query:
-                        print(f"用户 {user_id} 手动查询模式下未提供特定论文 (Filter Step skipped?), 跳过")
-                        continue
+                             if manual_query:
+                                 print(f"用户 {user_id} 指定的论文列表为空，但存在手动查询，继续生成报告 (无论文)")
+                                 states_response = None # No states
+                             else:
+                                 print(f"用户 {user_id} 指定的论文列表为空，跳过")
+                                 continue
+                        else:     
+                            # Fetch states for these papers
+                            states_response = self.db.table("user_paper_states") \
+                                .select("*") \
+                                .eq("user_id", user_id) \
+                                .in_("paper_id", specific_paper_ids) \
+                                .execute()
                     else:
+                        # 【修复】手动查询和自动任务都查询今天被接受的论文
                         from datetime import datetime
                         today = datetime.now().strftime("%Y-%m-%d")
                         
-                        # 3.1 查询今天筛选的、被接受的论文
+                        # 查询今天筛选的、被接受的论文
                         states_response = self.db.table("user_paper_states") \
                             .select("*") \
                             .eq("user_id", user_id) \
@@ -454,21 +466,32 @@ class SchedulerService:
                             .limit(int(os.environ.get("REPORT_PAPER_LIMIT", 50))) \
                             .execute()
                     
-                    if not states_response.data:
+                    if (not states_response or not states_response.data) and not manual_query:
                         print(f"用户 {user_id} 今天没有推荐论文 (或指定的论文未找到状态)，跳过")
                         continue
                     
-                    print(f"找到 {len(states_response.data)} 篇推荐论文")
+                    # === 4. 处理论文状态数据 ===
+                    if states_response and states_response.data:
+                        print(f"找到 {len(states_response.data)} 篇推荐论文")
+                        
+                        # 获取完整论文数据
+                        paper_ids = [s["paper_id"] for s in states_response.data]
+                        papers_response = self.db.table("papers") \
+                            .select("*") \
+                            .in_("id", paper_ids) \
+                            .execute()
+                        papers_data = papers_response.data
+                        
+                        # 构建状态映射
+                        state_map = {s["paper_id"]: s for s in states_response.data}
+                    else:
+                        # 【修复】手动查询模式下的 fallback
+                        # 当手动查询未找到任何论文时，允许生成一个空报告或提示性报告
+                        print(f"未找到推荐论文 (Manual Query: {manual_query})")
+                        papers_data = []
+                        state_map = {}
                     
-                    # === 4. 获取完整论文数据 ===
-                    paper_ids = [s["paper_id"] for s in states_response.data]
-                    papers_response = self.db.table("papers") \
-                        .select("*") \
-                        .in_("id", paper_ids) \
-                        .execute()
-                    papers_data = papers_response.data
-                    
-                    if not papers_data:
+                    if not papers_data and not manual_query:
                         print(f"未找到论文详细数据，跳过")
                         continue
                     
@@ -476,8 +499,6 @@ class SchedulerService:
                     from app.services.paper_service import paper_service
                     
                     papers = []
-                    state_map = {s["paper_id"]: s for s in states_response.data}
-                    
                     for p in papers_data:
                         state_data = state_map.get(p["id"])
                         # 使用 paper_service 的辅助方法合并数据
@@ -487,7 +508,23 @@ class SchedulerService:
                     # === 6. 生成报告（内部会自动发送邮件）===
                     # [Fix] 正确解包返回值 (report, usage)
                     # Pass custom_title if exists
-                    report, usage = report_service.generate_daily_report(papers, user_profile, custom_title=custom_title, manual_query=manual_query)
+                    # 【修复】查询今日论文数并传递给 report_service
+                    from datetime import date
+                    today = date.today().isoformat()
+                    count_res = self.db.table("daily_papers") \
+                        .select("*", count="exact") \
+                        .gte("created_at", f"{today} 00:00:00") \
+                        .lt("created_at", f"{today} 23:59:59") \
+                        .execute()
+                    crawled_count = count_res.count if count_res.count is not None else len(count_res.data)
+                    temp_context = {"crawled_count": crawled_count}
+                    
+                    report, usage = report_service.generate_daily_report(
+                        papers, user_profile, 
+                        custom_title=custom_title, 
+                        manual_query=manual_query,
+                        context=temp_context
+                    )
                     
                     # 累加统计
                     if usage:
@@ -621,7 +658,8 @@ class SchedulerService:
         engine.register_step(RunCrawlerStep())
         engine.register_step(FetchDetailsStep())
         engine.register_step(AnalyzePublicStep())
-        engine.register_step(ArchiveStep())
+        # [Modified] 归档逻辑已合并到 AnalyzePublicStep，不再单独注册
+        # engine.register_step(ArchiveStep())
         engine.register_step(PersonalizedFilterStep())
         engine.register_step(GenerateReportStep())
         

@@ -229,7 +229,7 @@ class PaperService:
 
         return PersonalizedPaper(meta=meta, analysis=analysis, user_state=user_state)
 
-    def get_papers_by_categories(self, categories: List[str], user_id: str, limit: int = 1, table_name: str = "papers", force: bool = False) -> List[PersonalizedPaper]:
+    def get_papers_by_categories(self, categories: List[str], user_id: str, limit: int = 1, table_name: str = "papers", force: bool = False, published_date: Optional[str] = None) -> List[PersonalizedPaper]:
         """
         根据用户关注的类别获取候选论文。
         排除已在 user_paper_states 中存在的论文。
@@ -263,6 +263,10 @@ class PaperService:
             # 注意: Supabase (PostgREST) 的 overlaps 语法是 cs (contains) 或 cd (contained by) 或 ov (overlap)
             # 这里假设 category 字段是 text[] 类型
             query = self.db.table(table_name).select("*").overlaps("category", categories).order("created_at", desc=True).limit(limit)
+            
+            # [NEW] Date Filtering
+            if published_date:
+                query = query.eq("published_date", published_date)
             
             # 排除已存在的
             if existing_ids:
@@ -392,7 +396,7 @@ class PaperService:
             print(f"Error crawling: {e}")
             return self.get_papers(user_id)
 
-    def process_pending_papers(self, user_id: str, progress_callback: Optional[Callable[[int, int, str], None]] = None, manual_query: Optional[str] = None, manual_authors: Optional[List[str]] = None, manual_categories: Optional[List[str]] = None, force: bool = False) -> FilterResponse:
+    def process_pending_papers(self, user_id: str, progress_callback: Optional[Callable[[int, int, str], None]] = None, manual_query: Optional[str] = None, manual_authors: Optional[List[str]] = None, manual_categories: Optional[List[str]] = None, force: bool = False, published_date: Optional[str] = None) -> FilterResponse:
         """
         处理用户的待处理论文 (Pending Papers)。
         
@@ -445,7 +449,8 @@ class PaperService:
             # 临时修改 get_papers_by_categories 支持指定表名
             # [Fix] 增加 limit，否则默认只取 1 条，如果该条已处理则会导致无结果
             # [Fix] Pass force parameter
-            papers = self.get_papers_by_categories(categories, user_id, limit=200, table_name="daily_papers", force=force)
+            # [Fix] Pass published_date parameter
+            papers = self.get_papers_by_categories(categories, user_id, limit=200, table_name="daily_papers", force=force, published_date=published_date)
             
             
             paper_ids = [p.meta.id for p in papers]

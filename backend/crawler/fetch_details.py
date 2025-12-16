@@ -46,7 +46,7 @@ def fetch_and_update_details(table_name: str = "papers", progress_callback: Opti
             print("All pending papers updated.")
             if progress_callback:
                 progress_callback(100, 100, "所有论文详情获取完成")
-            break
+            return 0 # Return 0 if no papers to fetch
             
         ids = [p['id'] for p in papers_to_fetch]
         print(f"Fetching details for {len(ids)} papers...")
@@ -109,13 +109,14 @@ def fetch_and_update_details(table_name: str = "papers", progress_callback: Opti
                 # Since we know these IDs exist (we just fetched them), update is safe.
                 db.table(table_name).update({"status": "failed"}).in_("id", list(missing_ids)).execute()
 
+            # [Modified] Return count
+            return len(updates)
+
         except Exception as e:
             print(f"API or Database Error: {e}")
             # 遇到错误休眠较长时间
             time.sleep(10) 
-            
-        # 批次间暂停，避免触发限流
-        time.sleep(2)
+            return 0
 
 if __name__ == "__main__":
     fetch_and_update_details()

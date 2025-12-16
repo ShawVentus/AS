@@ -1,6 +1,6 @@
 import React from 'react';
-import { Plus, Loader2, ChevronRight } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronRight } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { ReportAPI } from '../../../services/api';
 import type { Report } from '../../../types';
 
@@ -11,8 +11,7 @@ interface ReportListProps {
 }
 
 export const ReportList: React.FC<ReportListProps> = ({ onSelectReport }) => {
-    const queryClient = useQueryClient();
-    const [generating, setGenerating] = React.useState(false);
+
 
     const { data: reports = [] } = useQuery({
         queryKey: ['reports'],
@@ -20,32 +19,13 @@ export const ReportList: React.FC<ReportListProps> = ({ onSelectReport }) => {
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
 
-    const handleGenerate = async () => {
-        setGenerating(true);
-        try {
-            await ReportAPI.generateReport();
-            // Invalidate query to refetch list
-            queryClient.invalidateQueries({ queryKey: ['reports'] });
-        } catch (error) {
-            console.error('Failed to generate report:', error);
-            alert('生成失败');
-        } finally {
-            setGenerating(false);
-        }
-    };
+
 
     return (
         <div className="p-6 max-w-4xl mx-auto animate-in fade-in">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">历史研报</h2>
-                <button
-                    onClick={handleGenerate}
-                    disabled={generating}
-                    className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-medium rounded-lg transition-colors shadow-lg shadow-cyan-900/20"
-                >
-                    {generating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                    生成今日研报
-                </button>
+
             </div>
             <div className="space-y-3">
                 {reports.map(report => (

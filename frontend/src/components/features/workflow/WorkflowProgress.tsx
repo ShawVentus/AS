@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { CheckCircle, Circle, Loader2, AlertCircle, Clock } from 'lucide-react';
-import type { StepProgress } from '../../../contexts/TaskContext';
+import { CheckCircle, Circle, Loader2, AlertCircle } from 'lucide-react';
+import type { StepProgress } from '../../../types/workflow';
 
 interface WorkflowProgressProps {
     steps: StepProgress[]; // 步骤列表
@@ -26,18 +26,20 @@ export const WorkflowProgress: React.FC<WorkflowProgressProps> = ({ steps }) => 
                     const isFailed = step.status === 'failed';
                     const isPending = step.status === 'pending';
 
+
+
                     return (
                         <div key={step.name} className="relative flex gap-4">
                             {/* Left Timeline Line */}
                             {!isLast && (
                                 <div
-                                    className={`absolute left-[15px] top-[30px] bottom-[-20px] w-[2px] 
+                                    className={`absolute left-[23px] top-[30px] bottom-[-20px] w-[2px] 
                                     ${isCompletedStep ? 'bg-green-200 dark:bg-green-900/50' : 'bg-gray-100 dark:bg-gray-800'}`}
                                 />
                             )}
 
                             {/* Icon Indicator */}
-                            <div className={`relative z-10 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300
+                            <div className={`relative z-10 flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
                                 ${isCompletedStep ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
                                     isActive ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 ring-4 ring-blue-50 dark:ring-blue-900/20' :
                                         isFailed ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
@@ -45,36 +47,30 @@ export const WorkflowProgress: React.FC<WorkflowProgressProps> = ({ steps }) => 
                                 }`}
                             >
                                 {isCompletedStep ? (
-                                    <CheckCircle size={18} />
+                                    <CheckCircle size={24} />
                                 ) : isActive ? (
-                                    <div className="w-3 h-3 bg-blue-600 rounded-full animate-ping" />
+                                    <div className="w-5 h-5 bg-blue-600 rounded-full animate-ping" />
                                 ) : isFailed ? (
-                                    <AlertCircle size={18} />
+                                    <AlertCircle size={24} />
                                 ) : (
-                                    <Circle size={18} />
+                                    <Circle size={24} />
                                 )}
                             </div>
 
                             {/* Content */}
                             <div className={`flex-1 pb-8 ${isPending ? 'opacity-50' : 'opacity-100'} transition-opacity duration-300`}>
                                 <div className="flex justify-between items-start">
-                                    <h3 className={`font-medium text-base ${isActive ? 'text-blue-600 dark:text-blue-400' :
+                                    <h3 className={`font-medium text-xl ${isActive ? 'text-blue-600 dark:text-blue-400' :
                                         isCompletedStep ? 'text-gray-900 dark:text-gray-100' :
                                             'text-gray-500 dark:text-gray-500'
                                         }`}>
                                         {step.label}
                                     </h3>
-                                    {step.duration_ms && (
-                                        <span className="text-xs text-gray-400 flex items-center gap-1 bg-gray-50 dark:bg-gray-800/50 px-2 py-0.5 rounded-full">
-                                            <Clock size={10} />
-                                            {(step.duration_ms / 1000).toFixed(1)}s
-                                        </span>
-                                    )}
                                 </div>
 
                                 {/* Dynamic Message */}
                                 {(isActive || step.message) && (
-                                    <div className={`mt-2 text-sm flex items-center gap-2 
+                                    <div className={`mt-2 text-lg flex items-center gap-2 
                                         ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}
                                     >
                                         {isActive && <Loader2 size={12} className="animate-spin" />}

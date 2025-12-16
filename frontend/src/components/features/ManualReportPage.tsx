@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, Play, Save, AlertTriangle, X, Loader2, HelpCircle } from 'lucide-react';
 import { WorkflowProgress } from './workflow/WorkflowProgress';
 import { CategorySelector } from '../common/CategorySelector';
+import { TagInput } from '../common/TagInput';
 import { ToolsAPI, WorkflowAPI, UserAPI } from '../../services/api';
 import type { UserProfile } from '../../types';
 import { useTaskContext } from '../../contexts/TaskContext';
-import type { StepProgress } from '../../contexts/TaskContext';
+import type { StepProgress } from '../../types';
 
 interface ManualReportPageProps {
     userProfile: UserProfile;
@@ -21,7 +22,7 @@ const transformStepsForUI = (steps: StepProgress[]): StepProgress[] => {
     const crawlerStep = steps.find(s => s.name === 'run_crawler');
     const fetchStep = steps.find(s => s.name === 'fetch_details');
     const analyzeStep = steps.find(s => s.name === 'analyze_public_papers');
-    // const archiveStep = steps.find(s => s.name === 'archive_daily_papers'); // Hidden
+    const archiveStep = steps.find(s => s.name === 'archive_daily_papers');
     const filterStep = steps.find(s => s.name === 'personalized_filter');
     const reportStep = steps.find(s => s.name === 'generate_report');
 
@@ -32,6 +33,7 @@ const transformStepsForUI = (steps: StepProgress[]): StepProgress[] => {
     let mergedCrawlerProgress = 0;
     let mergedCrawlerMessage = '';
     let mergedCrawlerDuration = 0;
+    let fetchedCount = 0; // Track fetched count for next step
 
     if (crawlerStep || fetchStep) {
         // Default to crawler state if available
@@ -40,6 +42,18 @@ const transformStepsForUI = (steps: StepProgress[]): StepProgress[] => {
             mergedCrawlerProgress = crawlerStep.progress / 2;
             mergedCrawlerMessage = crawlerStep.message || '正在检查更新...';
             mergedCrawlerDuration += (crawlerStep.duration_ms || 0);
+
+            // [Fix] Extract paper count from message
+            // Pattern: "捕获 6 篇论文"
+            if (crawlerStep.status === 'completed' || crawlerStep.message?.includes('捕获')) {
+                const match = crawlerStep.message?.match(/捕获\s*(\d+)\s*篇/);
+                if (match) {
+                    fetchedCount = parseInt(match[1], 10);
+                    mergedCrawlerMessage = `总共获取${fetchedCount}篇论文`;
+                } else if (crawlerStep.status === 'completed') {
+                    mergedCrawlerMessage = '获取完成';
+                }
+            }
         }
 
         // Override/Update with fetch state
@@ -56,7 +70,12 @@ const transformStepsForUI = (steps: StepProgress[]): StepProgress[] => {
                 } else if (fetchStep.status === 'completed') {
                     mergedCrawlerStatus = 'completed';
                     mergedCrawlerProgress = 100;
-                    mergedCrawlerMessage = '获取完成';
+                    // Keep the count message if possible
+                    if (fetchedCount > 0) {
+                        mergedCrawlerMessage = `总共获取${fetchedCount}篇论文`;
+                    } else {
+                        mergedCrawlerMessage = '获取完成';
+                    }
                 } else if (fetchStep.status === 'failed') {
                     mergedCrawlerStatus = 'failed';
                     mergedCrawlerMessage = fetchStep.message || '获取详情失败';
@@ -82,25 +101,102 @@ const transformStepsForUI = (steps: StepProgress[]): StepProgress[] => {
     }
 
     // 2. Analyze Step -> "详情分析"
-    if (analyzeStep) {
-        newSteps.push({ ...analyzeStep, label: '详情分析' });
-    } else {
-        newSteps.push({ name: 'analyze_public_papers', label: '详情分析', status: 'pending', progress: 0 });
+    // [Fix] Merge hidden "archive" step into "analyze" step
+    let analyzeStatus = analyzeStep?.status || 'pending';
+    let analyzeProgress = analyzeStep?.progress || 0;
+    let analyzeMessage = analyzeStep?.message || '';
+    let analyzeDuration = analyzeStep?.duration_ms || 0;
+
+    // If archive is running, keep analyze as running (archiving)
+    if (archiveStep?.status === 'running') {
+        analyzeStatus = 'running';
+        analyzeMessage = '正在归档数据...';
+        analyzeProgress = 95; // Almost done
+    } else if (analyzeStep) {
+        // 【修复】从消息中提取真实的论文数，而不是使用 current/total（那是进度百分比！）
+        if (analyzeStep.status === 'running' || analyzeStep.status === 'completed') {
+            // 尝试从消息中提取论文数："正在归档 6 篇论文..." 或 "已归档 6 篇新论文"
+            const match = analyzeStep.message?.match(/(\d+)\s*篇/);
+            if (match) {
+                const paperCount = parseInt(match[1], 10);
+                if (analyzeStep.status === 'completed') {
+                    analyzeMessage = `已经分析${paperCount}篇论文`;
+                } else {
+                    analyzeMessage = `正在分析，已处理${paperCount}篇论文`;
+                }
+            } else if (fetchedCount > 0) {
+                // Fallback: 使用前一步骤获取的论文数
+                if (analyzeStep.status === 'completed') {
+                    analyzeMessage = `已经分析${fetchedCount}篇论文`;
+                } else {
+                    analyzeMessage = analyzeStep.message || '正在分析论文...';
+                }
+            } else {
+                // 使用原始消息
+                analyzeMessage = analyzeStep.message || (analyzeStep.status === 'completed' ? '分析完成' : '正在分析...');
+            }
+        }
     }
 
-    // 3. Filter Step -> "个性化筛选"
-    if (filterStep) {
-        newSteps.push({ ...filterStep, label: '个性化筛选' });
-    } else {
-        newSteps.push({ name: 'personalized_filter', label: '个性化筛选', status: 'pending', progress: 0 });
+    // Only mark as completed if archive is also completed (or skipped/failed)
+    if (analyzeStep?.status === 'completed' && archiveStep?.status === 'completed') {
+        analyzeStatus = 'completed';
+    } else if (analyzeStep?.status === 'completed' && (!archiveStep || archiveStep.status === 'pending')) {
+        // If archive hasn't started yet but analyze is done, show as running/waiting
+        analyzeStatus = 'running';
+        analyzeMessage = '准备归档...';
     }
+
+    newSteps.push({
+        name: 'analyze_public_papers',
+        label: '详情分析',
+        status: analyzeStatus,
+        progress: analyzeProgress,
+        message: analyzeMessage,
+        duration_ms: analyzeDuration
+    });
+
+    // 3. Filter Step -> "个性化筛选"
+    let filterStatus = filterStep?.status || 'pending';
+    let filterProgress = filterStep?.progress || 0;
+    let filterMessage = filterStep?.message || '';
+    let filterDuration = filterStep?.duration_ms || 0;
+
+    if (filterStep) {
+        // [Fix] Sanitize User ID & Extract Accepted Count
+        if (filterStatus === 'completed') {
+            const match = filterMessage?.match(/Accepted:\s*(\d+)/);
+            if (match) {
+                filterMessage = `已筛选${match[1]}篇高相关度论文`;
+            } else {
+                filterMessage = '个性化筛选完成';
+            }
+        } else if (filterStatus === 'running') {
+            // Simplify running message
+            filterMessage = '正在筛选论文';
+        }
+    }
+
+    newSteps.push({
+        name: 'personalized_filter',
+        label: '个性化筛选',
+        status: filterStatus,
+        progress: filterProgress,
+        message: filterMessage,
+        duration_ms: filterDuration
+    });
 
     // 4. Report Step -> "生成报告"
     if (reportStep) {
         const newReportStep = { ...reportStep, label: '生成报告' };
-        if (newReportStep.status === 'completed') {
-            newReportStep.message = '报告生成完成';
+
+        // [Fix] Simplify running message
+        if (newReportStep.status === 'running') {
+            newReportStep.message = '正在生成报告';
+        } else if (newReportStep.status === 'completed') {
+            newReportStep.message = '已生成报告并发送至邮箱';
         }
+
         newSteps.push(newReportStep);
     } else {
         newSteps.push({ name: 'generate_report', label: '生成报告', status: 'pending', progress: 0 });
@@ -125,7 +221,6 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
     const [naturalQuery, setNaturalQuery] = useState('');
     const [categories, setCategories] = useState<string[]>([]);
     const [authors, setAuthors] = useState<string[]>([]);
-    const [authorInput, setAuthorInput] = useState('');
 
     // UI States (UI 状态)
     const [isAiLoading, setIsAiLoading] = useState(false);
@@ -154,11 +249,12 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
         try {
             const result = await ToolsAPI.extractCategories(naturalQuery);
             if (result.categories) {
-                // Merge unique categories (合并去重)
-                setCategories(prev => Array.from(new Set([...prev, ...result.categories])));
+                // Replace categories (覆盖旧的分类)
+                setCategories(result.categories);
             }
             if (result.authors) {
-                setAuthors(prev => Array.from(new Set([...prev, ...result.authors])));
+                // Replace authors (覆盖旧的作者)
+                setAuthors(result.authors);
             }
         } catch (err) {
             console.error("AI Fill failed", err);
@@ -168,24 +264,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
         }
     };
 
-    /**
-     * 处理添加作者 (回车键触发)。
-     */
-    const handleAddAuthor = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && authorInput.trim()) {
-            if (!authors.includes(authorInput.trim())) {
-                setAuthors([...authors, authorInput.trim()]);
-            }
-            setAuthorInput('');
-        }
-    };
 
-    /**
-     * 处理移除作者。
-     */
-    const handleRemoveAuthor = (auth: string) => {
-        setAuthors(authors.filter(a => a !== auth));
-    };
 
     /**
      * 处理保存为默认设置。
@@ -292,25 +371,13 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
 
                 {/* Authors */}
                 <div className="mb-8">
-                    <label className="block text-sm font-medium text-slate-400 mb-2">
-                        特定作者 (可选)
-                    </label>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                        {authors.map(auth => (
-                            <span key={auth} className="px-3 py-1 bg-slate-800 text-emerald-300 rounded-full text-sm flex items-center gap-2 border border-slate-700">
-                                {auth}
-                                <button onClick={() => handleRemoveAuthor(auth)} className="hover:text-white"><X size={14} /></button>
-                            </span>
-                        ))}
-                        <input
-                            type="text"
-                            value={authorInput}
-                            onChange={(e) => setAuthorInput(e.target.value)}
-                            onKeyDown={handleAddAuthor}
-                            placeholder="添加作者 (回车)..."
-                            className="bg-transparent border-none text-sm text-slate-300 focus:ring-0 placeholder-slate-600 min-w-[120px]"
-                        />
-                    </div>
+                    <TagInput
+                        label="查询作者 (可选)"
+                        tags={authors}
+                        onChange={setAuthors}
+                        placeholder="添加作者 (回车)..."
+                        addButtonText="添加作者"
+                    />
                 </div>
 
                 {/* Actions & Cost */}

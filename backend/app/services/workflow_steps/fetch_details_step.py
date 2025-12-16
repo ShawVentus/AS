@@ -23,6 +23,9 @@ class FetchDetailsStep(WorkflowStep):
         # 调用现有的 fetch_and_update_details 函数
         # 默认针对 daily_papers 表
         # 传入 update_progress 作为回调
-        fetch_and_update_details(table_name="daily_papers", progress_callback=self.update_progress)
+        fetched_count = fetch_and_update_details(table_name="daily_papers", progress_callback=self.update_progress)
         
-        return {"details_fetched": True}
+        # [Modified] Send final progress with count
+        self.update_progress(100, 100, f"共获取 {fetched_count} 篇论文")
+        
+        return {"details_fetched": True, "fetched_count": fetched_count}

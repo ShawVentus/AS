@@ -42,7 +42,9 @@ class ReportService:
             print(f"Error fetching reports: {e}")
             return []
 
-    def generate_daily_report(self, papers: List[PersonalizedPaper], user_profile: UserProfile, custom_title: Optional[str] = None, manual_query: Optional[str] = None) -> tuple[Report, Dict[str, int]]:
+    def generate_daily_report(self, papers: List[PersonalizedPaper], user_profile: UserProfile, 
+                              custom_title: Optional[str] = None, manual_query: Optional[str] = None,
+                              context: Optional[Dict[str, Any]] = None) -> tuple[Report, Dict[str, int]]:
         """
         生成每日报告并自动发送邮件。
         Generate daily report and send email automatically.
@@ -52,13 +54,31 @@ class ReportService:
             user_profile (UserProfile): 用户画像，用于定制报告内容 (User profile for customization)。
             custom_title (Optional[str]): 自定义报告标题 (Custom report title)。
             manual_query (Optional[str]): 手动输入的查询 (Manual query for instant report)。
+            context (Optional[Dict[str, Any]]): 工作流上下文，包含 crawled_count 等信息
 
         Returns:
             tuple[Report, Dict[str, int]]: 生成的报告对象和 Usage 统计 (Generated report object and usage stats)。
         """
+        # 0. 应用统一的数量限制
+        limit = int(os.environ.get("REPORT_PAPER_LIMIT", 15))
+        
+        # 按相关性排序（PersonalizedPaper 对象中 user_state 可能为 None）
+        sorted_papers = sorted(
+            papers, 
+            key=lambda p: p.user_state.relevance_score if p.user_state else 0.0, 
+            reverse=True
+        )
+        
+        # 截断
+        if len(sorted_papers) > limit:
+            print(f"[INFO] Truncating papers from {len(sorted_papers)} to {limit} for report generation.")
+            target_papers = sorted_papers[:limit]
+        else:
+            target_papers = sorted_papers
+
         # 1. 准备数据供 LLM 使用
         papers_data = []
-        for p in papers:
+        for p in target_papers:
             flat_p = p.meta.model_dump()
             if p.analysis:
                 flat_p.update(p.analysis.model_dump())
@@ -110,25 +130,33 @@ class ReportService:
                 "ref_papers": []
             }
             
-        # 3. 计算统计数据
-        total_count = len(papers)
-        recommended_count = sum(1 for p in papers if (p.user_state and p.user_state.relevance_score >= 0.7))
-        
-        # [NEW] 获取 ArXiv 日期作为报告日期
-        # Get ArXiv date from system_status
+            
+        # 3. 获取 ArXiv 日期作为报告日期
+        # 优先从 system_status 获取最新 ArXiv 日期，否则使用系统日期
         try:
             status_res = self.db.table("system_status").select("value").eq("key", "latest_arxiv_date").execute()
             if status_res.data:
                 report_date = status_res.data[0]["value"]
-                print(f"Using ArXiv date for report: {report_date}")
+                print(f"使用 ArXiv 日期作为报告日期: {report_date}")
             else:
                 report_date = datetime.now().strftime("%Y-%m-%d")
-                print(f"Warning: ArXiv date not found, using system date: {report_date}")
+                print(f"警告: 未找到 ArXiv 日期，使用系统日期: {report_date}")
         except Exception as e:
-            print(f"Error fetching ArXiv date: {e}")
+            print(f"获取 ArXiv 日期失败: {e}")
             report_date = datetime.now().strftime("%Y-%m-%d")
         
-        # 4. 创建 Report 对象
+        # 4. 计算统计数据
+        # 区分自动任务和手动任务的统计逻辑
+        # 【修复】传递 context 给 _calculate_paper_statistics
+        total_count, recommended_count = self._calculate_paper_statistics(
+            papers=papers,
+            user_id=user_profile.info.id,
+            is_manual_task=bool(manual_query),
+            report_date=report_date,
+            context=context  # ← 添加这个参数！
+        )
+        
+        # 5. 创建 Report 对象
         # Use custom_title if provided, otherwise use LLM result title
         final_title = custom_title if custom_title else llm_result.get("title", "Daily Report")
         
@@ -145,7 +173,7 @@ class ReportService:
             recommended_papers_count=recommended_count
         )
         
-        # 5. 保存到数据库
+        # 6. 保存到数据库
         try:
             # [Fix] 使用 by_alias=False 确保使用 Python 属性名 (ref_papers) 而不是别名 (refPapers)
             # 假设数据库字段名为 ref_papers (下划线风格)
@@ -154,20 +182,27 @@ class ReportService:
             if not report_data.get("user_id"):
                 report_data["user_id"] = user_profile.info.id
             
+            # 【修复】添加 created_at 字段，避免数据库非空约束错误
+            report_data["created_at"] = datetime.now().isoformat()
+            
             self.db.table("reports").insert(report_data).execute()
         except Exception as e:
             # [Mod] 暂时注释掉 system_logs 写入，改为直接打印，避免表不存在报错
             print(f"Error saving report: {str(e)}")
             # self._log_error("pipeline", f"Error saving report: {str(e)}", {"report_id": report.id})
             
-        # 6. 发送邮件
-        self.send_report_email_advanced(report, papers, user_profile.info.email)
+        # 7. 发送邮件
+        # 【修复】传递正确的统计数据给邮件格式化器
+        self.send_report_email_advanced(report, papers, user_profile.info.email, 
+                                        total_count=total_count, 
+                                        recommended_count=recommended_count)
         
         # 提取 usage
         usage = llm_result.get("_usage", {})
         return report, usage
 
-    def send_report_email_advanced(self, report: Report, papers: List[PersonalizedPaper], user_email: str) -> bool:
+    def send_report_email_advanced(self, report: Report, papers: List[PersonalizedPaper], user_email: str,
+                                   total_count: int = None, recommended_count: int = None) -> bool:
         """
         使用高级格式化发送报告邮件。
 
@@ -175,6 +210,8 @@ class ReportService:
             report (Report): 报告对象
             papers (List[PersonalizedPaper]): 论文列表
             user_email (str): 用户邮箱
+            total_count (int, optional): 爬取的总论文数（用于邮件统计）
+            recommended_count (int, optional): 推荐的论文数（用于邮件统计）
 
         Returns:
             bool: 发送是否成功
@@ -184,9 +221,13 @@ class ReportService:
             if not self._should_send_email(report.user_id, user_email):
                 return False
             
-            # 格式化邮件
+            # 格式化邮件，传递统计数据
             formatter = EmailFormatter()
-            html_content, plain_content, stats = formatter.format_report_to_html(report, papers)
+            html_content, plain_content, stats = formatter.format_report_to_html(
+                report, papers, 
+                total_count=total_count, 
+                recommended_count=recommended_count
+            )
             
             # 发送邮件
             subject = f"【玻尔平台论文日报】{report.date}"
@@ -206,6 +247,89 @@ class ReportService:
             print(f"Exception sending email: {str(e)}")
             # self._log_error("email", f"Exception: {str(e)}", {"report_id": report.id})
             return False
+
+    def _calculate_paper_statistics(self, papers: List[PersonalizedPaper], user_id: str, 
+                                    is_manual_task: bool, report_date: Optional[str] = None,
+                                    context: Optional[Dict[str, Any]] = None) -> tuple[int, int]:
+        """
+        计算论文统计数据（总数和推荐数）。
+        
+        根据任务类型采用不同的统计逻辑：
+        - 自动任务：从数据库查询今日爬取的所有论文
+        - 手动任务：从 context 读取爬虫抓取的总数（crawled_count）
+        
+        Args:
+            papers (List[PersonalizedPaper]): 用于报告生成的论文列表
+            user_id (str): 用户ID
+            is_manual_task (bool): 是否为手动任务（即时报告）
+            report_date (Optional[str]): 报告日期，用于查询今日论文，格式 YYYY-MM-DD
+            context (Optional[Dict[str, Any]]): 工作流上下文，包含 crawled_count 等信息
+            
+        Returns:
+            tuple[int, int]: (总论文数, 推荐论文数)
+        """
+        # 从配置读取推荐度阈值
+        relevance_threshold = float(os.environ.get("RELEVANCE_THRESHOLD", "0.7"))
+        
+        if is_manual_task:
+            # 【修复】手动任务：从 context 读取爬虫抓取的总数
+            # 原因：papers 是筛选后的论文，不等于爬虫抓取的总数
+            if context and "crawled_count" in context:
+                total_count = context["crawled_count"]
+                print(f"[DEBUG] 从 context 读取 crawled_count: {total_count}")
+            else:
+                # Fallback：使用 papers 长度（旧逻辑）
+                total_count = len(papers)
+                print(f"[WARN] context 中无 crawled_count，使用 papers 长度: {total_count}")
+            
+            recommended_count = sum(
+                1 for p in papers 
+                if (p.user_state and p.user_state.relevance_score >= relevance_threshold)
+            )
+            print(f"[手动任务] 本次爬取论文数: {total_count}, 推荐论文数 (阈值>={relevance_threshold}): {recommended_count}")
+            
+        else:
+            # 自动任务：查询今日创建的用户论文状态记录
+            try:
+                # 获取今日日期（如果未提供）
+                if not report_date:
+                    report_date = datetime.now().strftime("%Y-%m-%d")
+                
+                # 查询今日创建的用户论文状态记录
+                today_states_res = self.db.table("user_paper_states") \
+                    .select("paper_id, relevance_score") \
+                    .eq("user_id", user_id) \
+                    .gte("created_at", f"{report_date} 00:00:00") \
+                    .lte("created_at", f"{report_date} 23:59:59") \
+                    .execute()
+                
+                if today_states_res.data:
+                    total_count = len(today_states_res.data)
+                    recommended_count = sum(
+                        1 for s in today_states_res.data 
+                        if s.get("relevance_score", 0) >= relevance_threshold
+                    )
+                    print(f"[自动任务] 今日爬取论文数: {total_count}, 推荐论文数 (阈值>={relevance_threshold}): {recommended_count}")
+                else:
+                    # 数据库中没有今日数据，使用传入的 papers 作为备选
+                    total_count = len(papers)
+                    recommended_count = sum(
+                        1 for p in papers 
+                        if (p.user_state and p.user_state.relevance_score >= relevance_threshold)
+                    )
+                    print(f"[自动任务-备选] 未找到今日数据，使用传入论文数: {total_count}, 推荐数: {recommended_count}")
+                    
+            except Exception as e:
+                # 查询失败时使用传入的 papers
+                print(f"查询今日论文统计失败: {e}")
+                total_count = len(papers)
+                recommended_count = sum(
+                    1 for p in papers 
+                    if (p.user_state and p.user_state.relevance_score >= relevance_threshold)
+                )
+                print(f"[自动任务-异常备选] 使用传入论文数: {total_count}, 推荐数: {recommended_count}")
+        
+        return total_count, recommended_count
 
     def _should_send_email(self, user_id: str, user_email: str) -> bool:
         """

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.auth import get_current_user_id
 from app.services.scheduler import scheduler_service
+from app.services.workflow_service import workflow_service
 import threading
 
 router = APIRouter()
@@ -165,3 +166,131 @@ async def manual_trigger_workflow(request: ManualTriggerRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/active")
+async def get_active_workflow(user_id: str = Depends(get_current_user_id)):
+    """
+    获取当前活跃的工作流执行状态。
+    """
+    execution = workflow_service.get_active_execution(user_id)
+    if not execution:
+        return {"active": False}
+        
+    # Get steps for this execution
+    try:
+        steps_response = workflow_service.db.table("workflow_steps") \
+            .select("*") \
+            .eq("execution_id", execution["id"]) \
+            .order("step_order") \
+            .execute()
+            
+        return {
+            "active": True,
+            "execution_id": execution["id"],
+            "status": execution["status"],
+            "steps": steps_response.data
+        }
+    except Exception as e:
+        print(f"Error fetching active steps: {e}")
+        return {"active": False}
+
+
+@router.get("/verify-execution/{execution_id}")
+async def verify_execution(execution_id: str):
+    """
+    验证工作流执行是否真的在运行。
+    
+    检查逻辑：
+    1. 数据库记录是否存在
+    2. 状态是否为 running
+    3. 最后更新时间是否在合理范围内（10 分钟）
+    
+    Args:
+        execution_id: 执行记录 ID
+    
+    Returns:
+        {
+            "active": bool,
+            "status": str (如果 active=True),
+            "reason": str (如果 active=False: not_found/already_finished/stale),
+            "current_step": str (如果 active=True),
+            "message": str,
+            "last_update": str (如果 reason=stale),
+            "elapsed_seconds": float (如果 reason=stale)
+        }
+    """
+    from datetime import datetime, timedelta
+    from app.core.database import get_db
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    db = get_db()
+    
+    try:
+        # 1. 查询数据库
+        exec_res = db.table("workflow_executions").select("*").eq("id", execution_id).execute()
+        
+        if not exec_res.data:
+            return {
+                "active": False,
+                "reason": "not_found",
+                "message": "执行记录不存在"
+            }
+        
+        record = exec_res.data[0]
+        status = record.get("status")
+        
+        # 2. 检查状态
+        if status in ["completed", "failed"]:
+            return {
+                "active": False,
+                "reason": "already_finished",
+                "status": status,
+                "message": f"任务已{status}"
+            }
+        
+        # 3. 检查最后更新时间（防止僵尸任务）
+        updated_at_str = record.get("updated_at")
+        if updated_at_str:
+            try:
+                # Supabase 返回 ISO 格式时间字符串，可能包含 Z 或 +00:00
+                if 'Z' in updated_at_str:
+                    updated_at = datetime.fromisoformat(updated_at_str.replace('Z', '+00:00'))
+                else:
+                    updated_at = datetime.fromisoformat(updated_at_str)
+                
+                # 使用 UTC 时间比较
+                from datetime import timezone
+                now = datetime.now(timezone.utc)
+                
+                # 确保 updated_at 有时区信息
+                if updated_at.tzinfo is None:
+                    updated_at = updated_at.replace(tzinfo=timezone.utc)
+                
+                elapsed = (now - updated_at).total_seconds()
+                
+                # 10 分钟阈值
+                if elapsed > 600:
+                    return {
+                        "active": False,
+                        "reason": "stale",
+                        "last_update": updated_at_str,
+                        "elapsed_seconds": elapsed,
+                        "message": f"任务超过 10 分钟未更新（{int(elapsed/60)} 分钟前），可能已停止"
+                    }
+            except Exception as e:
+                logger.error(f"解析时间失败: {e}")
+                # 如果时间解析失败，仍然认为任务在运行（避免误杀）
+        
+        # 4. 任务仍在运行
+        return {
+            "active": True,
+            "status": status,
+            "current_step": record.get("current_step"),
+            "message": "任务正在运行"
+        }
+        
+    except Exception as e:
+        logger.error(f"验证执行失败: {e}")
+        raise HTTPException(status_code=500, detail=f"验证失败: {str(e)}")
+

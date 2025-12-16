@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { WorkflowAPI } from '../../services/api';
 import { X, CheckCircle, Loader2, AlertCircle, ChevronRight } from 'lucide-react';
 import { WorkflowProgress } from './workflow/WorkflowProgress';
-import type { StepProgress } from '../../contexts/TaskContext';
+import type { StepProgress } from '../../types';
 
 interface ReportGenerationModalProps {
     isOpen: boolean;
@@ -52,23 +52,160 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
         }
     };
 
-    const startGeneration = async () => {
-        hasTriggeredRef.current = true;
-        setError(null);
-        setIsCompleted(false);
-        setSteps(STEPS.map(s => ({ ...s, status: 'pending', progress: 0 })));
+    // [NEW] Refs for persistent counts
+    const countsRef = useRef({ fetched: 0, analyzed: 0, filtered: 0 });
 
-        try {
-            const { execution_id } = await WorkflowAPI.triggerDaily(userId);
+    const updateSteps = (backendSteps: any[]) => {
+        setSteps(prevSteps => {
+            const newSteps = [...prevSteps];
+            let hasRunningStep = false;
+            let lastCompletedIndex = -1;
 
-            if (execution_id) {
-                connectToSSE(execution_id);
-            } else {
-                setError("无法获取执行 ID");
+            // Helper to find backend step by name
+            const findBackendStep = (name: string) => backendSteps.find((s: any) => s.name === name);
+
+            // [Logic] Archive Step Merging
+            // We need to check 'archive_daily_papers' status to influence 'analyze_public_papers'
+            const archiveStep = findBackendStep('archive_daily_papers');
+            const analyzeStep = findBackendStep('analyze_public_papers');
+
+            // 1. Map backend steps to UI steps & Extract Counts
+            newSteps.forEach((uiStep, index) => {
+                const bStep = findBackendStep(uiStep.name);
+
+                // Special handling for analyze step to merge archive status
+                if (uiStep.name === 'analyze_public_papers') {
+                    // Default to backend status or keep current if not found
+                    let status = bStep?.status || uiStep.status;
+                    let message = bStep?.message || uiStep.message;
+                    let progress = uiStep.progress;
+                    let duration = bStep?.duration_ms || uiStep.duration_ms;
+
+                    // If analyze is done (or not started), but archive is running/pending, keep analyze "running"
+                    if (archiveStep) {
+                        if (archiveStep.status === 'running') {
+                            status = 'running';
+                            message = '正在归档数据...';
+                            // If analyze was already done, show 100% or keep current
+                            if (bStep?.status === 'completed') progress = 100;
+                        } else if (archiveStep.status === 'pending' && bStep?.status === 'completed') {
+                            // Analyze done, waiting for archive
+                            status = 'running';
+                            message = '准备归档...';
+                            progress = 100;
+                        } else if (archiveStep.status === 'completed' && bStep?.status === 'completed') {
+                            status = 'completed';
+                        }
+                    }
+
+                    // Update UI Step
+                    newSteps[index] = {
+                        ...uiStep,
+                        status,
+                        message,
+                        progress,
+                        duration_ms: duration
+                    };
+
+                    // Extract Counts for Analyze
+                    // 【修复】从消息中提取真实论文数，而不是使用 progress.current（那是进度百分比！）
+                    const paperMatch = bStep?.message?.match(/(\d+)\s*篇/);
+                    if (paperMatch) {
+                        const val = parseInt(paperMatch[1], 10);
+                        if (val > countsRef.current.analyzed) countsRef.current.analyzed = val;
+                    }
+
+                } else if (bStep) {
+                    // Normal mapping for other steps
+                    const currentStep = { ...newSteps[index] };
+
+                    // [Optimistic] Prevent backtracking for first step
+                    // If UI is running and backend says pending, ignore backend
+                    if (index === 0 && currentStep.status === 'running' && bStep.status === 'pending') {
+                        // Keep running, do nothing
+                    } else {
+                        currentStep.status = bStep.status;
+                    }
+
+                    currentStep.duration_ms = bStep.duration_ms;
+
+                    // [Logic] Extract & Persist Counts
+                    if (bStep.name === 'run_crawler' || bStep.name === 'fetch_details') {
+                        const match = bStep.message?.match(/(?:捕获|获取|total|Fetched).*?(\d+)/i);
+                        if (match) countsRef.current.fetched = parseInt(match[1]);
+                    } else if (bStep.name === 'personalized_filter') {
+                        const match = bStep.message?.match(/(?:Accepted|筛选|selected).*?(\d+)/i);
+                        if (match) countsRef.current.filtered = parseInt(match[1]);
+                    }
+
+                    // [Logic] Progress & Message
+                    if (bStep.progress) {
+                        const { current, total, message } = bStep.progress;
+                        if (total > 0) {
+                            currentStep.progress = Math.round((current / total) * 100);
+                        }
+                        if (message) currentStep.message = message;
+                    } else if (bStep.status === 'completed') {
+                        currentStep.progress = 100;
+                        // [Logic] Override completion message with counts
+                        if (bStep.name === 'run_crawler' || bStep.name === 'fetch_details') {
+                            currentStep.message = countsRef.current.fetched > 0
+                                ? `共获取 ${countsRef.current.fetched} 篇论文`
+                                : '获取完成';
+                        } else if (bStep.name === 'personalized_filter') {
+                            currentStep.message = countsRef.current.filtered > 0
+                                ? `已筛选 ${countsRef.current.filtered} 篇高相关论文`
+                                : '筛选完成';
+                        } else {
+                            currentStep.message = "完成";
+                        }
+                    } else if (bStep.status === 'running') {
+                        if (!currentStep.message) currentStep.message = "正在执行...";
+                    }
+
+                    newSteps[index] = currentStep;
+                }
+            });
+
+            // Re-apply Analyze Message Override (outside loop to ensure it uses latest status)
+            const analyzeUiStep = newSteps.find(s => s.name === 'analyze_public_papers');
+            if (analyzeUiStep && analyzeUiStep.status === 'completed') {
+                analyzeUiStep.message = countsRef.current.analyzed > 0
+                    ? `已分析 ${countsRef.current.analyzed} 篇论文`
+                    : '分析完成';
             }
-        } catch (err: any) {
-            setError(err.message || "启动失败");
-        }
+
+            // Check for running steps
+            hasRunningStep = newSteps.some(s => s.status === 'running');
+
+            // 2. [Optimistic] Gap Filling Logic
+            if (!hasRunningStep && !isCompleted) {
+                // Find last completed step
+                for (let i = 0; i < newSteps.length; i++) {
+                    if (newSteps[i].status === 'completed') {
+                        lastCompletedIndex = i;
+                    }
+                }
+
+                // If we have a completed step, and there is a next step
+                if (lastCompletedIndex !== -1 && lastCompletedIndex < newSteps.length - 1) {
+                    const nextStepIndex = lastCompletedIndex + 1;
+                    const nextStep = newSteps[nextStepIndex];
+
+                    // Only if it's pending (don't overwrite failed)
+                    if (nextStep.status === 'pending') {
+                        newSteps[nextStepIndex] = {
+                            ...nextStep,
+                            status: 'running',
+                            message: '准备中...',
+                            progress: 0
+                        };
+                    }
+                }
+            }
+
+            return newSteps;
+        });
     };
 
     const handleSSEError = (errorMessage: string) => {
@@ -137,42 +274,32 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
         };
     };
 
-    const updateSteps = (backendSteps: any[]) => {
-        setSteps(prevSteps => {
-            const newSteps = [...prevSteps];
+    const startGeneration = async () => {
+        hasTriggeredRef.current = true;
+        setError(null);
+        setIsCompleted(false);
+        // [Optimistic] Immediately set first step to running
+        setSteps(STEPS.map((s, i) => ({
+            ...s,
+            status: i === 0 ? 'running' : 'pending',
+            progress: 0,
+            message: i === 0 ? '正在连接...' : undefined
+        })));
 
-            backendSteps.forEach((bStep: any) => {
-                const index = newSteps.findIndex(s => s.name === bStep.name);
-                if (index !== -1) {
-                    const currentStep = { ...newSteps[index] };
+        // Reset counts
+        countsRef.current = { fetched: 0, analyzed: 0, filtered: 0 };
 
-                    // Update status
-                    currentStep.status = bStep.status;
-                    currentStep.duration_ms = bStep.duration_ms;
+        try {
+            const { execution_id } = await WorkflowAPI.triggerDaily(userId);
 
-                    // Update progress
-                    if (bStep.progress) {
-                        const { current, total, message } = bStep.progress;
-                        if (total > 0) {
-                            currentStep.progress = Math.round((current / total) * 100);
-                        }
-                        if (message) {
-                            currentStep.message = message;
-                        }
-                    } else if (bStep.status === 'completed') {
-                        currentStep.progress = 100;
-                        currentStep.message = "完成";
-                    } else if (bStep.status === 'running') {
-                        // Default message for running state if none provided
-                        if (!currentStep.message) currentStep.message = "正在执行...";
-                    }
-
-                    newSteps[index] = currentStep;
-                }
-            });
-
-            return newSteps;
-        });
+            if (execution_id) {
+                connectToSSE(execution_id);
+            } else {
+                setError("无法获取执行 ID");
+            }
+        } catch (err: any) {
+            setError(err.message || "启动失败");
+        }
     };
 
     const handleClose = () => {
@@ -185,30 +312,30 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-all duration-300">
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-300 border border-gray-100 dark:border-gray-800">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-300 border border-gray-100 dark:border-gray-800">
 
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-white/50 dark:bg-gray-900/50 backdrop-blur-md sticky top-0 z-10">
                     <div>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
                             {isCompleted ? (
                                 <>
-                                    <CheckCircle className="text-green-500 w-6 h-6" />
+                                    <CheckCircle className="text-green-500 w-10 h-10" />
                                     <span>生成完成</span>
                                 </>
                             ) : error ? (
                                 <>
-                                    <AlertCircle className="text-red-500 w-6 h-6" />
+                                    <AlertCircle className="text-red-500 w-10 h-10" />
                                     <span>生成失败</span>
                                 </>
                             ) : (
                                 <>
-                                    <Loader2 className="animate-spin text-blue-600 w-6 h-6" />
+                                    <Loader2 className="animate-spin text-blue-600 w-10 h-10" />
                                     <span>正在生成报告...</span>
                                 </>
                             )}
                         </h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        <p className="text-lg text-gray-500 dark:text-gray-400 mt-2">
                             {isCompleted ? "您的日报已发送至邮箱" : "请稍候，正在处理您的订阅内容"}
                         </p>
                     </div>

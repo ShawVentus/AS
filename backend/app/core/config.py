@@ -74,7 +74,7 @@ class Settings:
             },
             "bohrium": {
                 "api_key": self.BOHRIUM_API_KEY or self.ACCESS_KEY,
-                "base_url": "https://openapi.dp.tech/openapi/v1",
+                "base_url": "https://api.bohrium.dp.tech/v1",
                 "model": self.BOHRIUM_MODEL,
             }
         }
