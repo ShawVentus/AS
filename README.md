@@ -286,4 +286,4 @@ npm run dev
 
 ## 许可证
 
-Alpaca2.0 License
+Alpaca 2.0 License

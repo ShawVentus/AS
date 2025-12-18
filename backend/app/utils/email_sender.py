@@ -66,7 +66,7 @@ class EmailSender:
         """
         from email.utils import formataddr
         msg = MIMEMultipart('alternative')
-        msg['From'] = formataddr(('玻尔平台', self.sender_email))
+        msg['From'] = formataddr(('ArxivScout', self.sender_email))
         msg['To'] = to_email
         msg['Subject'] = Header(subject, 'utf-8')
         

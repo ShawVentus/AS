@@ -99,7 +99,7 @@ class EmailFormatter:
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
         
         lines = [
-            f"【玻尔平台论文日报】{report.date}",
+            f"【ArxivScout 论文日报】{report.date}",
             "",
             f"报告标题：{report.title}",
             "",
