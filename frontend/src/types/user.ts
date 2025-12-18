@@ -66,6 +66,8 @@ export interface UserProfile {
     context: Context;
     /** 记忆/历史 */
     memory: Memory;
+    /** 是否已完成产品引导教程 */
+    has_completed_tour?: boolean;
 }
 
 export interface NaturalLanguageInput {

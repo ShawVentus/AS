@@ -421,6 +421,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                     </label>
                     <div className="relative">
                         <textarea
+                            data-tour="manual-query-input"
                             value={naturalQuery}
                             onChange={(e) => onNaturalQueryChange(e.target.value)}
                             placeholder="例如：我想看最近关于大模型微调的论文，特别是涉及 LoRA 的..."
@@ -476,6 +477,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                             </div>
                         </div>
                         <button
+                            data-tour="save-default-checkbox"
                             onClick={handleSaveAsDefault}
                             disabled={isSaving}
                             className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

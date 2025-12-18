@@ -88,3 +88,29 @@ def initialize_user_profile(
     # 实际场景中应该从 JWT token claims 中解析 email，或者再次调用 auth API 获取。
     # 暂时我们在 init_data.info 中信任前端传来的 email，或者由 service 层处理默认值。
     return user_service.initialize_profile(init_data, user_id)
+
+@router.patch("/me/complete-tour")
+def complete_user_tour(user_id: str = Depends(get_current_user_id)):
+    """
+    标记用户已完成产品引导教程。
+    
+    该接口用于新用户首次使用时的引导流程。当用户完成或跳过引导后调用，
+    确保下次登录时不再显示引导气泡。
+    
+    Args:
+        user_id (str): 当前认证用户的ID（通过依赖注入自动获取）
+    
+    Returns:
+        dict: 操作结果 {"success": bool, "message": str}
+    """
+    from app.services.user_service import user_service
+    
+    success = user_service.mark_tour_completed(user_id)
+    
+    if success:
+        return {"success": True, "message": "已成功标记引导完成"}
+    else:
+        raise HTTPException(
+            status_code=500, 
+            detail="标记引导完成失败，请稍后重试"
+        )

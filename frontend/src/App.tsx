@@ -18,6 +18,7 @@ import { Register } from './components/auth/Register';
 import { ReportGenerationModal } from './components/features/ReportGenerationModal';
 
 import { MainView } from './components/layout/MainView';
+import { GuidedTour } from './components/features/GuidedTour';
 
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ToastProvider } from './contexts/ToastContext';
@@ -53,6 +54,9 @@ function AppContent() {
     const [manualReportQuery, setManualReportQuery] = useState('');
     const [manualReportCategories, setManualReportCategories] = useState<string[]>([]);
     const [manualReportAuthors, setManualReportAuthors] = useState<string[]>([]);
+    
+    // [NEW] 产品引导状态
+    const [runTour, setRunTour] = useState(false);
 
     // [NEW] Use QueryClient for invalidation
     const queryClient = useQueryClient();
@@ -191,25 +195,94 @@ function AppContent() {
     }, [user, latestReport, queryClient]);
     const dataLoading = profileLoading; // Simplified loading state
 
-    // Handle Profile Error / Onboarding Redirect
+    /**
+     * 处理 Profile 错误和新用户引导
+     * 
+     * 功能：
+     * 1. 404错误：新用户没有profile，停留在dashboard，等待引导气泡
+     * 2. 401错误：Session过期，登出
+     * 
+     * Args:
+     *   无
+     * 
+     * Returns:
+     *   void
+     */
     React.useEffect(() => {
         if (profileError) {
             const error = profileError as any;
             const errorStatus = error?.response?.status || error?.status;
             if (errorStatus === 404) {
-                console.log("Profile not found, redirecting to onboarding");
-                setCurrentView('onboarding');
+                // 新用户没有 profile，停留在 dashboard
+                // 引导气泡会自动触发，引导用户生成报告
+                console.log('[引导] Profile not found, but will show guided tour');
+                // 不跳转，保持在 dashboard
             } else if (errorStatus === 401) {
-                console.log("Session expired, logging out");
+                console.log('[引导] Session expired, logging out');
                 supabase.auth.signOut();
             }
-        } else if (userProfile) {
-            // Check if profile is initialized (has focus category)
-            if (!userProfile.focus?.category || userProfile.focus.category.length === 0) {
-                setCurrentView('onboarding');
-            }
         }
-    }, [userProfile, profileError]);
+        // 移除未初始化检查，不再跳转到 onboarding
+        // 新用户通过引导气泡了解功能即可
+    }, [profileError]);
+    
+    /**
+     * 检测是否需要显示产品引导
+     * 
+     * 触发条件：
+     * 1. userProfile 已加载
+     * 2. 用户未完成过引导 (has_completed_tour === false)
+     * 
+     * Args:
+     *   无
+     * 
+     * Returns:
+     *   void
+     */
+    React.useEffect(() => {
+        if (userProfile && userProfile.has_completed_tour === false) {
+            console.log('[引导] 检测到新用户，准备显示引导...');
+            // 延迟 500ms 确保页面完全加载和渲染
+            const timer = setTimeout(() => {
+                console.log('[引导] 开始显示引导气泡');
+                setRunTour(true);
+            }, 500);
+            
+            return () => clearTimeout(timer);
+        } else if (userProfile?.has_completed_tour === true) {
+            console.log('[引导] 用户已完成引导，跳过显示');
+        }
+    }, [userProfile]);
+    
+    /**
+     * 引导完成或跳过时的回调处理
+     * 
+     * 功能：
+     * 1. 隐藏引导气泡
+     * 2. 调用后端 API 标记引导完成
+     * 3. 刷新用户信息（确保 has_completed_tour 更新）
+     * 
+     * Args:
+     *   无
+     * 
+     * Returns:
+     *   Promise<void>
+     */
+    const handleTourComplete = async () => {
+        console.log('[引导] 用户完成或跳过引导');
+        setRunTour(false);
+        
+        try {
+            await UserAPI.completeTour();
+            // 刷新用户信息，获取最新的 has_completed_tour 状态
+            queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+            console.log('[引导] ✅ 引导状态已同步');
+        } catch (error) {
+            console.error('[引导] ❌ 标记引导完成失败:', error);
+            // 即使失败也隐藏引导，避免用户体验问题
+            // 用户下次登录时会重新显示引导
+        }
+    };
 
     if (loading) {
         return <LoadingScreen />;
@@ -346,6 +419,12 @@ function AppContent() {
                     }}
                 />
             )}
+            
+            {/* 🆕 产品引导组件 */}
+            <GuidedTour 
+                run={runTour} 
+                onComplete={handleTourComplete} 
+            />
         </div>
     );
 }

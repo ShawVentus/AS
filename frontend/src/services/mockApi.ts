@@ -43,6 +43,21 @@ export const MockUserAPI = {
         console.log(`[Mock] Updated focus:`, focus);
         return { ...USER_PROFILE, focus: { ...USER_PROFILE.focus, ...focus } };
     },
+    
+    /**
+     * 标记用户已完成产品引导教程（Mock 模式）
+     * 
+     * Args:
+     *   无
+     * 
+     * Returns:
+     *   Promise<{ success: boolean; message: string }>: 操作结果
+     */
+    completeTour: async () => {
+        await delay(300);
+        console.log('[Mock] ✅ 用户已完成引导教程');
+        return { success: true, message: '已成功标记引导完成' };
+    },
 };
 
 export const MockPaperAPI = {

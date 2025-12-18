@@ -77,6 +77,30 @@ export const RealUserAPI = {
         method: 'POST',
         body: JSON.stringify(feedback)
     }),
+    
+    /**
+     * 标记用户已完成产品引导教程
+     * 
+     * 调用后端 API 更新 profiles 表中的 has_completed_tour 字段为 true。
+     * 用于新用户首次使用时的引导流程，确保下次登录不再显示引导气泡。
+     * 
+     * Args:
+     *   无
+     * 
+     * Returns:
+     *   Promise<{ success: boolean; message: string }>: 操作结果
+     * 
+     * Throws:
+     *   ApiError: API 调用失败时抛出
+     */
+    completeTour: async (): Promise<{ success: boolean; message: string }> => {
+        console.log('[API] 正在标记用户引导完成...');
+        const result = await fetchJSON<{ success: boolean; message: string }>('/user/me/complete-tour', {
+            method: 'PATCH'
+        });
+        console.log('[API] ✅ 引导完成状态已更新');
+        return result;
+    },
 };
 
 export const RealPaperAPI = {

@@ -43,6 +43,8 @@ class UserProfile(BaseModel):
     focus: Focus
     context: Context
     memory: Memory
+    has_completed_tour: Optional[bool] = False  # 是否已完成产品引导教程
+
 
 class NaturalLanguageInput(BaseModel):
     """自然语言输入模型"""

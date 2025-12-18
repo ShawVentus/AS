@@ -195,11 +195,15 @@ class UserService:
                 if not info_data.get("id"):
                     info_data["id"] = user_id
                 
+                # 获取 has_completed_tour 字段（兼容旧数据，默认为 False）
+                has_completed_tour = data.get("has_completed_tour", False)
+                
                 return UserProfile(
                     info=info_data,
                     focus=focus_data,
                     context=context_data,
-                    memory=data.get("memory", {})
+                    memory=data.get("memory", {}),
+                    has_completed_tour=has_completed_tour
                 )
             else:
                 # 数据库中没有该用户的 profile
@@ -474,5 +478,34 @@ class UserService:
         except Exception as e:
             print(f"Error fetching all users: {e}")
             return []
+    
+    def mark_tour_completed(self, user_id: str) -> bool:
+        """
+        标记用户已完成产品引导教程。
+        
+        此功能用于新用户首次登录后的引导流程。完成引导后，用户下次登录将不再显示引导气泡。
+        
+        Args:
+            user_id (str): 用户的唯一标识符。
+        
+        Returns:
+            bool: 操作是否成功。True 表示成功标记，False 表示操作失败。
+        """
+        try:
+            print(f"[引导完成] 正在标记用户 {user_id} 已完成引导教程")
+            
+            # 更新 profiles 表中的 has_completed_tour 字段
+            self.db.table("profiles").update({
+                "has_completed_tour": True
+            }).eq("user_id", user_id).execute()
+            
+            print(f"✅ 用户 {user_id} 引导状态已更新")
+            return True
+            
+        except Exception as e:
+            print(f"❌ 标记引导完成失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
 
 user_service = UserService()
