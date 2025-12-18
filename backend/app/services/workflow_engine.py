@@ -15,9 +15,9 @@ from datetime import datetime
 from uuid import uuid4
 
 from app.core.database import get_db
-# from app.services.email_service import email_service # TODO: 创建 email_service 模块
 from app.core.workflow_step import WorkflowStep
 from app.core.config import settings
+from app.utils.error_notifier import error_notifier
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -40,12 +40,6 @@ class WorkflowEngine:
         self.steps: List[WorkflowStep] = []
         self.context: Dict[str, Any] = {}
         self.execution_id: Optional[str] = execution_id
-        
-        # 从环境变量读取配置
-        self.admin_emails = os.environ.get("ADMIN_EMAILS", "").split(",")
-        self.llm_price_input = float(os.environ.get("LLM_PRICE_INPUT", "1.0"))  # USD per 1M tokens
-        self.llm_price_input = float(os.environ.get("LLM_PRICE_INPUT", "1.0"))  # USD per 1M tokens
-        self.llm_price_output = float(os.environ.get("LLM_PRICE_OUTPUT", "5.0"))
 
     def _setup_logging(self, execution_id: str):
         """设置文件日志"""
@@ -530,27 +524,31 @@ class WorkflowEngine:
     
     def _send_failure_alert(self, workflow_type: str, error: str, stack_trace: str):
         """
-        发送失败告警邮件。
+        发送工作流失败告警邮件
+        
+        功能：
+            当工作流整体执行失败时，通过错误通知系统发送告警邮件。
+            包含完整的错误信息、堆栈追踪和执行上下文。
         
         Args:
-            workflow_type (str): 工作流类型
-            error (str): 错误信息
-            stack_trace (str): 堆栈跟踪
+            workflow_type (str): 工作流类型，如 "daily_update", "manual_query"
+            error (str): 错误信息描述
+            stack_trace (str): Python异常堆栈追踪
+        
+        Returns:
+            None
         """
-        subject = f"❌ 工作流失败告警: {workflow_type}"
-        content = f"""
-工作流执行失败
-
-执行 ID: {self.execution_id}
-工作流类型: {workflow_type}
-失败时间: {datetime.now()}
-错误信息: {error}
-
-堆栈跟踪:
-{stack_trace}
-        """
-        # TODO: 调用 email_service.send_email(self.admin_emails, subject, content)
-        logger.info(f"📧 已发送失败告警邮件给: {self.admin_emails}")
+        # 调用统一的错误通知工具
+        error_notifier.notify_critical_error(
+            error_type="WORKFLOW_EXECUTION_FAILED",
+            error_message=f"工作流 '{workflow_type}' 执行失败: {error}",
+            context={
+                "workflow_type": workflow_type,
+                "execution_id": self.execution_id,
+                "failed_at": datetime.now().isoformat()
+            },
+            stack_trace=stack_trace
+        )
 
     def _update_execution_context(self):
         """更新执行记录的上下文元数据。"""

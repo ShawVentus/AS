@@ -23,13 +23,13 @@ class EmailTemplates:
     
     # 主题标签映射（带 emoji）
     TOPIC_EMOJIS = {
-        'cs.CV': '🖼️',
-        'cs.AI': '🤖',
-        'cs.LG': '🧠',
-        'cs.CL': '💬',
-        'cs.RO': '🦾',
-        'cs.NE': '🌐',
-        'default': '📄'
+        # 'cs.CV': '🖼️',
+        # 'cs.AI': '🤖',
+        # 'cs.LG': '🧠',
+        # 'cs.CL': '💬',
+        # 'cs.RO': '🦾',
+        # 'cs.NE': '🌐',
+        'default': ''
     }
 
     def __init__(self):

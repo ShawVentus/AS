@@ -21,7 +21,7 @@ USER_PROFILE = {
         "currentTask": "尝试独立开发论文查询agent",
         "futureGoal": "agent/LLM赋能医疗",
         "stage": "初学者",
-        "preferences": "关注前沿技术发展, 未来准备走工业界",
+        "preferences": ["关注前沿技术发展, 未来准备走工业界"],  # 修复：改为列表
         "learningMode": "basic"
     },
     "memory": {

@@ -22,9 +22,18 @@ export const UserProfile: React.FC<UserProfileProps> = ({ profile }) => {
             <div className="space-y-4">
                 <div>
                     <h3 className="text-sm font-medium text-slate-500 mb-2">研究偏好</h3>
-                    <p className="text-slate-300 text-sm leading-relaxed">
-                        {profile.context.preferences}
-                    </p>
+                    {profile.context.preferences && profile.context.preferences.length > 0 ? (
+                        <ul className="space-y-1.5">
+                            {profile.context.preferences.map((pref, idx) => (
+                                <li key={idx} className="text-slate-300 text-sm flex items-start">
+                                    <span className="text-cyan-400 mr-2 mt-0.5">•</span>
+                                    <span>{pref}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-slate-500 text-sm italic">暂无偏好设置</p>
+                    )}
                 </div>
 
                 <div>

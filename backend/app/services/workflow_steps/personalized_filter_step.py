@@ -106,6 +106,10 @@ class PersonalizedFilterStep(WorkflowStep):
         # 用于收集所有用户的推荐论文ID，防止在多用户场景下数据丢失
         all_selected_paper_ids = []
         
+        # [新增] 初始化用户统计字典
+        # 用于记录每个用户实际分析的论文数，解决多用户任务中报告数量显示为总数的问题
+        user_filter_stats = {}
+        
         processed_count = 0
         total_users_count = len(target_users)
         
@@ -184,6 +188,13 @@ class PersonalizedFilterStep(WorkflowStep):
                  all_selected_paper_ids.extend(current_user_paper_ids)
                  print(f"[DEBUG] 用户 {uid} 推荐论文数: {len(current_user_paper_ids)}")
              
+             # [新增] 记录该用户的统计数据
+             user_filter_stats[uid] = {
+                 "analyzed": filter_res.total_analyzed,
+                 "accepted": filter_res.accepted_count,
+                 "rejected": filter_res.rejected_count
+             }
+             
         # 记录聚合指标
         self.cost = total_cost
         self.metrics["cache_hit_tokens"] = total_cache_hits
@@ -235,5 +246,8 @@ class PersonalizedFilterStep(WorkflowStep):
             # 这些数据反映了用户实际看到的论文数量（经过分类过滤后）
             "actually_filtered_count": total_analyzed,  # 实际筛选总数 (accepted + rejected)
             "filter_accepted_count": total_accepted_count,  # 接受的论文数
-            "filter_rejected_count": total_rejected  # 拒绝的论文数
+            "actually_filtered_count": total_analyzed,  # 实际筛选总数 (accepted + rejected)
+            "filter_accepted_count": total_accepted_count,  # 接受的论文数
+            "filter_rejected_count": total_rejected,  # 拒绝的论文数
+            "user_filter_stats": user_filter_stats  # [新增] 分用户统计数据
         }

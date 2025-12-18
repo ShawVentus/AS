@@ -17,6 +17,32 @@ MAX_WORKERS = int(os.getenv("LLM_MAX_WORKERS", 2))
 class PaperService:
     def __init__(self):
         self.db = get_db()
+    
+    def _format_preferences_for_llm(self, preferences: List[str]) -> str:
+        """
+        将 preferences 列表格式化为 LLM 友好的 Markdown 格式
+        
+        将用户的研究偏好列表转换为 Markdown 无序列表格式，便于 LLM 理解和处理。
+        
+        Args:
+            preferences (List[str]): 用户的研究偏好列表
+        
+        Returns:
+            str: Markdown 格式化后的字符串，如果列表为空则返回提示文本
+            
+        Example:
+            输入: ["寻找灵感", "跟进前沿"]
+            输出: "- 寻找灵感\n- 跟进前沿"
+        """
+        if preferences and len(preferences) > 0:
+            # 格式化为 Markdown 无序列表
+            formatted = "\n".join([f"- {pref}" for pref in preferences])
+            print(f"[LLM筛选] 格式化 preferences: {len(preferences)} 条")
+            return formatted
+        else:
+            # 空列表，返回提示文本
+            return "（用户未设置研究偏好）"
+
 
     def clear_daily_papers(self) -> bool:
         """
@@ -566,10 +592,16 @@ class PaperService:
                 print(f"[DEBUG] Applying manual authors override: {manual_authors}")
                 # 假设 focus 中有 authors 字段，如果没有则添加
                 focus_dict["authors"] = manual_authors
+            
+            # 新增：格式化 context.preferences 列表为 Markdown 格式
+            context_dict = user_profile.context.model_dump()
+            context_dict["preferences"] = self._format_preferences_for_llm(
+                context_dict.get("preferences", [])
+            )
 
             profile_context = {
                 "focus": focus_dict,
-                "context": user_profile.context.model_dump()
+                "context": context_dict
             }
             profile_str = json.dumps(profile_context, ensure_ascii=False, indent=2)
 

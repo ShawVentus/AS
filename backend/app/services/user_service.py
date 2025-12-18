@@ -78,7 +78,7 @@ class UserService:
                     "institutions": []
                 },
                 "context": {
-                    "preferences": "",
+                    "preferences": [],  # 修复：改为空数组
                     "currentTask": "",
                     "futureGoal": ""
                 },
@@ -91,6 +91,51 @@ class UserService:
         except Exception as e:
             print(f"Error creating default user: {e}")
             raise e
+
+    def _migrate_preferences_to_list(self, preferences_value, user_id: str) -> list:
+        """
+        将 preferences 字段从旧格式（字符串）自动迁移为新格式（列表）
+        
+        采用渐进式迁移策略：仅在内存中转换，不立即写入数据库。
+        用户下次保存时，新格式会自然写入数据库。
+        
+        Args:
+            preferences_value: 从数据库读取的 preferences 值（可能是 str、list 或 None）
+            user_id (str): 用户ID，用于日志记录
+        
+        Returns:
+            list: 验证后的 preferences 列表（最多10条，每条最多200字符）
+        """
+        # 1. 处理 None 或缺失字段
+        if preferences_value is None:
+            return []
+        
+        # 2. 已经是列表格式（新版数据）
+        if isinstance(preferences_value, list):
+            # 进行数据验证和清洗
+            # 过滤掉非字符串、空字符串，并截断超长字符串
+            validated = [
+                pref.strip()[:200]  # 截断到最多200字符
+                for pref in preferences_value
+                if isinstance(pref, str) and pref.strip()
+            ][:10]  # 最多保留10条
+            
+            return validated
+        
+        # 3. 旧版字符串格式，需要迁移
+        if isinstance(preferences_value, str):
+            # 非空字符串，转为单元素列表（不分割，整体保留）
+            if preferences_value.strip():
+                print(f"[自动迁移] 用户 {user_id} 的 preferences 从字符串转为列表")
+                return [preferences_value.strip()[:200]]
+            # 空字符串
+            else:
+                return []
+        
+        # 4. 其他异常格式（防御性编程）
+        print(f"⚠️ 用户 {user_id} 的 preferences 格式异常: {type(preferences_value)}，重置为空列表")
+        return []
+
 
     def get_profile(self, user_id: Optional[str] = None) -> UserProfile:
         """
@@ -120,13 +165,20 @@ class UserService:
                 
                 # 1. 清洗 Context
                 context_data = data.get("context", {})
-                # 迁移 purpose (List) -> preferences (str)
+                
+                # 迁移 purpose (List) -> preferences (兼容旧版)
                 if "preferences" not in context_data and "purpose" in context_data:
                     purpose = context_data.pop("purpose")
                     if isinstance(purpose, list):
                         context_data["preferences"] = ", ".join(purpose)
                     elif isinstance(purpose, str):
                         context_data["preferences"] = purpose
+                
+                # 新增：自动迁移 preferences 从字符串到列表
+                context_data["preferences"] = self._migrate_preferences_to_list(
+                    context_data.get("preferences"), 
+                    user_id
+                )
                 
                 # 确保必需字段存在 (Pydantic 会处理默认值，但为了安全起见)
                 # stage 和 learningMode 已被移除，无需处理
@@ -217,7 +269,7 @@ class UserService:
                         "institutions": []
                     },
                     "context": {
-                        "preferences": "",
+                        "preferences": [],  # 修复：改为空数组
                         "currentTask": "",
                         "futureGoal": ""
                     },

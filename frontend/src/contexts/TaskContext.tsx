@@ -440,9 +440,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 // 任何错误都清理状态，不 fallback
                 localStorage.removeItem('current_manual_execution_id');
 
-                if (err?.status === 401) {
-                    // 401 不显示错误提示
-                    console.log("Unauthorized. Clearing localStorage.");
+                if (err?.status === 401 || err?.status === 403) {
+                    // 401/403 不显示错误提示
+                    console.log("Unauthorized/Forbidden. Clearing localStorage.");
                     return;
                 }
 

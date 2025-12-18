@@ -6,6 +6,7 @@ import { TagInput } from '../common/TagInput';
 import { ToolsAPI, WorkflowAPI, UserAPI } from '../../services/api';
 import type { UserProfile } from '../../types';
 import { useTaskContext } from '../../contexts/TaskContext';
+import { useToast } from '../../contexts/ToastContext';
 import type { StepProgress } from '../../types';
 
 interface ManualReportPageProps {
@@ -238,10 +239,13 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
     // UI States (UI 状态)
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [isStarting, setIsStarting] = useState(false); // Local state for API call duration
+    const [isSaving, setIsSaving] = useState(false); // 保存按钮的 loading 状态
     const [showConfirm, setShowConfirm] = useState(false);
+    const [showSaveConfirm, setShowSaveConfirm] = useState(false); // 保存设置确认弹窗状态
 
     // Workflow States (工作流状态)
     const { isGenerating, steps, startTask } = useTaskContext();
+    const { showToast } = useToast();
     const [error, setError] = useState<string | null>(null);
 
     // Transform steps for UI display
@@ -283,22 +287,81 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
      * 处理保存为默认设置。
      * 将当前配置更新到用户画像中。
      */
-    const handleSaveAsDefault = async () => {
-        if (!confirm("确定要将当前设置保存为默认偏好吗？这将覆盖您之前的设置。")) return;
+    /**
+     * 处理保存为默认设置。
+     * 将当前配置更新到用户画像中，以便下次自动生效。
+     * 
+     * 逻辑：
+     * 1. Preferences (偏好): 追加模式。将当前自然语言输入追加到偏好列表。
+     * 2. Focus (关注): 覆盖模式。使用当前选中的分类和作者覆盖旧设置。
+     * 
+     * Args:
+     *   None
+     * 
+     * Returns:
+     *   Promise<void>
+     */
+    /**
+     * 打开保存确认弹窗
+     */
+    const handleSaveAsDefault = () => {
+        // 1. 输入验证：如果所有字段都为空，提示用户
+        if (!naturalQuery.trim() && categories.length === 0 && authors.length === 0) {
+            showToast("没有可保存的设置", "warning");
+            return;
+        }
+        setShowSaveConfirm(true);
+    };
 
+    /**
+     * 确认保存设置。
+     * 
+     * 逻辑：
+     * 1. Preferences (偏好): 追加模式。将当前自然语言输入追加到偏好列表。
+     * 2. Focus (关注): 追加模式。将当前选中的分类和作者与旧设置合并（去重）。
+     */
+    const confirmSave = async () => {
+        setIsSaving(true);
         try {
-            // Update profile logic here
-            // Assuming we update focus categories and description
-            await UserAPI.updateFocus({
-                category: categories,
-                description: naturalQuery,
-                keywords: [], // Clear keywords as we use description
-                authors: authors
+            // 1. 构建新的 Preferences 列表 (追加模式 + 去重)
+            const currentPreferences = Array.isArray(userProfile.context.preferences)
+                ? userProfile.context.preferences
+                : (userProfile.context.preferences ? [userProfile.context.preferences] : []);
+
+            const newPreferences = [...currentPreferences];
+            const query = naturalQuery.trim();
+            if (query && !newPreferences.includes(query)) {
+                newPreferences.push(query);
+            }
+
+            // 2. 构建新的 Categories 列表 (追加模式 + 去重)
+            const currentCategories = userProfile.focus.category || [];
+            const newCategories = Array.from(new Set([...currentCategories, ...categories]));
+
+            // 3. 构建新的 Authors 列表 (追加模式 + 去重)
+            const currentAuthors = userProfile.focus.authors || [];
+            const newAuthors = Array.from(new Set([...currentAuthors, ...authors]));
+
+            // 4. 调用 API 更新用户画像
+            await UserAPI.updateProfile({
+                focus: {
+                    ...userProfile.focus,
+                    category: newCategories, // 更新分类
+                    authors: newAuthors      // 更新作者
+                },
+                context: {
+                    ...userProfile.context,
+                    preferences: newPreferences // 更新偏好列表
+                }
             });
-            alert("设置已保存！");
+
+            showToast("设置已保存为默认偏好", "success");
+            setShowSaveConfirm(false);
         } catch (err) {
             console.error("Save failed", err);
-            alert("保存失败，请重试。");
+            showToast("保存失败，请重试", "error");
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -414,10 +477,11 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                         </div>
                         <button
                             onClick={handleSaveAsDefault}
-                            className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white transition-colors"
+                            disabled={isSaving}
+                            className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <Save size={18} />
-                            <span className="text-sm">保存为默认设置</span>
+                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save size={18} />}
+                            <span className="text-sm">{isSaving ? '保存中...' : '保存为默认设置'}</span>
                         </button>
                     </div>
 
@@ -476,6 +540,41 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                                 className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium"
                             >
                                 确认并支付
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Save Confirm Modal */}
+            {showSaveConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
+                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <Save className="text-indigo-500" />
+                            保存为默认设置？
+                        </h3>
+                        <p className="text-slate-400 mb-6">
+                            确定要将当前设置保存到您的个人偏好吗？
+                            <br /><br />
+                            <ul className="list-disc list-inside space-y-1 text-sm">
+                                <li><strong>查询内容、类别和作者</strong>将追加到现有设置中</li>
+                            </ul>
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowSaveConfirm(false)}
+                                className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={confirmSave}
+                                disabled={isSaving}
+                                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium flex items-center gap-2"
+                            >
+                                {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                                确认保存
                             </button>
                         </div>
                     </div>

@@ -36,7 +36,8 @@ class GenerateReportStep(WorkflowStep):
             manual_query=manual_query,
             manual_categories=manual_categories,
             manual_authors=manual_authors,
-            specific_paper_ids=selected_paper_ids  # [修复] 使用 context 中的推荐论文ID列表
+            specific_paper_ids=selected_paper_ids,  # [修复] 使用 context 中的推荐论文ID列表
+            context=context  # [修复] 传递工作流上下文，包含准确的统计数据
         )
         
         if stats:

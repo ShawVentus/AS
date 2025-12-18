@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
 import { UserAPI } from '../../services/api';
 import type { UserProfile } from '../../types/user';
+import { useToast } from '../../contexts/ToastContext';
 import { Avatar } from '../common/Avatar';
 import { TagInput } from '../common/TagInput';
 import { CategorySelector } from '../common/CategorySelector';
-import { ArrowLeft, Sparkles, Lightbulb, Save, LogOut, User } from 'lucide-react';
+import { ArrowLeft, Lightbulb, Save, LogOut, User, Plus, MoreVertical, Edit, Trash2 } from 'lucide-react';
 
 interface SettingsProps {
     userProfile: UserProfile;
@@ -14,19 +15,31 @@ interface SettingsProps {
     onNavigate?: (view: string) => void;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBack, onNavigate }) => {
-    const [name, setName] = useState(userProfile.info.name);
+export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBack }) => {
+    const { showToast } = useToast();
 
     const [loading, setLoading] = useState(false);
-    const [nlLoading, setNlLoading] = useState(false);
-    const [nlInput, setNlInput] = useState('');
+
+    // Preferences 弹窗状态
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [editingIndex, setEditingIndex] = useState<number | null>(null);
+    const [dialogValue, setDialogValue] = useState('');
+    const [menuOpen, setMenuOpen] = useState<number | null>(null);
+
+    // 确认对话框状态
+    const [confirmDialog, setConfirmDialog] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+    }>({ open: false, title: '', message: '', onConfirm: () => { } });
 
     const [formData, setFormData] = useState({
         nickname: '',
         avatar: '',
         role: '',
         stage: '',
-        preferences: '',
+        preferences: [] as string[],  // 改为数组
         category: [] as string[],
         keywords: [] as string[],
         authors: [] as string[],
@@ -42,7 +55,7 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                 avatar: userProfile.info?.avatar || '',
                 role: userProfile.info?.role || '',
                 stage: userProfile.context?.stage || '',
-                preferences: userProfile.context?.preferences || '',
+                preferences: userProfile.context?.preferences || [],  // 默认空数组
                 category: userProfile.focus?.category || [],
                 keywords: userProfile.focus?.keywords || [],
                 authors: userProfile.focus?.authors || [],
@@ -81,30 +94,85 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
             };
 
             await UserAPI.updateProfile(updates);
-            alert('保存成功');
+            showToast('保存成功', 'success');
             onUpdate();
         } catch (error) {
             console.error('Error updating settings:', error);
-            alert('保存失败');
+            showToast('保存失败', 'error');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleNLUpdate = async () => {
-        if (!nlInput.trim()) return;
-        setNlLoading(true);
-        try {
-            await UserAPI.updateProfileNL(nlInput);
-            setNlInput('');
-            alert('更新成功');
-            onUpdate(); // Refresh profile to show changes
-        } catch (error) {
-            console.error('Error updating profile via NL:', error);
-            alert('更新失败');
-        } finally {
-            setNlLoading(false);
+    const handleAddPreference = () => {
+        setEditingIndex(null);
+        setDialogValue('');
+        setDialogOpen(true);
+        setMenuOpen(null);
+    };
+
+    const handleEditPreference = (index: number) => {
+        setEditingIndex(index);
+        setDialogValue(formData.preferences[index]);
+        setDialogOpen(true);
+        setMenuOpen(null);
+    };
+
+    const handleDeletePreference = (index: number) => {
+        setConfirmDialog({
+            open: true,
+            title: '删除研究偏好',
+            message: '确定要删除这条研究偏好吗？',
+            onConfirm: () => {
+                const newPreferences = formData.preferences.filter((_, i) => i !== index);
+                setFormData({ ...formData, preferences: newPreferences });
+                setMenuOpen(null);
+                setConfirmDialog({ ...confirmDialog, open: false });
+            }
+        });
+    };
+
+    const handleDeleteAll = () => {
+        setConfirmDialog({
+            open: true,
+            title: '删除所有偏好',
+            message: `确定要删除所有 ${formData.preferences.length} 条研究偏好吗？此操作不可恢复。`,
+            onConfirm: () => {
+                setFormData({ ...formData, preferences: [] });
+                setConfirmDialog({ ...confirmDialog, open: false });
+            }
+        });
+    };
+
+    const handleDialogSubmit = () => {
+        const trimmed = dialogValue.trim();
+        if (!trimmed) {
+            showToast('研究偏好不能为空', 'warning');
+            return;
         }
+
+        if (trimmed.length > 200) {
+            showToast('单条偏好最多200字符', 'warning');
+            return;
+        }
+
+        if (editingIndex !== null) {
+            // 编辑模式
+            const newPreferences = [...formData.preferences];
+            newPreferences[editingIndex] = trimmed;
+            setFormData({ ...formData, preferences: newPreferences });
+        } else {
+            // 新增模式
+            if (formData.preferences.length >= 10) {
+                showToast('最多只能添加10条研究偏好', 'warning');
+                return;
+            }
+            setFormData({ ...formData, preferences: [...formData.preferences, trimmed] });
+        }
+
+        setDialogOpen(false);
+        setDialogValue('');
+        setEditingIndex(null);
     };
 
     const handleLogout = async () => {
@@ -175,10 +243,10 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                                             .getPublicUrl(filePath);
 
                                         setFormData(prev => ({ ...prev, avatar: data.publicUrl }));
-                                        alert('头像上传成功，请点击保存以应用更改');
+                                        showToast('头像上传成功，请点击保存以应用更改', 'success');
                                     } catch (error: any) {
                                         console.error('Error uploading avatar:', error);
-                                        alert(`头像上传失败: ${error.message || '请确保您已登录且网络正常'}`);
+                                        showToast(`头像上传失败: ${error.message || '请确保您已登录且网络正常'}`, 'error');
                                     } finally {
                                         setLoading(false);
                                     }
@@ -241,33 +309,109 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                 </div>
             </section>
 
-            {/* Natural Language Adjustment */}
+            {/* 研究偏好设置 - 重构为列表+弹窗模式 */}
             <section className="bg-slate-900/50 rounded-xl p-5 border border-slate-800 backdrop-blur-sm">
-                <div className="flex items-center gap-2 mb-3 text-blue-400">
-                    <Sparkles size={20} />
-                    <h2 className="text-lg font-semibold text-white">自然语言调整</h2>
+                {/* 顶部按钮栏 */}
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2 text-purple-400">
+                        <Lightbulb size={20} />
+                        <h2 className="text-lg font-semibold text-white">研究偏好设置</h2>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleAddPreference}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
+                        >
+                            <Plus size={16} />
+                            添加偏好
+                        </button>
+                        {formData.preferences.length > 0 && (
+                            <button
+                                onClick={handleDeleteAll}
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors text-sm"
+                            >
+                                <Trash2 size={16} />
+                                删除所有偏好
+                            </button>
+                        )}
+                    </div>
                 </div>
-                <div className="flex gap-4">
-                    <input
-                        type="text"
-                        value={nlInput}
-                        onChange={e => setNlInput(e.target.value)}
-                        placeholder="告诉 Agent 您最近想关注什么，例如: '最近想了解一下 RAG 在医疗领域的应用'..."
-                        className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder:text-slate-600 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                        onKeyDown={e => e.key === 'Enter' && handleNLUpdate()}
-                    />
-                    <button
-                        onClick={handleNLUpdate}
-                        disabled={nlLoading || !nlInput.trim()}
-                        className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-lg border border-slate-700 font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
-                    >
-                        {nlLoading ? '更新中...' : '更新'}
-                    </button>
+
+                {/* Preferences 列表 */}
+                <div className="space-y-2">
+                    {formData.preferences.length === 0 ? (
+                        <div className="text-center py-8 text-slate-500">
+                            <Lightbulb size={32} className="mx-auto mb-2 opacity-50" />
+                            <p>还没有设置研究偏好</p>
+                            <p className="text-xs mt-1">点击 "Add" 按钮添加你的第一条偏好</p>
+                        </div>
+                    ) : (
+                        formData.preferences.map((pref, index) => (
+                            <div
+                                key={index}
+                                className="group relative bg-slate-800/50 rounded-lg px-4 pt-3 pb-2 border border-slate-700 hover:border-slate-600 transition-colors"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <p className="text-slate-200 text-sm flex-1 leading-relaxed pr-8">
+                                        {pref}
+                                    </p>
+
+                                    {/* 三点菜单 */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setMenuOpen(menuOpen === index ? null : index)}
+                                            className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700 transition-colors"
+                                        >
+                                            <MoreVertical size={18} />
+                                        </button>
+
+                                        {menuOpen === index && (
+                                            <>
+                                                {/* 点击外部关闭菜单 */}
+                                                <div
+                                                    className="fixed inset-0 z-10"
+                                                    onClick={() => setMenuOpen(null)}
+                                                />
+                                                {/* 下拉菜单 */}
+                                                <div className="absolute right-0 top-8 z-20 bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 min-w-[120px]">
+                                                    <button
+                                                        onClick={() => handleEditPreference(index)}
+                                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                                                    >
+                                                        <Edit size={14} />
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeletePreference(index)}
+                                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
-                <p className="text-xs text-slate-500 mt-3 ml-1">
-                    Agent 会分析您的输入，自动更新关注类别、关键词等信息。
-                </p>
+
+                <div className="mt-4 space-y-2">
+                    <p className="text-xs text-slate-500">
+                        💡 <strong>示例</strong>：「我想找强化学习相关的文章」、「关注医疗AI应用」
+                    </p>
+                    <p className="text-xs text-slate-500">
+                        ⚠️ <strong>限制</strong>：最多10条，每条最多200字符
+                    </p>
+                    <p className="text-xs text-yellow-500">
+                        🔔 <strong>重要</strong>：未设置偏好将无法生成每日报告，添加后请点击页面右上角保存
+                    </p>
+                </div>
             </section>
+
+
 
             {/* Focus Areas */}
             <section className="bg-slate-900/50 rounded-xl p-5 border border-slate-800 backdrop-blur-sm">
@@ -311,6 +455,102 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                     />
                 </div>
             </section>
+
+            {/* 弹窗对话框 */}
+            {dialogOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-slate-900 rounded-xl border border-slate-700 shadow-2xl w-full max-w-2xl animate-in zoom-in-95">
+                        {/* 对话框头部 */}
+                        <div className="p-6 border-b border-slate-800">
+                            <h3 className="text-xl font-semibold text-white">
+                                {editingIndex !== null ? '编辑研究偏好' : '添加研究偏好'}
+                            </h3>
+                            <p className="text-sm text-slate-400 mt-1">
+                                描述你的研究兴趣和需求（最多200字符）
+                            </p>
+                        </div>
+
+                        {/* 对话框内容 */}
+                        <div className="p-6">
+                            <textarea
+                                value={dialogValue}
+                                onChange={(e) => setDialogValue(e.target.value)}
+                                placeholder='例如："我想找强化学习相关的文章"'
+                                className="w-full h-40 bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none"
+                                autoFocus
+                                maxLength={200}
+                            />
+                            <div className="mt-2 text-right text-xs text-slate-500">
+                                {dialogValue.length} / 200 字符
+                            </div>
+                        </div>
+
+                        {/* 对话框底部按钮 */}
+                        <div className="p-6 border-t border-slate-800 flex justify-end gap-3">
+                            <button
+                                onClick={() => {
+                                    setDialogOpen(false);
+                                    setDialogValue('');
+                                    setEditingIndex(null);
+                                }}
+                                className="px-6 py-2 text-slate-300 hover:text-white transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDialogSubmit}
+                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                                {editingIndex !== null ? 'Save' : 'Submit'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 确认对话框 */}
+            {confirmDialog.open && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-slate-900 rounded-xl border border-slate-700 shadow-2xl w-full max-w-md animate-in zoom-in-95">
+                        {/* 对话框内容 */}
+                        <div className="p-6">
+                            <div className="flex items-start gap-4">
+                                {/* 警告图标 */}
+                                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center">
+                                    <Trash2 size={24} className="text-red-400" />
+                                </div>
+
+                                {/* 文本内容 */}
+                                <div className="flex-1">
+                                    <h3 className="text-lg font-semibold text-white mb-2">
+                                        {confirmDialog.title}
+                                    </h3>
+                                    <p className="text-sm text-slate-400">
+                                        {confirmDialog.message}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 对话框底部按钮 */}
+                        <div className="p-6 pt-0 flex justify-end gap-3">
+                            <button
+                                onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}
+                                className="px-6 py-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={confirmDialog.onConfirm}
+                                className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                                确定删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
 
             {/* 退出登录 */}
             <section className="bg-slate-900/50 rounded-xl p-5 border border-slate-800 backdrop-blur-sm">

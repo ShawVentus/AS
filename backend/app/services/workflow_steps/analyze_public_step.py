@@ -80,7 +80,7 @@ class AnalyzePublicStep(WorkflowStep):
         # 3. 确保数据一致性，不遗漏任何归档操作
         
         # 统一的进度消息（简化前端显示）
-        self.update_progress(95, 100, "正在归档论文到永久表...")
+        self.update_progress(100, 100, "正在归档论文...")
         
         # 内部日志区分不同情况
         if analyzed_count == 0:

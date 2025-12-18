@@ -31,8 +31,8 @@ export interface Context {
     currentTask: string;
     /** 未来目标 */
     futureGoal: string;
-    /** 研究偏好 (自然语言描述) */
-    preferences: string;
+    /** 研究偏好列表 (最多10条，每条最多200字符) */
+    preferences: string[];
     /** 阶段 (可选) */
     stage?: string;
     /** 学习模式 (可选) */

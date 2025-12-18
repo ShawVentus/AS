@@ -16,10 +16,14 @@ class Focus(BaseModel):
     institutions: List[str] = []
 
 class Context(BaseModel):
-    """用户状态模型"""
-    preferences: str = "" # 为什么要使用本app，研读论文为了什么，必须填写
-    currentTask: str = "" # 目前正在做的事情
-    futureGoal: str = "" # 未来目的
+    """
+    用户状态模型
+    
+    存储用户的当前状态和研究偏好信息，用于指导 LLM 进行个性化论文筛选和报告生成。
+    """
+    preferences: List[str] = []  # 用户的研究偏好列表（最多10条，每条最多200字符）
+    currentTask: str = ""  # 目前正在做的事情
+    futureGoal: str = ""  # 未来目的
 
 class UserFeedback(BaseModel):
     """用户反馈模型"""

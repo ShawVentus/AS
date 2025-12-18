@@ -8,6 +8,7 @@ from app.services.llm_service import llm_service
 from app.services.report_service import report_service
 from app.services.user_service import user_service
 from app.services.workflow_service import workflow_service
+from app.utils.error_notifier import error_notifier
 import httpx
 import re
 from typing import Optional, List, Callable, Dict, Any
@@ -16,6 +17,35 @@ class SchedulerService:
     def __init__(self):
         self.scheduler = BackgroundScheduler()
         self.db = get_db()
+    
+    def _should_generate_report(self, user_profile, manual_query: Optional[str] = None) -> bool:
+        """
+        检查用户是否满足报告生成条件
+        
+        核心条件：用户必须设置了研究偏好 (preferences)，至少包含一条偏好。
+        未设置偏好的用户将跳过报告生成，引导其完成基础配置。
+        
+        Args:
+            user_profile: 用户画像对象
+            manual_query (Optional[str]): 手动查询字符串，如果存在则豁免 preferences 检查
+        
+        Returns:
+            bool: True 表示满足条件，应生成报告；False 表示不满足，跳过报告
+            
+        Note:
+            - 手动查询模式 (manual_query 存在) 时，豁免 preferences 检查
+            - 自动任务模式下，严格要求 preferences 非空
+        """
+        # 手动查询模式：豁免前置条件检查
+        if manual_query:
+            return True
+        
+        # 自动任务模式：必须有 preferences
+        if not user_profile.context.preferences or len(user_profile.context.preferences) == 0:
+            return False
+        
+        return True
+
 
     def start(self):
         """
@@ -162,7 +192,21 @@ class SchedulerService:
             fetch_and_update_details(table_name="daily_papers")
             print("Details fetched.")
         except Exception as e:
-            print(f"Crawler failed: {e}")
+            error_msg = f"爬虫执行失败: {str(e)}"
+            print(error_msg)
+            
+            # 发送错误通知邮件
+            import traceback
+            error_notifier.notify_critical_error(
+                error_type="CRAWLER_EXECUTION_FAILED",
+                error_message=error_msg,
+                context={
+                    "backend_root": backend_root,
+                    "failed_at": datetime.now().isoformat()
+                },
+                stack_trace=traceback.format_exc()
+            )
+            raise  # 继续向上抛出异常，让工作流引擎捕获
 
     def process_public_papers(self):
         """
@@ -326,7 +370,7 @@ class SchedulerService:
         except Exception as e:
             print(f"Error in process_personalized_papers: {e}")
 
-    def generate_report_job(self, force: bool = False, target_user_id: Optional[str] = None, progress_callback: Optional[Callable[[int, int, str], None]] = None, manual_query: Optional[str] = None, manual_categories: Optional[List[str]] = None, manual_authors: Optional[List[str]] = None, specific_paper_ids: Optional[List[str]] = None):
+    def generate_report_job(self, force: bool = False, target_user_id: Optional[str] = None, progress_callback: Optional[Callable[[int, int, str], None]] = None, manual_query: Optional[str] = None, manual_categories: Optional[List[str]] = None, manual_authors: Optional[List[str]] = None, specific_paper_ids: Optional[List[str]] = None, context: Optional[Dict[str, Any]] = None):
         """
         生成并发送每日报告的任务。
         
@@ -348,6 +392,10 @@ class SchedulerService:
             manual_authors (Optional[List[str]]): 手动输入的作者列表，
                 例如：["Yann LeCun", "Geoffrey Hinton"]
             specific_paper_ids (Optional[List[str]]): 指定要包含在报告中的论文 ID 列表
+            context (Optional[Dict[str, Any]]): 工作流上下文，包含：
+                - user_filter_stats: 分用户的论文统计数据
+                - crawled_count: 爬虫抓取的总数
+                - actually_filtered_count: 实际筛选的总数
 
         Returns:
             Dict[str, Any]: 统计数据字典，包含以下字段：
@@ -404,6 +452,11 @@ class SchedulerService:
                 try:
                     # 2.1 获取用户画像（使用 user_service 确保数据清洗）
                     user_profile = user_service.get_profile(user_id)
+                    
+                    # 新增：检查用户是否设置了 preferences（必须条件）
+                    if not self._should_generate_report(user_profile, manual_query):
+                        print(f"⏭️  跳过用户 {user_profile.info.name} ({user_id}): 未设置研究偏好 (preferences)")
+                        continue
                     
                     # [Manual Override] 如果有手动参数，临时修改 User Profile
                     custom_title = None
@@ -513,15 +566,33 @@ class SchedulerService:
                     # [Fix] 正确解包返回值 (report, usage)
                     # Pass custom_title if exists
                     # 【修复】查询今日论文数并传递给 report_service
-                    from datetime import date
-                    today = date.today().isoformat()
-                    count_res = self.db.table("daily_papers") \
-                        .select("*", count="exact") \
-                        .gte("created_at", f"{today} 00:00:00") \
-                        .lt("created_at", f"{today} 23:59:59") \
-                        .execute()
-                    crawled_count = count_res.count if count_res.count is not None else len(count_res.data)
-                    temp_context = {"crawled_count": crawled_count}
+                    # [修复] 优先使用传入的 context 中的统计数据
+                    temp_context = {}
+                    if context:
+                        temp_context.update(context)
+                        
+                    # [新增] 尝试从 context 中获取分用户统计数据
+                    # 解决多用户任务中，报告显示的论文总数是所有用户总和的问题
+                    user_filter_stats = context.get("user_filter_stats", {}) if context else {}
+                    if user_id in user_filter_stats:
+                        user_stats = user_filter_stats[user_id]
+                        # 使用该用户特定的统计数据覆盖全局数据
+                        # crawled_count 在这里代表该用户实际被分析的论文数
+                        temp_context["crawled_count"] = user_stats.get("analyzed", 0)
+                        temp_context["actually_filtered_count"] = user_stats.get("analyzed", 0)
+                        print(f"[INFO] 使用用户 {user_id} 的特定统计数据: 分析 {temp_context['crawled_count']} 篇")
+                    
+                    # 如果 context 中没有 crawled_count 且没有用户特定数据，则回退到数据库查询
+                    if "crawled_count" not in temp_context:
+                        from datetime import date
+                        today = date.today().isoformat()
+                        count_res = self.db.table("daily_papers") \
+                            .select("*", count="exact") \
+                            .gte("created_at", f"{today} 00:00:00") \
+                            .lt("created_at", f"{today} 23:59:59") \
+                            .execute()
+                        crawled_count = count_res.count if count_res.count is not None else len(count_res.data)
+                        temp_context["crawled_count"] = crawled_count
                     
                     report, usage = report_service.generate_daily_report(
                         papers, user_profile, 
@@ -541,9 +612,21 @@ class SchedulerService:
                     print(f"✓ 已为用户 {user_profile.info.name} 生成并发送报告: {report.title}")
                     
                 except Exception as e:
-                    print(f"✗ 为用户 {user_id} 生成报告失败: {e}")
+                    error_msg = f"为用户 {user_id} 生成报告失败: {e}"
+                    print(f"✗ {error_msg}")
                     import traceback
                     traceback.print_exc()
+                    
+                    # 发送警告通知（单个用户失败不影响整体）
+                    error_notifier.notify_warning(
+                        error_type="USER_REPORT_FAILED",
+                        error_message=error_msg,
+                        context={
+                            "user_id": user_id,
+                            "failed_at": datetime.now().isoformat()
+                        },
+                        stack_trace=traceback.format_exc()
+                    )
                     continue
                     
             return total_stats
@@ -671,6 +754,23 @@ class SchedulerService:
         try:
             engine.execute_workflow("daily_update", initial_context=initial_context)
         except Exception as e:
-            print(f"Workflow execution failed: {e}")
+            error_msg = f"每日工作流执行失败: {str(e)}"
+            print(error_msg)
+            
+            # 发送错误通知邮件
+            import traceback
+            error_notifier.notify_critical_error(
+                error_type="DAILY_WORKFLOW_FAILED",
+                error_message=error_msg,
+                context={
+                    "force": force,
+                    "target_user_id": target_user_id,
+                    "execution_id": execution_id,
+                    "categories": initial_context.get("categories"),
+                    "failed_at": datetime.now().isoformat()
+                },
+                stack_trace=traceback.format_exc()
+            )
+            raise  # 继续向上抛出，允许APScheduler记录错误
 
 scheduler_service = SchedulerService()

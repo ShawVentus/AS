@@ -9,6 +9,7 @@ from app.schemas.user import UserProfile
 from app.services.llm_service import llm_service
 from app.utils.email_sender import email_sender
 from app.utils.email_formatter import EmailFormatter
+from app.utils.error_notifier import error_notifier
 from app.core.database import get_db
 
 class ReportService:
@@ -115,6 +116,19 @@ class ReportService:
                 "description": manual_query, # Explicitly set description
                 "manual_query_instruction": f"User explicitly requested a report on: '{manual_query}'. Please focus the summary ONLY on this topic and IGNORE any previous user context."
             }
+        else:
+            # 正常模式：格式化 preferences 列表为 Markdown
+            if "context" in profile_dict and "preferences" in profile_dict["context"]:
+                prefs = profile_dict["context"]["preferences"]
+                
+                # 格式化列表为 Markdown 无序列表
+                if isinstance(prefs, list) and prefs:
+                    formatted = "\n".join([f"- {p}" for p in prefs])
+                    profile_dict["context"]["preferences"] = formatted
+                    print(f"[报告生成] 格式化 preferences: {len(prefs)} 条")
+                elif isinstance(prefs, list) and not prefs:
+                    # 空列表
+                    profile_dict["context"]["preferences"] = "（用户未设置研究偏好）"
             
         profile_str = json.dumps(profile_dict, ensure_ascii=False, indent=2)
         llm_result = llm_service.generate_report(papers_data, profile_str)
@@ -122,13 +136,24 @@ class ReportService:
         
         # LLM 失败时的退路
         if not llm_result or not llm_result.get("title"):
-            print("❌ Report generation failed. Sending alert email...")
-            try:
-                alert_subject = "【系统报警】日报生成失败"
-                alert_content = f"用户 {user_profile.info.name} ({user_profile.info.id}) 的日报生成失败，请检查后台日志。"
-                email_sender.send_email("2962326813@qq.com", alert_subject, f"<p>{alert_content}</p>", alert_content)
-            except Exception as e:
-                print(f"Failed to send alert email: {e}")
+            error_msg = f"LLM报告生成失败，用户: {user_profile.info.name} ({user_profile.info.id})"
+            print(f"❌ {error_msg}")
+            
+            # 发送错误通知邮件
+            import traceback
+            error_notifier.notify_critical_error(
+                error_type="REPORT_GENERATION_FAILED",
+                error_message=error_msg,
+                context={
+                    "user_id": user_profile.info.id,
+                    "user_name": user_profile.info.name,
+                    "user_email": user_profile.info.email,
+                    "manual_query": manual_query,
+                    "papers_count": len(papers),
+                    "failed_at": datetime.now().isoformat()
+                },
+                stack_trace=traceback.format_exc() if traceback else None
+            )
 
             llm_result = {
                 "title": f"{datetime.now().strftime('%Y/%m/%d')} - Daily Report (Fallback)",
@@ -194,9 +219,8 @@ class ReportService:
             
             self.db.table("reports").insert(report_data).execute()
         except Exception as e:
-            # [Mod] 暂时注释掉 system_logs 写入，改为直接打印，避免表不存在报错
             print(f"Error saving report: {str(e)}")
-            # self._log_error("pipeline", f"Error saving report: {str(e)}", {"report_id": report.id})
+            self._log_error("pipeline", f"Error saving report: {str(e)}", {"report_id": report.id})
             
         # 7. 发送邮件
         # 【修复】传递正确的统计数据给邮件格式化器
@@ -237,22 +261,38 @@ class ReportService:
             )
             
             # 发送邮件
-            subject = f"【玻尔平台论文日报】{report.date}"
+            subject = f"【ArxivScout论文日报】{report.date}"
             success, msg = email_sender.send_email(user_email, subject, html_content, plain_content)
             
             if success:
                 self._log_email_event(report.id, report.user_id, "sent", {"stats": stats})
             else:
-                # [Mod] 暂时注释掉 system_logs 写入
                 print(f"Failed to send email: {msg}")
-                # self._log_error("email", f"Failed: {msg}", {"report_id": report.id})
+                # 记录失败事件到 email_analytics
+                self._log_email_event(report.id, report.user_id, "failed", {"error": msg, "stats": stats})
+                # 记录错误到 system_logs
+                self._log_error("email", f"Failed: {msg}", {"report_id": report.id, "user_email": user_email})
             
             return success
             
         except Exception as e:
-            # [Mod] 暂时注释掉 system_logs 写入
-            print(f"Exception sending email: {str(e)}")
-            # self._log_error("email", f"Exception: {str(e)}", {"report_id": report.id})
+            error_msg = f"发送报告邮件时发生异常: {str(e)}"
+            print(error_msg)
+            
+            # 发送错误通知邮件
+            import traceback
+            error_notifier.notify_warning(
+                error_type="REPORT_EMAIL_SENDING_FAILED",
+                error_message=error_msg,
+                context={
+                    "report_id": report.id,
+                    "user_id": report.user_id,
+                    "user_email": user_email,
+                    "report_title": report.title,
+                    "failed_at": datetime.now().isoformat()
+                },
+                stack_trace=traceback.format_exc()
+            )
             return False
 
     def _calculate_paper_statistics(self, papers: List[PersonalizedPaper], user_id: str, 
@@ -403,14 +443,13 @@ class ReportService:
             meta (Dict): 上下文元数据
         """
         try:
-            # [Mod] 暂时注释掉 system_logs 写入，避免表不存在报错
             print(f"ERROR [{source}]: {message} | Meta: {meta}")
-            # self.db.table("system_logs").insert({
-            #     "level": "ERROR",
-            #     "source": source,
-            #     "message": message,
-            #     "meta": meta
-            # }).execute()
+            self.db.table("system_logs").insert({
+                "level": "ERROR",
+                "source": source,
+                "message": message,
+                "meta": meta
+            }).execute()
         except Exception as e:
             print(f"CRITICAL: Failed to log error: {e}")
 
