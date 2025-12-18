@@ -98,6 +98,14 @@ class PersonalizedFilterStep(WorkflowStep):
         # [Modified] Track total accepted count
         total_accepted_count = 0
         
+        # [修复] 累加所有用户的统计数据
+        total_analyzed = 0
+        total_rejected = 0
+        
+        # [新增] 初始化推荐论文ID累加列表
+        # 用于收集所有用户的推荐论文ID，防止在多用户场景下数据丢失
+        all_selected_paper_ids = []
+        
         processed_count = 0
         total_users_count = len(target_users)
         
@@ -105,13 +113,23 @@ class PersonalizedFilterStep(WorkflowStep):
              processed_count += 1
              
              # 定义局部回调适配器，用于将 filter_papers 的内部进度映射到 step 的总体进度
-             # 这里的映射比较复杂，因为 filter_papers 内部是 0-100%
-             # 简单起见，我们只在用户级别更新进度，或者只传递 message
+             # [修复] 直接传递论文级别的进度，让前端正确显示筛选进度
+             # 参数说明：
+             #   current: 当前处理到第几篇论文（1-47等）
+             #   total: 总论文数（如47）
+             #   msg: 实时消息（如 "正在筛选: 论文标题..."）
              def user_filter_callback(current, total, msg):
-                 # 可以在这里做更细粒度的进度计算，例如:
-                 # global_progress = (processed_count - 1) / total_users_count + (current / total) / total_users_count
-                 # 但为了 UI 简洁，我们主要显示 "正在处理用户 X: msg"
-                 self.update_progress(processed_count, total_users_count, f"用户 {uid[:8]}...: {msg}")
+                 """
+                 论文筛选进度回调函数。
+                 
+                 Args:
+                     current (int): 当前处理到第几篇论文
+                     total (int): 总论文数
+                     msg (str): 进度消息
+                 """
+                 # 直接传递论文级别的进度，而非用户级别的进度
+                 # 这样前端可以正确显示 "5/47" 而不是 "1/1"
+                 self.update_progress(current, total, msg)
 
              # [Check Manual Override]
              # 检查是否存在手动覆盖参数 (Manual Override)
@@ -154,6 +172,17 @@ class PersonalizedFilterStep(WorkflowStep):
              
              # [Modified] Accumulate accepted count
              total_accepted_count += filter_res.accepted_count
+             # [新增] 累加总分析数和拒绝数
+             total_analyzed += filter_res.total_analyzed
+             total_rejected += filter_res.rejected_count
+             
+             # [修复] 在循环内累加当前用户的推荐论文ID
+             # 说明：必须在循环内部累加，否则只会保留最后一个用户的数据
+             # 使用 extend() 而非 append()，将列表元素逐个添加而非嵌套列表
+             if hasattr(filter_res, 'selected_papers') and filter_res.selected_papers:
+                 current_user_paper_ids = [p.paper_id for p in filter_res.selected_papers]
+                 all_selected_paper_ids.extend(current_user_paper_ids)
+                 print(f"[DEBUG] 用户 {uid} 推荐论文数: {len(current_user_paper_ids)}")
              
         # 记录聚合指标
         self.cost = total_cost
@@ -166,12 +195,23 @@ class PersonalizedFilterStep(WorkflowStep):
         self.tokens_input = total_input
         self.tokens_output = total_output
         
-        self.update_progress(100, 100, f"已筛选 {total_accepted_count} 篇高相关论文")
+        # [验证] 检查统计数据一致性
+        # 说明：total_analyzed 应该等于 accepted + rejected
+        if total_analyzed != (total_accepted_count + total_rejected):
+            print(f"[WARN] 统计数据不一致:")
+            print(f"  - total_analyzed: {total_analyzed}")
+            print(f"  - accepted + rejected: {total_accepted_count} + {total_rejected} = {total_accepted_count + total_rejected}")
+            print(f"  - 差值: {total_analyzed - (total_accepted_count + total_rejected)}")
         
-        # Extract selected paper IDs for the next step
-        selected_paper_ids = []
-        if hasattr(filter_res, 'selected_papers'):
-            selected_paper_ids = [p.paper_id for p in filter_res.selected_papers]
+        # [优化] 输出详细的最终统计日志
+        print(f"[INFO] ============ 个性化筛选完成 ============")
+        print(f"[INFO] 总分析论文数: {total_analyzed} 篇")
+        print(f"[INFO] 推荐论文数: {total_accepted_count} 篇")
+        print(f"[INFO] 拒绝论文数: {total_rejected} 篇")
+        print(f"[INFO] 推荐论文ID总数: {len(all_selected_paper_ids)} 个")
+        print(f"[INFO] ========================================")
+        
+        self.update_progress(100, 100, f"已筛选 {total_analyzed} 篇论文（推荐 {total_accepted_count} 篇）")
             
         # [New] Check for manual query with no results
         is_manual = context.get("source") == "manual"
@@ -187,7 +227,13 @@ class PersonalizedFilterStep(WorkflowStep):
                 "selected_paper_ids": []
             }
 
+        # [修复] 使用累加的推荐论文ID列表（包含所有用户的数据）
         return {
             "personalized_filter_completed": True,
-            "selected_paper_ids": selected_paper_ids
+            "selected_paper_ids": all_selected_paper_ids,  # 使用累加变量而非单个用户的数据
+            # [新增] 添加实际筛选统计数据，供报告生成步骤使用
+            # 这些数据反映了用户实际看到的论文数量（经过分类过滤后）
+            "actually_filtered_count": total_analyzed,  # 实际筛选总数 (accepted + rejected)
+            "filter_accepted_count": total_accepted_count,  # 接受的论文数
+            "filter_rejected_count": total_rejected  # 拒绝的论文数
         }

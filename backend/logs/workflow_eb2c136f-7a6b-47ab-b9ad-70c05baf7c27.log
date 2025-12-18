@@ -1,0 +1,21 @@
+2025-12-17 10:24:50,065 - app.services.workflow_engine - INFO - 📂 日志文件已创建: /Users/mac/Desktop/AS/backend/logs/workflow_eb2c136f-7a6b-47ab-b9ad-70c05baf7c27.log
+2025-12-17 10:24:50,065 - app.services.workflow_engine - INFO - 🚀 开始执行工作流: daily_update (ID: eb2c136f-7a6b-47ab-b9ad-70c05baf7c27)
+2025-12-17 10:24:51,647 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-17 10:24:51,647 - app.services.workflow_engine - INFO - 👉 执行步骤 [clear_daily_db] (尝试 1/4)...
+2025-12-17 10:24:51,648 - app.services.workflow_engine - INFO - ==================================================
+2025-12-17 10:24:53,675 - app.services.workflow_engine - INFO - ✅ 步骤 [clear_daily_db] 完成。耗时: 706ms, 成本: $0.000000
+2025-12-17 10:24:53,915 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-17 10:24:53,915 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 1/4)...
+2025-12-17 10:24:53,915 - app.services.workflow_engine - INFO - ==================================================
+2025-12-17 10:25:23,273 - app.services.workflow_engine - INFO - ✅ 步骤 [run_crawler] 完成。耗时: 28223ms, 成本: $0.000000
+2025-12-17 10:25:23,492 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-17 10:25:23,493 - app.services.workflow_engine - INFO - 👉 执行步骤 [fetch_details] (尝试 1/4)...
+2025-12-17 10:25:23,493 - app.services.workflow_engine - INFO - ==================================================
+2025-12-17 10:25:31,890 - app.services.workflow_engine - INFO - ✅ 步骤 [fetch_details] 完成。耗时: 7319ms, 成本: $0.000000
+2025-12-17 10:25:32,098 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-17 10:25:32,098 - app.services.workflow_engine - INFO - 👉 执行步骤 [analyze_public_papers] (尝试 1/4)...
+2025-12-17 10:25:32,098 - app.services.workflow_engine - INFO - ==================================================

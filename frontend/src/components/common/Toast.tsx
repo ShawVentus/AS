@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 export interface ToastProps {
     id: string;
@@ -27,7 +27,7 @@ export interface ToastProps {
  * Args:
  *   id (string): 通知的唯一标识符。
  *   message (string): 通知内容。
- *   type (ToastType): 通知类型 ('success', 'error', 'info')。
+ *   type (ToastType): 通知类型 ('success', 'error', 'info', 'warning')。
  *   duration (number): 显示时长（毫秒），默认 3000ms。
  *   onClose (function): 关闭回调函数。
  *   action (object): 可选的操作按钮配置。
@@ -52,13 +52,15 @@ export const Toast: React.FC<ToastProps> = ({
     const icons = {
         success: <CheckCircle className="w-7 h-7 text-green-400" />,
         error: <AlertCircle className="w-7 h-7 text-red-400" />,
-        info: <Info className="w-7 h-7 text-blue-400" />
+        info: <Info className="w-7 h-7 text-blue-400" />,
+        warning: <AlertCircle className="w-7 h-7 text-yellow-400" />
     };
 
     const bgColors = {
         success: 'bg-slate-900 border-green-500/20',
         error: 'bg-slate-900 border-red-500/20',
-        info: 'bg-slate-900 border-blue-500/20'
+        info: 'bg-slate-900 border-blue-500/20',
+        warning: 'bg-slate-900 border-yellow-500/20'
     };
 
     return (

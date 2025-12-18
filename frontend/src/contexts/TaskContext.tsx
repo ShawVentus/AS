@@ -106,7 +106,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (elapsed > timeoutThreshold) {
                 const timeoutType = hasReceivedFirstMessage ? '正常执行超时' : '首次连接超时';
                 console.error(`SSE ${timeoutType} (${elapsed}ms > ${timeoutThreshold}ms)`);
-                completeTask(false, "连接超时，后端可能已停止");
+                handleTaskCompletion('failed', { error: "连接超时，后端可能已停止" });
 
                 // 强制更新步骤状态为失败
                 setSteps(prev => prev.map(s =>
@@ -123,7 +123,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // [Fix] Listen for explicit system_error events from backend
         eventSource.addEventListener('system_error', (event: MessageEvent) => {
             console.error("SSE System Error:", event.data);
-            completeTask(false, event.data || "生成出错");
+            handleTaskCompletion('failed', { error: event.data || "生成出错" });
             // Force update steps to failed
             setSteps(prev => prev.map(s =>
                 (s.status === 'running' || s.status === 'pending')
@@ -149,14 +149,24 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     updateSteps(data.steps);
                 }
 
-                // 检查任务是否结束
+                // [修复] 检查任务是否结束，支持三种状态
                 if (data.status === 'completed') {
-                    console.log("Task completed:", id);
-                    completeTask(true);
+                    console.log("任务成功完成:", id);
+                    handleTaskCompletion('completed', data);
+                } else if (data.status === 'stopped') {
+                    // [新增] 处理提前终止状态
+                    console.log("任务提前终止:", id);
+                    handleTaskCompletion('stopped', data);
+                    // 更新步骤状态为 stopped
+                    setSteps(prev => prev.map(s =>
+                        (s.status === 'running' || s.status === 'pending')
+                            ? { ...s, status: 'completed', message: '已停止' }
+                            : s
+                    ));
                 } else if (data.status === 'failed') {
-                    console.log("Task failed:", id);
-                    completeTask(false, data.error);
-                    // Force update steps to failed
+                    console.log("任务执行失败:", id);
+                    handleTaskCompletion('failed', data);
+                    // 强制更新步骤状态为 failed
                     setSteps(prev => prev.map(s =>
                         (s.status === 'running' || s.status === 'pending')
                             ? { ...s, status: 'failed', message: '任务失败' }
@@ -170,8 +180,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         eventSource.onerror = (err) => {
             console.error("SSE Error:", err);
-            // Treat connection error as failure
-            completeTask(false, "连接中断，任务可能已停止");
+            // [修复] 连接错误作为失败处理
+            handleTaskCompletion('failed', { error: "连接中断，任务可能已停止" });
 
             // Force update steps to failed
             setSteps(prev => prev.map(s =>
@@ -230,48 +240,89 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
     };
 
-    const completeTask = useCallback((success: boolean, errorMessage?: string) => {
-        // Prevent double completion
+    /**
+     * 处理任务完成的统一函数
+     * 
+     * 功能：根据不同的执行状态（completed/stopped/failed）显示不同的UI反馈
+     * 
+     * @param status - 执行状态（completed=成功完成，stopped=提前终止，failed=执行失败）
+     * @param data - 执行数据，包含 metadata、error 等信息
+     */
+    const handleTaskCompletion = useCallback((status: string, data: any) => {
+        // 防止重复完成
         if (completedRef.current) {
-            console.log("[WARN] Task already completed, ignoring duplicate call");
+            console.log("[WARN] 任务已完成，忽略重复调用");
             return;
         }
         completedRef.current = true;
 
-        console.log("Completing task:", { success, errorMessage });
+        console.log("处理任务完成:", { status, data });
 
-        // Clean up connection
+        // 清理 SSE 连接
         cleanupSSE();
 
-        // Update state
+        // 更新状态
         setIsGenerating(false);
 
-        // Clean up localStorage
+        // 清理 localStorage
         localStorage.removeItem('current_manual_execution_id');
 
-        // Invalidate queries
-        queryClient.invalidateQueries({ queryKey: ['reports'] });
+        // 根据状态决定行为
+        let toastMessage = "";
+        let toastType: "success" | "error" | "warning" = "success";
+        let shouldNavigate = false;
 
-        // Show toast notification
-        if (success) {
-            showToast("报告生成成功！", "success");
-        } else {
-            showToast(errorMessage || "任务失败", "error");
+        if (status === 'completed') {
+            // 成功完成
+            toastMessage = "报告生成成功！";
+            toastType = "success";
+            shouldNavigate = true;
+        } else if (status === 'stopped') {
+            // 提前终止（如无结果）
+            // 从 metadata 中读取详细消息
+            let metadata: any = {};
+            try {
+                metadata = typeof data.metadata === 'string'
+                    ? JSON.parse(data.metadata)
+                    : data.metadata || {};
+            } catch (e) {
+                console.error("解析 metadata 失败:", e);
+            }
+
+            const stopMessage = metadata.stop_message ||
+                "未找到符合您查询条件的论文，请尝试调整关键词或放宽筛选条件。";
+            toastMessage = stopMessage;
+            toastType = "warning";
+            shouldNavigate = false; // 留在当前页
+        } else if (status === 'failed') {
+            // 真正失败
+            const errorMessage = data.error || "任务执行失败";
+            toastMessage = errorMessage;
+            toastType = "error";
+            shouldNavigate = false; // 留在当前页
         }
 
-        // Navigate to reports page
-        if (navigationRef.current) {
-            setTimeout(() => {
-                navigationRef.current?.('reports');
-            }, 1000);
+        // 显示通知
+        showToast(toastMessage, toastType);
+
+        // 如果需要跳转到报告列表
+        if (shouldNavigate) {
+            // 只有成功时才 invalidate queries
+            queryClient.invalidateQueries({ queryKey: ['reports'] });
+
+            if (navigationRef.current) {
+                setTimeout(() => {
+                    navigationRef.current?.('reports');
+                }, 1000);
+            }
         }
 
-        // Reset state after navigation
+        // 重置状态
         setTimeout(() => {
             setExecutionId(null);
             setSteps([]);
-            completedRef.current = false; // Reset for next task
-        }, 1500);
+            completedRef.current = false; // 重置以便下次任务
+        }, shouldNavigate ? 1500 : 2000); // 不跳转时稍微延迟重置
     }, [queryClient, showToast]);
 
     /**

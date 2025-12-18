@@ -31,6 +31,13 @@ interface MainViewProps {
     onOpenDetail: (paper: Paper) => void;
     onClearDateFilter: () => void;
     onRefreshProfile: () => Promise<void>;
+    // 手动报告表单状态
+    manualReportQuery: string;
+    manualReportCategories: string[];
+    manualReportAuthors: string[];
+    onManualReportQueryChange: (query: string) => void;
+    onManualReportCategoriesChange: (categories: string[]) => void;
+    onManualReportAuthorsChange: (authors: string[]) => void;
 }
 
 export const MainView = memo(({
@@ -49,7 +56,13 @@ export const MainView = memo(({
     onFeedback,
     onOpenDetail,
     onClearDateFilter,
-    onRefreshProfile
+    onRefreshProfile,
+    manualReportQuery,
+    manualReportCategories,
+    manualReportAuthors,
+    onManualReportQueryChange,
+    onManualReportCategoriesChange,
+    onManualReportAuthorsChange
 }: MainViewProps) => {
     console.log("renderContent called. currentView:", currentView, "userProfile:", userProfile);
 
@@ -185,6 +198,12 @@ export const MainView = memo(({
         return <ManualReportPage
             userProfile={userProfile}
             onBack={() => onNavigate('dashboard')}
+            naturalQuery={manualReportQuery}
+            categories={manualReportCategories}
+            authors={manualReportAuthors}
+            onNaturalQueryChange={onManualReportQueryChange}
+            onCategoriesChange={onManualReportCategoriesChange}
+            onAuthorsChange={onManualReportAuthorsChange}
         />;
     }
     return null;

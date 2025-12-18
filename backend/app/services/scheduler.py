@@ -21,7 +21,7 @@ class SchedulerService:
         """
         启动后台调度器。
         
-        配置每日任务 (run_daily_workflow) 在每天 08:00 执行。
+        配置每日任务 (run_daily_workflow)，执行时间从配置文件读取（默认 09:30）。
 
         Args:
             None
@@ -33,10 +33,14 @@ class SchedulerService:
             print("Scheduler is already running.")
             return
 
-        # 安排每日任务在早上9:30执行
-        self.scheduler.add_job(self.run_daily_workflow, 'cron', hour=9, minute=30)
+        # 从配置文件读取每日任务执行时间
+        from app.core.config import settings
+        hour, minute = settings.get_daily_report_time()
+        
+        # 安排每日任务
+        self.scheduler.add_job(self.run_daily_workflow, 'cron', hour=hour, minute=minute)
         self.scheduler.start()
-        print("Scheduler started. Daily job scheduled for 09:30.")
+        print(f"Scheduler started. Daily job scheduled for {hour:02d}:{minute:02d}.")
 
     def check_arxiv_update(self) -> tuple[Optional[List[str]], Optional[str]]:
         """

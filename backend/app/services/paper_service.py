@@ -11,7 +11,8 @@ from app.schemas.user import UserProfile
 from app.services.llm_service import llm_service
 from app.core.database import get_db
 
-MAX_WORKERS = 2
+# 从环境变量获取最大并发数，默认为 2
+MAX_WORKERS = int(os.getenv("LLM_MAX_WORKERS", 2))
 
 class PaperService:
     def __init__(self):
@@ -525,30 +526,52 @@ class PaperService:
         # 将用户画像中的 Focus (关注领域/关键词) 和 Context (当前任务/偏好) 提取并序列化
         # 目的：减少传递给 LLM 的 Token 数，仅保留筛选决策所需的核心信息
         
-        # 移除 category 字段，避免传入 LLM
-        focus_dict = user_profile.focus.model_dump()
-        if "category" in focus_dict:
-            del focus_dict["category"]
+        # [Manual Override] 如果有手动输入，完全替换为简洁的 Markdown 格式
+        if manual_query or manual_authors:
+            print(f"[DEBUG] Using manual query mode - replacing user profile")
+            print(f"[DEBUG] Manual query: {manual_query}")
+            print(f"[DEBUG] Manual authors: {manual_authors}")
             
-        # [Manual Override] 如果有手动输入，覆盖 focus 中的 keywords/description
-        if manual_query:
-            print(f"[DEBUG] Applying manual query override: {manual_query}")
-            # 假设 natural_query 对应 description 或 keywords
-            # 为了让 LLM 明确知道这是当前需求，我们可以直接替换 description
-            focus_dict["description"] = manual_query
-            # 清空 keywords 以避免干扰，或者保留？通常 description 更具体
-            focus_dict["keywords"] = [] 
+            # 构建简洁的 Markdown 格式用户画像
+            profile_parts = []
             
-        if manual_authors:
-            print(f"[DEBUG] Applying manual authors override: {manual_authors}")
-            # 假设 focus 中有 authors 字段，如果没有则添加
-            focus_dict["authors"] = manual_authors
+            if manual_query:
+                profile_parts.append(f"**当前查询需求**：{manual_query}")
+            
+            if manual_authors:
+                authors_str = "、".join(manual_authors)
+                profile_parts.append(f"**关注作者**：{authors_str}")
+            
+            profile_str = "\n\n".join(profile_parts)
+            
+            print(f"[DEBUG] Manual profile (Markdown):\n{profile_str}")
+            
+        else:
+            # 正常流程：使用用户画像
+            # 移除 category 字段，避免传入 LLM
+            focus_dict = user_profile.focus.model_dump()
+            if "category" in focus_dict:
+                del focus_dict["category"]
+                
+            # [Manual Override] 如果有手动输入，覆盖 focus 中的 keywords/description
+            if manual_query:
+                print(f"[DEBUG] Applying manual query override: {manual_query}")
+                # 假设 natural_query 对应 description 或 keywords
+                # 为了让 LLM 明确知道这是当前需求，我们可以直接替换 description
+                focus_dict["description"] = manual_query
+                # 清空 keywords 以避免干扰，或者保留？通常 description 更具体
+                focus_dict["keywords"] = [] 
+                
+            if manual_authors:
+                print(f"[DEBUG] Applying manual authors override: {manual_authors}")
+                # 假设 focus 中有 authors 字段，如果没有则添加
+                focus_dict["authors"] = manual_authors
 
-        profile_context = {
-            "focus": focus_dict,
-            "context": user_profile.context.model_dump()
-        }
-        profile_str = json.dumps(profile_context, ensure_ascii=False, indent=2)
+            profile_context = {
+                "focus": focus_dict,
+                "context": user_profile.context.model_dump()
+            }
+            profile_str = json.dumps(profile_context, ensure_ascii=False, indent=2)
 
         print(f"Filtering {len(papers)} papers with LLM (Concurrent, Max Workers={MAX_WORKERS})...")
 
@@ -785,12 +808,12 @@ class PaperService:
         }
             
         return update_data
-
     def batch_analyze_papers(self, papers: List[PersonalizedPaper], progress_callback: Optional[Callable[[int, int, str], None]] = None) -> Dict[str, Any]:
         """
         并发批量分析论文 (Public Analysis)。
         [Modified] 并发分析后，批量写入 daily_papers 数据库。
         [Modified] 改为每 5 篇写入一次，以提供更快的反馈并防止数据丢失。
+        [Optimized] 使用配置文件中的并发数，批量完成后输出汇总统计。
 
         Args:
             papers (List[PersonalizedPaper]): 待分析的论文列表。
@@ -800,6 +823,7 @@ class PaperService:
             Dict[str, int]: Token 消耗统计 {"tokens_input": int, "tokens_output": int}
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
+        from app.core.config import settings
         
         # 筛选出未分析的论文
         papers_to_analyze = [p for p in papers if not (p.analysis and p.analysis.motivation)]
@@ -810,12 +834,9 @@ class PaperService:
 
         print(f"Analyzing {len(papers_to_analyze)} papers content (Concurrent)...")
         
-        total_tokens_input = 0
-        total_tokens_output = 0
-        
         results = []
-        # 降低并发数，避免 429 错误
-        max_workers = 2
+        # 使用配置文件中的并发数
+        max_workers = settings.LLM_MAX_WORKERS
         
         # 定义写入批次大小
         write_batch_size = 5
@@ -881,8 +902,17 @@ class PaperService:
                 except Exception as e:
                     print(f"Error saving remaining analysis: {e}")
         
-        if failed_count > 0:
-            print(f"⚠️ Analysis completed with {failed_count} failures.")
+        # [Optimized] 批量完成后输出汇总统计（使用 finally 确保一定输出）
+        try:
+            success_count = total_count - failed_count
+            print(f"✅ 批量分析完成: 成功 {success_count}/{total_count} 篇 " +
+                  f"| Tokens: {stats['tokens_input']}(输入) + {stats['tokens_output']}(输出) = {stats['tokens_input'] + stats['tokens_output']}(总计) " +
+                  f"| 成本: ${stats['cost']:.4f}")
+            
+            if failed_count > 0:
+                print(f"⚠️ Analysis completed with {failed_count} failures.")
+        except Exception as e:
+            print(f"Error printing summary: {e}")
 
         return stats
 

@@ -56,6 +56,11 @@ class Settings:
     BOHRIUM_MAX_PRICE_INPUT: float = float(os.getenv("BOHRIUM_MAX_PRICE_INPUT", "1.20"))
     BOHRIUM_MAX_PRICE_OUTPUT: float = float(os.getenv("BOHRIUM_MAX_PRICE_OUTPUT", "6.00"))
 
+    # LLM 批量处理配置
+    LLM_ANALYSIS_BATCH_SIZE: int = int(os.getenv("LLM_ANALYSIS_BATCH_SIZE", "20"))  # 批量大小
+    LLM_ANALYSIS_BATCH_DELAY: int = int(os.getenv("LLM_ANALYSIS_BATCH_DELAY", "60"))  # 批次间延迟（秒）
+    LLM_MAX_WORKERS: int = int(os.getenv("LLM_MAX_WORKERS", "2"))  # 最大并发数
+
     # 兼容旧配置
     ACCESS_KEY: str = os.getenv("ACCESS_KEY", "")
 
@@ -175,5 +180,40 @@ class Settings:
 
     # 爬虫配置
     CATEGORIES: str = os.getenv("CATEGORIES", "cs.CV,cs.LG,cs.CL,cs.AI")
+    
+    # 定时任务配置
+    DAILY_REPORT_TIME: str = os.getenv("DAILY_REPORT_TIME", "09:30")
+    
+    def get_daily_report_time(self) -> tuple[int, int]:
+        """
+        解析每日报告时间配置。
+        
+        Args:
+            None
+        
+        Returns:
+            tuple[int, int]: (小时, 分钟)，例如 (9, 30) 表示 09:30
+        
+        Raises:
+            ValueError: 当时间格式不正确时抛出
+        """
+        try:
+            time_parts = self.DAILY_REPORT_TIME.split(":")
+            if len(time_parts) != 2:
+                raise ValueError(f"时间格式错误: {self.DAILY_REPORT_TIME}，应为 HH:MM 格式")
+            
+            hour = int(time_parts[0])
+            minute = int(time_parts[1])
+            
+            # 验证时间范围
+            if not (0 <= hour <= 23):
+                raise ValueError(f"小时必须在 0-23 之间，当前值: {hour}")
+            if not (0 <= minute <= 59):
+                raise ValueError(f"分钟必须在 0-59 之间，当前值: {minute}")
+            
+            return hour, minute
+        except Exception as e:
+            print(f"解析 DAILY_REPORT_TIME 失败: {e}，使用默认值 09:30")
+            return 9, 30
 
 settings = Settings()

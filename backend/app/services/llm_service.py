@@ -145,10 +145,11 @@ class QwenService:
                     output_cost = (usage_dict["completion_tokens"] / 1_000_000) * pricing["output_price"]
                     usage_dict["cost"] = input_cost + output_cost
                     
-                    print(f"[成本计算] 模型: {target_model} | "
-                          f"输入: {usage_dict['prompt_tokens']} tokens (${input_cost:.6f}) | "
-                          f"输出: {usage_dict['completion_tokens']} tokens (${output_cost:.6f}) | "
-                          f"总计: ${usage_dict['cost']:.6f}")
+                    # [Optimized] 移除实时输出，改为静默计算，由调用者汇总输出
+                    # print(f"[成本计算] 模型: {target_model} | "
+                    #       f"输入: {usage_dict['prompt_tokens']} tokens (${input_cost:.6f}) | "
+                    #       f"输出: {usage_dict['completion_tokens']} tokens (${output_cost:.6f}) | "
+                    #       f"总计: ${usage_dict['cost']:.6f}")
 
                 
                 # 清理可能的 markdown 代码块标记

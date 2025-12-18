@@ -52,18 +52,23 @@ class WorkflowService:
             print(f"Error getting active execution: {e}")
             return None
 
-    def run_crawler(self, categories: Optional[List[str]] = None):
+    def run_crawler(self, categories: Optional[List[str]] = None) -> Dict[str, int]:
         """
         运行 ArXiv 爬虫任务。
         
         通过 subprocess 调用 Scrapy 爬虫，抓取最新的论文数据并存入数据库。
         支持传入类别列表，如果传入则只爬取指定类别。
+        
+        [修改] 现在会捕获爬虫输出并解析统计数据，返回真实的爬取数量。
 
         Args:
             categories (Optional[List[str]]): 需要爬取的类别列表。如果不传，爬虫将使用环境变量中的默认配置。
 
         Returns:
-            None
+            Dict[str, int]: 爬虫统计数据，包含以下字段：
+                - yielded (int): 提交处理的论文数量（去重后的真实爬取数）
+                - unique_found (int): 发现的唯一论文数
+                - total_found (int): 总共发现的论文数（含重复）
         """
         print("Starting ArXiv Crawler...")
         try:
@@ -79,8 +84,42 @@ class WorkflowService:
                 print(f"Crawling specific categories: {categories_str}")
                 cmd.extend(["-a", f"categories={categories_str}"])
             
-            subprocess.run(cmd, check=True, cwd=backend_root)
+            # [修改] 捕获爬虫输出，以便解析统计数据
+            result = subprocess.run(cmd, check=True, cwd=backend_root, 
+                                   capture_output=True, text=True)
+            
+            # [新增] 解析爬虫输出的 JSON_STATS
+            # 爬虫会在输出的最后一行打印统计数据: JSON_STATS:{...}
+            import json
+            
+            stats = None  # 初始为 None，表示尚未成功解析
+            
+            # 从 stdout 中提取 JSON_STATS 行
+            for line in result.stdout.split('\n'):
+                if line.startswith("JSON_STATS:"):
+                    json_str = line.replace("JSON_STATS:", "")
+                    try:
+                        stats = json.loads(json_str)
+                        print(f"[DEBUG] 成功解析爬虫统计: yielded={stats.get('yielded', 0)}, unique_found={stats.get('unique_found', 0)}")
+                        break  # 找到就退出循环，不再解析后续行
+                    except Exception as e:
+                        print(f"[ERROR] JSON_STATS 解析失败: {e}")
+                        print(f"[ERROR] 原始数据: {json_str}")
+            
+            # [修复] 如果解析失败，抛出异常
+            # 原因：解析失败说明爬虫执行有问题，不应该继续执行工作流
+            if stats is None:
+                print("[ERROR] 爬虫未输出有效的 JSON_STATS")
+                print("[ERROR] 爬虫可能发生错误，请检查爬虫代码")
+                # 只打印最后20行用于调试（避免日志过多）
+                lines = result.stdout.split('\n')
+                print("[DEBUG] 爬虫输出的最后20行:")
+                for line in lines[-20:]:
+                    print(f"  {line}")
+                raise Exception("爬虫统计数据解析失败，请检查爬虫输出")
+            
             print("Crawler finished.")
+            return stats  # 返回统计数据
             
         except Exception as e:
             print(f"Crawler failed: {e}")
@@ -139,13 +178,16 @@ class WorkflowService:
             if total_papers > 0:
                 print(f"Found {total_papers} papers needing public analysis.")
                 
-                # 分批处理
-                batch_size = 20
-                delay_seconds = 60
+                # 使用配置文件中的参数
+                from app.core.config import settings
+                batch_size = settings.LLM_ANALYSIS_BATCH_SIZE
+                delay_seconds = settings.LLM_ANALYSIS_BATCH_DELAY
                 
                 for i in range(0, total_papers, batch_size):
                     batch = papers_to_analyze[i:i + batch_size]
-                    print(f"Processing batch {i // batch_size + 1}/{(total_papers + batch_size - 1) // batch_size} (Size: {len(batch)})...")
+                    batch_num = i // batch_size + 1
+                    total_batches = (total_papers + batch_size - 1) // batch_size
+                    print(f"Processing batch {batch_num}/{total_batches} (Size: {len(batch)})...")
                     
                     # 传递 progress_callback
                     # 注意：batch_analyze_papers 内部是针对 batch 的循环
@@ -181,6 +223,17 @@ class WorkflowService:
                 
             # [Modified] Add analyzed_count to stats
             total_stats["analyzed_count"] = total_papers
+            
+            # [Optimized] 输出所有批次的总汇总
+            if total_papers > 0:
+                print(f"\n{'='*60}")
+                print(f"📊 总体分析汇总:")
+                print(f"  - 总论文数: {total_papers} 篇")
+                print(f"  - 总 Tokens: {total_stats['tokens_input']}(输入) + {total_stats['tokens_output']}(输出) = {total_stats['tokens_input'] + total_stats['tokens_output']}(总计)")
+                print(f"  - 总成本: ${total_stats['cost']:.4f}")
+                print(f"  - 缓存命中: {total_stats['cache_hit_tokens']} tokens")
+                print(f"  - API 请求数: {total_stats['request_count']} 次")
+                print(f"{'='*60}\n")
                 
             return total_stats
 

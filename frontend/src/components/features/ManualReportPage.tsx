@@ -11,6 +11,13 @@ import type { StepProgress } from '../../types';
 interface ManualReportPageProps {
     userProfile: UserProfile;
     onBack: () => void;
+    // 表单状态（受控组件）
+    naturalQuery: string;
+    categories: string[];
+    authors: string[];
+    onNaturalQueryChange: (query: string) => void;
+    onCategoriesChange: (categories: string[]) => void;
+    onAuthorsChange: (authors: string[]) => void;
 }
 
 import { WORKFLOW_STEPS } from '../../constants/workflow';
@@ -205,7 +212,16 @@ const transformStepsForUI = (steps: StepProgress[]): StepProgress[] => {
     return newSteps;
 };
 
-export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile, onBack }) => {
+export const ManualReportPage: React.FC<ManualReportPageProps> = ({
+    userProfile,
+    onBack,
+    naturalQuery,
+    categories,
+    authors,
+    onNaturalQueryChange,
+    onCategoriesChange,
+    onAuthorsChange
+}) => {
     /**
      * 手动生成报告页面组件。
      * 
@@ -217,10 +233,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
      * 5. 触发后端手动工作流，并实时显示进度。
      */
 
-    // Input States (输入状态)
-    const [naturalQuery, setNaturalQuery] = useState('');
-    const [categories, setCategories] = useState<string[]>([]);
-    const [authors, setAuthors] = useState<string[]>([]);
+    // Input States 已移至 App.tsx（受控组件）
 
     // UI States (UI 状态)
     const [isAiLoading, setIsAiLoading] = useState(false);
@@ -250,11 +263,11 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
             const result = await ToolsAPI.extractCategories(naturalQuery);
             if (result.categories) {
                 // Replace categories (覆盖旧的分类)
-                setCategories(result.categories);
+                onCategoriesChange(result.categories);
             }
             if (result.authors) {
                 // Replace authors (覆盖旧的作者)
-                setAuthors(result.authors);
+                onAuthorsChange(result.authors);
             }
         } catch (err) {
             console.error("AI Fill failed", err);
@@ -346,7 +359,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
                     <div className="relative">
                         <textarea
                             value={naturalQuery}
-                            onChange={(e) => setNaturalQuery(e.target.value)}
+                            onChange={(e) => onNaturalQueryChange(e.target.value)}
                             placeholder="例如：我想看最近关于大模型微调的论文，特别是涉及 LoRA 的..."
                             className="w-full h-32 bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none"
                         />
@@ -365,7 +378,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
                 <div className="mb-8">
                     <CategorySelector
                         selectedCategories={categories}
-                        onChange={setCategories}
+                        onChange={onCategoriesChange}
                     />
                 </div>
 
@@ -374,7 +387,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({ userProfile,
                     <TagInput
                         label="查询作者 (可选)"
                         tags={authors}
-                        onChange={setAuthors}
+                        onChange={onAuthorsChange}
                         placeholder="添加作者 (回车)..."
                         addButtonText="添加作者"
                     />

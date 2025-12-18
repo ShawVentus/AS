@@ -113,9 +113,10 @@ class WorkflowEngine:
         try:
             for i, step in enumerate(self.steps):
                 # 检查 should_stop 标志
+                # 用于处理工作流提前终止的情况（如手动查询无结果）
                 if self.context.get("should_stop", False):
-                    logger.info(f"⏸️ 工作流提前终止: should_stop=True")
-                    self._update_execution_status("completed", completed_at=datetime.now().isoformat())
+                    # [重构] 调用统一的处理方法
+                    self._handle_should_stop()
                     return self.execution_id
                 
                 self._execute_step_with_retry(step, i)
@@ -206,10 +207,11 @@ class WorkflowEngine:
                 step = self.steps[i]
                 
                 # 检查 should_stop 标志
+                # 用于处理工作流提前终止的情况（如手动查询无结果）
                 if self.context.get("should_stop", False):
-                    logger.info(f"⏸️ 工作流提前终止: should_stop=True")
-                    self._update_execution_status("completed", completed_at=datetime.now().isoformat())
-                    return
+                    # [修复] 调用统一的处理方法，确保与 run() 行为一致
+                    self._handle_should_stop()
+                    return self.execution_id
                 
                 self._execute_step_with_retry(step, i)
             
@@ -228,12 +230,48 @@ class WorkflowEngine:
         """
         step_record_id = self._get_step_record_id(step.name)
         
-        # 定义进度回调
+        
+        # [优化] 定义进度回调（含节流逻辑）
+        # 节流状态：记录上次写入的 current 值，避免每次回调都写数据库
+        last_update = {"current": 0}
+        
         def progress_callback(progress_data: Dict[str, Any]):
+            """
+            进度更新回调函数（含节流逻辑）。
+            
+            功能：
+                1. 接收步骤的进度数据
+                2. 使用节流策略减少数据库写入频率
+                3. 确保关键进度点（首次、每5次、最后一次）必定写入
+            
+            Args:
+                progress_data (Dict[str, Any]): 进度数据，包含 current, total, message 等字段
+            
+            节流策略：
+                - 第1次进度：必定写入（显示初始状态）
+                - 每5次进度：写入一次（如 5, 10, 15...）
+                - 最后一次：必定写入（显示100%完成）
+            """
             try:
-                self.db.table("workflow_steps").update({
-                    "progress": progress_data
-                }).eq("id", step_record_id).execute()
+                current = progress_data.get("current", 0)
+                total = progress_data.get("total", 1)
+                
+                # 节流条件判断
+                # 1. 每5篇论文更新一次（减少写入频率）
+                # 2. 第1篇必须更新（显示初始进度）
+                # 3. 最后一篇必须更新（显示100%完成）
+                should_update = (
+                    (current - last_update["current"]) >= 5 or  # 条件1：间隔5篇
+                    current == 1 or                              # 条件2：第一篇
+                    current == total                             # 条件3：最后一篇
+                )
+                
+                if should_update:
+                    self.db.table("workflow_steps").update({
+                        "progress": progress_data
+                    }).eq("id", step_record_id).execute()
+                    last_update["current"] = current
+                    
             except Exception as e:
                 logger.error(f"更新步骤进度失败: {e}")
         
@@ -378,6 +416,59 @@ class WorkflowEngine:
         data = {"status": status}
         data.update(kwargs)
         self.db.table("workflow_steps").update(data).eq("id", step_id).execute()
+    
+    def _handle_should_stop(self) -> None:
+        """
+        处理工作流提前终止的统一方法。
+        
+        功能：
+        1. 从 context 中提取 stop_reason 和 stop_message
+        2. 获取当前执行记录的 metadata 并合并新信息
+        3. 更新执行状态为 stopped
+        
+        使用场景：
+        - run() 方法：启动新工作流时遇到 should_stop
+        - resume() 方法：恢复工作流时遇到 should_stop
+        
+        Args:
+            无（使用 self.context 和 self.execution_id）
+        
+        Returns:
+            None
+        """
+        # 获取停止原因和消息
+        stop_reason = self.context.get("stop_reason", "unknown")
+        stop_message = self.context.get("message", "工作流已停止")
+        
+        logger.info(f"⏸️ 工作流提前终止: reason={stop_reason}, message={stop_message}")
+        
+        # 获取当前 metadata 并合并新信息
+        # 原因：避免覆盖已有的其他 metadata 字段
+        try:
+            current_metadata_res = self.db.table("workflow_executions") \
+                .select("metadata") \
+                .eq("id", self.execution_id) \
+                .execute()
+            
+            current_metadata = {}
+            if current_metadata_res.data and current_metadata_res.data[0].get("metadata"):
+                current_metadata = json.loads(current_metadata_res.data[0]["metadata"])
+        except Exception as e:
+            logger.warning(f"获取当前 metadata 失败: {e}")
+            current_metadata = {}
+        
+        # 合并新的停止信息
+        current_metadata.update({
+            "stop_reason": stop_reason,
+            "stop_message": stop_message
+        })
+        
+        # 更新状态为 stopped
+        self._update_execution_status(
+            "stopped",
+            completed_at=datetime.now().isoformat(),
+            metadata=json.dumps(current_metadata)
+        )
     
     def _update_execution_status(self, status: str, **kwargs):
         """更新执行记录状态"""

@@ -279,15 +279,34 @@ class ReportService:
         relevance_threshold = float(os.environ.get("RELEVANCE_THRESHOLD", "0.7"))
         
         if is_manual_task:
-            # 【修复】手动任务：从 context 读取爬虫抓取的总数
-            # 原因：papers 是筛选后的论文，不等于爬虫抓取的总数
-            if context and "crawled_count" in context:
+            # 【修复】手动任务：优先使用实际筛选数，确保报告数据准确
+            # 数据优先级：actually_filtered_count > crawled_count > len(papers)
+            # 
+            # 说明：
+            # - actually_filtered_count: 实际筛选的论文数（最准确，反映用户实际看到的论文）
+            # - crawled_count: 爬虫提交的论文数（可能包含被分类过滤的论文）
+            # - len(papers): 传入的论文列表长度（兜底方案）
+            
+            # [调试] 输出 context 详情，用于追踪数据来源
+            print(f"[DEBUG] _calculate_paper_statistics 接收到的 context keys: {list(context.keys()) if context else 'None'}")
+            print(f"[DEBUG] context 中的 crawled_count: {context.get('crawled_count', '未找到') if context else '未找到'}")
+            print(f"[DEBUG] context 中的 actually_filtered_count: {context.get('actually_filtered_count', '未找到') if context else '未找到'}")
+            
+            if context and "actually_filtered_count" in context:
+                # 最优：使用实际筛选的论文数（accepted + rejected）
+                total_count = context["actually_filtered_count"]
+                print(f"[INFO] 使用实际筛选数 (actually_filtered_count): {total_count}")
+                
+            elif context and "crawled_count" in context:
+                # 次优：使用爬虫提交的论文数
                 total_count = context["crawled_count"]
-                print(f"[DEBUG] 从 context 读取 crawled_count: {total_count}")
+                print(f"[INFO] 使用爬虫统计数 (crawled_count): {total_count}")
+                print(f"[WARN] 缺少 actually_filtered_count，可能有论文被分类过滤")
+                
             else:
-                # Fallback：使用 papers 长度（旧逻辑）
+                # 兜底：使用传入的 papers 长度
                 total_count = len(papers)
-                print(f"[WARN] context 中无 crawled_count，使用 papers 长度: {total_count}")
+                print(f"[WARN] context 中无统计数据，使用 papers 长度: {total_count}")
             
             recommended_count = sum(
                 1 for p in papers 

@@ -106,36 +106,33 @@ class RunCrawlerStep(WorkflowStep):
                 print(f"[DEBUG] RunCrawlerStep: Force mode enabled. Re-crawling all target categories: {target_categories}")
                 missing_categories = list(target_categories)
             else:
-                # 【修复】即使跳过爬虫，也要查询今日论文数量
-                # 原因：后续步骤需要 crawled_count 来显示正确的数量
-                from datetime import date
+                # [修复] 跳过爬虫时，本次爬取数量应为 0
+                # 原因：所有类别已爬取，本次执行没有爬取任何新论文
+                # 之前的查询会得到今天所有论文数（错误！）
+                print(f"[INFO] 所有分类 ({', '.join(categories)}) 已爬取，跳过爬虫")
+                self.update_progress(100, 100, f"所有分类已爬取，跳过")
                 
-                today = date.today().isoformat()  # 格式: "2025-12-16"
-                print(f"[DEBUG] 爬虫已跳过，查询今天创建的论文数: {today}")
-                
-                # 查询今天创建的所有论文
-                count_res = db.table("daily_papers") \
-                    .select("*", count="exact") \
-                    .gte("created_at", f"{today} 00:00:00") \
-                    .lt("created_at", f"{today} 23:59:59") \
-                    .execute()
-                
-                crawled_count = count_res.count if count_res.count is not None else len(count_res.data)
-                print(f"[INFO] 今日论文数: {crawled_count}")
-                
-                self.update_progress(100, 100, f"所有分类 ({', '.join(categories)}) 已爬取，今日共 {crawled_count} 篇论文")
                 return {
                     "crawler_run": False, 
                     "skipped": True,
-                    "crawled_count": crawled_count,
-                    "total_found_count": crawled_count
+                    "crawled_count": 0,  # 本次未爬取任何论文
+                    "total_found_count": 0
                 }
         
-        self.update_progress(0, 100, f"准备获取: {', '.join(missing_categories)}")
         
         # 4. 运行爬虫
         try:
-            workflow_service.run_crawler(missing_categories)
+            # [修改] 接收爬虫返回的统计数据
+            crawler_stats = workflow_service.run_crawler(missing_categories)
+            
+            # [修复] 直接使用爬虫返回的真实数量，移除 fallback 逻辑
+            # 原因说明：
+            # 1. 如果爬虫解析失败，run_crawler 会抛出异常（在 workflow_service 层处理）
+            # 2. 如果爬虫真的爬取0篇，yielded=0 是正常情况（类别无新论文）
+            # 3. 之前的 fallback 查询数据库会得到今天所有论文数（错误的总数）
+            crawled_count = crawler_stats.get("yielded", 0)
+            
+            print(f"[INFO] 爬虫统计: 本次提交处理 {crawled_count} 篇论文")
             
             # 5. 更新 system_status (在运行爬虫后更新，表示这些分类已爬取)
             new_categories = list(existing_categories.union(set(missing_categories)))
@@ -148,39 +145,41 @@ class RunCrawlerStep(WorkflowStep):
             # Upsert
             db.table("system_status").upsert({
                 "key": status_key,
-                "value": new_status # Supabase 会自动处理 JSON 序列化
+                "value": new_status
             }).execute()
 
-            # 6. 从数据库查询今日爬取的论文数量
-            # 【修复】改用 created_at 查询今天创建的所有论文
-            # 优点：
-            # - 不依赖 system_status 表
-            # - 不依赖 ArXiv 日期解析
-            # - created_at 是数据库自动生成，绝对准确
-            from datetime import date
+            # 6. 返回结果（使用爬虫统计的真实数量）
+            # [调试] 输出爬虫统计详情，用于验证数据流
+            print(f"[DEBUG] run_crawler_step 返回值详情:")
+            print(f"  - crawled_count (提交处理): {crawled_count}")
+            print(f"  - unique_found (去重后): {crawler_stats.get('unique_found', 'N/A')}")
+            print(f"  - total_found (原始抓取): {crawler_stats.get('total_found', 'N/A')}")
+            print(f"  - skipped_category (分类不符): {crawler_stats.get('skipped_category', 'N/A')}")
             
-            today = date.today().isoformat()  # 格式: "2025-12-16"
-            print(f"[DEBUG] 查询今天创建的论文: {today}")
+            # [优化] 构建详细的爬虫统计消息，传递给前端显示
+            unique_found = crawler_stats.get("unique_found", crawled_count)
+            total_found = crawler_stats.get("total_found", crawled_count)
+            skipped = crawler_stats.get("skipped_category", 0)
             
-            # 查询今天创建的所有论文（含时间范围）
-            count_res = db.table("daily_papers") \
-                .select("*", count="exact") \
-                .gte("created_at", f"{today} 00:00:00") \
-                .lt("created_at", f"{today} 23:59:59") \
-                .execute()
+            stats_msg = (
+                f"📄 发现 {unique_found} 篇论文 (原始 {total_found}) | "
+                f"✅ 提交 {crawled_count} 篇 | "
+                f"🚫 跳过 {skipped} 篇"
+            )
             
-            crawled_count = count_res.count if count_res.count is not None else len(count_res.data)
+            print(f"[INFO] 爬虫统计: {stats_msg}")
+            self.update_progress(100, 100, stats_msg)
             
-            # 执行成功，更新进度并返回结果
-            print(f"[INFO] 成功爬取 {crawled_count} 篇新论文（去重后）")
-            self.update_progress(100, 100, f"捕获 {crawled_count} 篇论文")
             return {
                 "crawler_run": True, 
                 "crawled_categories": missing_categories, 
-                "crawled_count": crawled_count,
-                "total_found_count": crawled_count # [NEW] Pass to next steps
+                "crawled_count": crawled_count,  # 使用爬虫返回的真实数量
+                "total_found_count": crawled_count
             }
             
         except Exception as e:
-            self.update_progress(0, 100, f"爬虫失败: {str(e)}")
+            # [修复] 更详细的错误处理
+            error_msg = f"爬虫执行失败: {str(e)}"
+            print(f"[ERROR] {error_msg}")
+            self.update_progress(0, 100, error_msg)
             raise e

@@ -54,32 +54,51 @@ class AnalyzePublicStep(WorkflowStep):
         
         # 【新增】归档论文到永久表
         # 将 daily_papers 中的论文归档到 papers 表，确保数据持久化
-        self._perform_archive(context)
+        self._perform_archive(context, analyzed_count)
         
         return {"public_analysis_done": True, "analyzed_count": analyzed_count}
     
-    def _perform_archive(self, context: Dict[str, Any]) -> None:
+    def _perform_archive(self, context: Dict[str, Any], analyzed_count: int) -> None:
         """
         执行归档操作的辅助函数。
         
-        将 daily_papers 表中的论文归档到 papers 永久表。
+        功能：将 daily_papers 表中的论文归档到 papers 永久表。
         
         Args:
-            context (Dict[str, Any]): 工作流上下文，包含以下字段：
-                - crawled_count (int): 本次爬取的论文数量
+            context (Dict[str, Any]): 工作流上下文，包含各步骤的执行结果
+            analyzed_count (int): 实际分析的论文数量（本次执行）
         
         Returns:
             None
         """
         from app.services.paper_service import paper_service
         
-        crawled_count = context.get("crawled_count", 0)
+        # [修复] 不再基于 analyzed_count 判断是否跳过归档
+        # 原因：
+        # 1. archive_daily_papers() 会自动判断是否有需要归档的论文
+        # 2. 即使本次分析0篇，之前可能有归档失败的论文需要重试
+        # 3. 确保数据一致性，不遗漏任何归档操作
         
-        # 更新进度：显示归档状态
-        self.update_progress(90, 100, f"正在归档 {crawled_count} 篇论文到永久表...")
+        # 统一的进度消息（简化前端显示）
+        self.update_progress(95, 100, "正在归档论文到永久表...")
         
+        # 内部日志区分不同情况
+        if analyzed_count == 0:
+            print("[INFO] 本次无新论文需要分析，但仍执行归档检查")
+        else:
+            print(f"[INFO] 准备归档 {analyzed_count} 篇已分析论文")
+        
+        # 执行归档（不管 analyzed_count 是多少都执行）
         success = paper_service.archive_daily_papers()
+        
         if not success:
             print("[WARN] 归档失败，但继续执行工作流")
+            self.update_progress(100, 100, "归档失败，请检查日志")
         else:
-            print(f"[INFO] 成功归档 {crawled_count} 篇论文")
+            # 根据 analyzed_count 显示不同的完成消息
+            if analyzed_count > 0:
+                self.update_progress(100, 100, f"已分析 {analyzed_count} 篇论文")
+                print(f"[INFO] 归档成功，本次分析 {analyzed_count} 篇论文")
+            else:
+                self.update_progress(100, 100, "归档完成，本次无新分析")
+                print("[INFO] 归档成功，本次无新论文需要分析")

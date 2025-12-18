@@ -49,6 +49,11 @@ function AppContent() {
     const [dateFilter, setDateFilter] = useState<string | null>(null); // 论文列表日期筛选
     const [showReportModal, setShowReportModal] = useState(false);
 
+    // [NEW] 手动报告表单状态 - 在应用生命周期内保持（刷新后重置）
+    const [manualReportQuery, setManualReportQuery] = useState('');
+    const [manualReportCategories, setManualReportCategories] = useState<string[]>([]);
+    const [manualReportAuthors, setManualReportAuthors] = useState<string[]>([]);
+
     // [NEW] Use QueryClient for invalidation
     const queryClient = useQueryClient();
     const { registerNavigation } = useTaskContext();
@@ -295,6 +300,12 @@ function AppContent() {
                             }}
                             onClearDateFilter={() => setDateFilter(null)}
                             onRefreshProfile={handleRefreshProfile}
+                            manualReportQuery={manualReportQuery}
+                            manualReportCategories={manualReportCategories}
+                            manualReportAuthors={manualReportAuthors}
+                            onManualReportQueryChange={setManualReportQuery}
+                            onManualReportCategoriesChange={setManualReportCategories}
+                            onManualReportAuthorsChange={setManualReportAuthors}
                         />
                     </ErrorBoundary>
                 </div>
