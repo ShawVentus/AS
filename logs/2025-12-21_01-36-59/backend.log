@@ -1,0 +1,75 @@
+
+============================================================
+启动时间: 2025-12-21 01:36:59
+============================================================
+
+INFO:     Will watch for changes in these directories: ['/Users/mac/Desktop/AS/backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [73986] using WatchFiles
+INFO:     Started server process [74003]
+INFO:     Waiting for application startup.
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "SchedulerService.run_daily_workflow" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:     Application startup complete.
+✓ LLM Service initialized with Bohrium (Model: qwen3-max)
+[类别映射] 已加载 12 个主类别的映射表
+Starting up...
+调度器已启动。每日任务安排在 09:30。
+INFO:     127.0.0.1:64536 - "GET / HTTP/1.1" 200 OK
+[开发模式] 使用环境变量中的默认 accessKey
+✓ 无过期任务
+INFO:     127.0.0.1:64554 - "POST /api/v1/user/init-from-bohrium HTTP/1.1" 200 OK
+[开发模式] 使用环境变量中的默认 accessKey
+INFO:     127.0.0.1:64555 - "POST /api/v1/user/init-from-bohrium HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64558 - "GET /api/v1/workflow/active HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64574 - "GET /api/v1/papers/recommendations HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64575 - "GET /api/v1/reports/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64576 - "GET /api/v1/papers/recommendations?date=2025-12-21 HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64573 - "GET /api/v1/user/me HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64590 - "GET /api/v1/workflow/active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64600 - "POST /api/v1/papers/batch HTTP/1.1" 200 OK
+[开发模式] 使用环境变量中的默认 accessKey
+INFO:     127.0.0.1:64716 - "POST /api/v1/user/init-from-bohrium HTTP/1.1" 200 OK
+[开发模式] 使用环境变量中的默认 accessKey
+INFO:     127.0.0.1:64717 - "POST /api/v1/user/init-from-bohrium HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64721 - "GET /api/v1/papers/recommendations HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64723 - "GET /api/v1/papers/recommendations?date=2025-12-21 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64722 - "GET /api/v1/reports/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64735 - "GET /api/v1/workflow/active HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64720 - "GET /api/v1/user/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64762 - "POST /api/v1/papers/batch HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64769 - "GET /api/v1/workflow/active HTTP/1.1" 200 OK
+[开发模式] 使用环境变量中的默认 accessKey
+INFO:     127.0.0.1:64793 - "POST /api/v1/user/init-from-bohrium HTTP/1.1" 200 OK
+[开发模式] 使用环境变量中的默认 accessKey
+INFO:     127.0.0.1:64794 - "POST /api/v1/user/init-from-bohrium HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64798 - "GET /api/v1/papers/recommendations HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64799 - "GET /api/v1/reports/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64800 - "GET /api/v1/papers/recommendations?date=2025-12-21 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64810 - "GET /api/v1/workflow/active HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64818 - "GET /api/v1/workflow/active HTTP/1.1" 200 OK
+[Auth] 🔧 开发模式：使用固定 user_id = 6z023dyl
+INFO:     127.0.0.1:64797 - "GET /api/v1/user/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64829 - "POST /api/v1/papers/batch HTTP/1.1" 200 OK
+INFO:     Shutting down

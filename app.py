@@ -50,7 +50,7 @@ LOG_ROOT = "logs"
 
 # 端口配置
 BACKEND_PORT = 8000
-FRONTEND_PORT = 5173
+FRONTEND_PORT = 50001
 
 # URL 配置
 BACKEND_URL = f"http://localhost:{BACKEND_PORT}"
@@ -465,6 +465,10 @@ class ProcessManager:
             # 构建启动命令
             cmd = ["npm", "run", "dev"]
             
+            # 构建环境变量，传递端口配置给 Vite
+            env = os.environ.copy()
+            env["VITE_PORT"] = str(FRONTEND_PORT)
+            
             # 启动进程
             self.frontend_proc = subprocess.Popen(
                 cmd,
@@ -474,6 +478,7 @@ class ProcessManager:
                 text=True,
                 encoding='utf-8',
                 bufsize=1,  # 行缓冲
+                env=env,  # 传递包含 VITE_PORT 的环境变量
             )
             
             print(ColorPrinter.success(f"[启动] 前端服务已启动 (PID: {self.frontend_proc.pid}) ✓"))

@@ -74,8 +74,15 @@ BOHRIUM_CLIENT_NAME = os.getenv("BOHRIUM_CLIENT_NAME", "arxivscout")
 # 商品 SKU ID（固定值）
 BOHRIUM_SKU_ID = int(os.getenv("BOHRIUM_SKU_ID", "10020"))
 
-# 开发环境默认 accessKey
+# 开发模式配置
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 DEV_ACCESS_KEY = os.getenv("DEV_BOHRIUM_ACCESS_KEY", "")
+
+# ===================== 缓存配置 =====================
+# accessKey -> user_id 缓存，避免重复调用玻尔 API
+CACHE_TTL = 300  # 缓存过期时间：5 分钟
+_user_cache: dict = {}  # 内存缓存：{ accessKey: { "user_id": str, "expires_at": float } }
+
 
 
 # ===================== 核心功能函数 =====================
@@ -238,7 +245,11 @@ async def consume_integral(access_key: str, event_value: int) -> ConsumeResult:
 
 def get_access_key_or_default(access_key: Optional[str]) -> str:
     """
-    获取有效的 accessKey，如果为空则使用开发环境默认值。
+    获取有效的 accessKey，开发模式下可回退使用默认值。
+    
+    安全说明：
+        仅当 DEV_MODE=true 且配置了 DEV_BOHRIUM_ACCESS_KEY 时才会回退。
+        生产环境（DEV_MODE=false）下必须从 Cookie 获取 accessKey。
     
     Args:
         access_key: 从 Cookie 获取的 accessKey（可能为空）
@@ -249,11 +260,87 @@ def get_access_key_or_default(access_key: Optional[str]) -> str:
     Raises:
         ValueError: 无法获取有效的 accessKey
     """
+    # 情况 1: Cookie 中有有效的 accessKey
     if access_key:
         return access_key
     
-    if DEV_ACCESS_KEY:
+    # 情况 2: 开发模式下回退使用环境变量
+    # 🔒 安全修复：必须同时满足 DEV_MODE=true 且有配置
+    if DEV_MODE and DEV_ACCESS_KEY:
         print("[开发模式] 使用环境变量中的默认 accessKey")
         return DEV_ACCESS_KEY
     
-    raise ValueError("未找到有效的 accessKey")
+    # 情况 3: 无法获取 accessKey
+    raise ValueError("未找到有效的 accessKey，请确保从玻尔平台访问")
+
+
+# ===================== 缓存功能函数 =====================
+
+def get_user_id_cached(access_key: str) -> str:
+    """
+    通过 accessKey 获取 user_id，带内存缓存。
+    
+    此函数用于后端认证，避免每次请求都调用玻尔 API。
+    缓存 TTL 为 5 分钟，过期后自动重新获取。
+    
+    Args:
+        access_key: 玻尔平台 accessKey
+    
+    Returns:
+        str: 用户 ID（如 '6z023dyl'）
+    
+    Raises:
+        ValueError: accessKey 为空
+        RuntimeError: 玻尔 API 调用失败
+    """
+    global _user_cache
+    
+    if not access_key:
+        raise ValueError("accessKey 不能为空")
+    
+    current_time = time.time()
+    
+    # 检查缓存
+    if access_key in _user_cache:
+        cached = _user_cache[access_key]
+        if cached["expires_at"] > current_time:
+            print(f"[缓存命中] user_id = {cached['user_id']}")
+            return cached["user_id"]
+        else:
+            # 缓存过期，删除
+            del _user_cache[access_key]
+    
+    # 缓存未命中，调用玻尔 API
+    print("[缓存未命中] 调用玻尔 API 获取用户信息...")
+    user_info = get_user_info(access_key)
+    
+    # 存入缓存
+    _user_cache[access_key] = {
+        "user_id": user_info.user_id,
+        "expires_at": current_time + CACHE_TTL
+    }
+    
+    print(f"[缓存已更新] user_id = {user_info.user_id}, TTL = {CACHE_TTL}秒")
+    return user_info.user_id
+
+
+def clear_user_cache(access_key: Optional[str] = None) -> None:
+    """
+    清除用户缓存。
+    
+    Args:
+        access_key: 指定要清除的 accessKey，为 None 则清除全部缓存
+    
+    Returns:
+        None
+    """
+    global _user_cache
+    
+    if access_key:
+        if access_key in _user_cache:
+            del _user_cache[access_key]
+            print(f"[缓存已清除] accessKey = {access_key[:8]}...")
+    else:
+        _user_cache.clear()
+        print("[缓存已全部清除]")
+

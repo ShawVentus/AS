@@ -7,9 +7,10 @@ supabase
 openai
 apscheduler
 jinja2
-parsel
 scrapy
 arxiv
 bohrium-open-sdk
 httpx
-flask
+psycopg2-binary
+premailer
+cssutils

@@ -1,96 +1,128 @@
+/**
+ * 认证上下文模块
+ * 
+ * 功能说明：
+ *   提供全局的用户认证状态管理。
+ *   统一使用玻尔平台认证（通过后端 /init-from-bohrium 接口）。
+ * 
+ * 认证流程：
+ *   1. 组件挂载时调用后端接口初始化用户
+ *   2. 成功 → 设置 user 状态
+ *   3. 失败 → 设置 error 状态，显示错误页面
+ */
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../services/supabase';
 import { PaymentAPI } from '../services/api';
 
-// 开发模式配置
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true';
-const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID || '6z023dyl';
+// ===================== 类型定义 =====================
 
-interface AuthContextType {
-  session: Session | null;
-  user: User | null;
-  loading: boolean;
-  signOut: () => Promise<void>;
-  bohriumUserId: string | null;
+/** 简化的用户信息类型（从玻尔平台获取） */
+interface BohriumUser {
+  id: string;
+  name?: string;
+  email?: string;
 }
+
+/** 认证上下文类型 */
+interface AuthContextType {
+  /** 当前用户信息 */
+  user: BohriumUser | null;
+  /** 是否正在加载 */
+  loading: boolean;
+  /** 认证错误信息 */
+  error: string | null;
+}
+
+// ===================== 上下文创建 =====================
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ===================== 本地存储键 =====================
+
+const STORAGE_KEY = 'arxivscout_user';
+
+// ===================== Provider 组件 =====================
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // 开发模式：初始化时直接使用固定 user_id
-  const initialUser = DEV_MODE ? {
-    id: DEV_USER_ID,
-    email: 'dev@arxivscout.local',
-    app_metadata: {},
-    user_metadata: {},
-    aud: 'authenticated',
-    created_at: new Date().toISOString(),
-  } as User : null;
-
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(initialUser);
-  const [loading, setLoading] = useState(!DEV_MODE);  // 开发模式不需要 loading
-  const [bohriumUserId, setBohriumUserId] = useState<string | null>(DEV_MODE ? DEV_USER_ID : null);
-
-  useEffect(() => {
-    // 开发模式：尝试初始化玻尔用户（确保数据库中有该用户）
-    if (DEV_MODE) {
-      console.log('[Auth] 🔧 开发模式：使用固定 user_id =', DEV_USER_ID);
-      PaymentAPI.initFromBohrium().then(profile => {
-        console.log('[Auth] ✅ 玻尔用户初始化成功:', profile?.info?.id);
-      }).catch(() => {
-        console.log('[Auth] ⚠️ 玻尔初始化跳过（开发模式继续使用固定用户）');
-      });
-      return;
-    }
-
-    // 生产模式：使用 Supabase Auth
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // 初始化玻尔用户
-    PaymentAPI.initFromBohrium().then(profile => {
-      if (profile?.info?.id) {
-        setBohriumUserId(profile.info.id);
+  // 尝试从 localStorage 恢复用户（快速渲染）
+  const getCachedUser = (): BohriumUser | null => {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (cached) {
+        return JSON.parse(cached);
       }
-    }).catch(() => {});
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signOut = async () => {
-    if (DEV_MODE) {
-      console.log('[Auth] 开发模式不支持登出');
-      return;
+    } catch {
+      // 忽略解析错误
     }
-    await supabase.auth.signOut();
+    return null;
   };
 
-  const value = {
-    session,
+  const [user, setUser] = useState<BohriumUser | null>(getCachedUser());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    /**
+     * 初始化用户认证
+     * 
+     * 流程：
+     *   1. 调用后端 /init-from-bohrium 接口
+     *   2. 后端从 Cookie 获取 accessKey 并验证
+     *   3. 返回用户画像或错误
+     */
+    const initAuth = async () => {
+      console.log('[Auth] 开始初始化用户认证...');
+      
+      try {
+        const profile = await PaymentAPI.initFromBohrium();
+        
+        if (profile?.info?.id) {
+          const userData: BohriumUser = {
+            id: profile.info.id,
+            name: profile.info.name,
+            email: profile.info.email,
+          };
+          
+          // 存储到 localStorage（持久化）
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
+          
+          setUser(userData);
+          setError(null);
+          console.log('[Auth] ✅ 用户认证成功:', userData.id);
+        } else {
+          throw new Error('返回数据格式异常');
+        }
+      } catch (err: any) {
+        console.error('[Auth] ❌ 用户认证失败:', err);
+        
+        // 清除可能无效的缓存
+        localStorage.removeItem(STORAGE_KEY);
+        
+        setUser(null);
+        setError('获取您的信息失败，请刷新重试');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+  }, []);
+
+  const value: AuthContextType = {
     user,
     loading,
-    signOut,
-    bohriumUserId,
+    error,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => {
+// ===================== Hook 导出 =====================
+
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth 必须在 AuthProvider 内部使用');
   }
   return context;
 };

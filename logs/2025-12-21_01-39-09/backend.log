@@ -1,0 +1,35 @@
+
+============================================================
+启动时间: 2025-12-21 01:39:09
+============================================================
+
+INFO:     Will watch for changes in these directories: ['/Users/mac/Desktop/AS/backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [74125] using WatchFiles
+INFO:     Started server process [74128]
+INFO:     Waiting for application startup.
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "SchedulerService.run_daily_workflow" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+INFO:     Application startup complete.
+✓ LLM Service initialized with Bohrium (Model: qwen3-max)
+[类别映射] 已加载 12 个主类别的映射表
+Starting up...
+调度器已启动。每日任务安排在 09:30。
+INFO:     127.0.0.1:65196 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65218 - "POST /api/v1/user/init-from-bohrium HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65219 - "POST /api/v1/user/init-from-bohrium HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65220 - "GET /api/v1/user/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65221 - "GET /api/v1/papers/recommendations HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65222 - "GET /api/v1/reports/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65223 - "GET /api/v1/papers/recommendations?date=2025-12-21 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65225 - "GET /api/v1/workflow/active HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65227 - "GET /api/v1/workflow/active HTTP/1.1" 401 Unauthorized
+✓ 无过期任务
+INFO:     127.0.0.1:65233 - "GET /api/v1/papers/recommendations HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65235 - "GET /api/v1/reports/ HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65237 - "GET /api/v1/papers/recommendations?date=2025-12-21 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65373 - "POST /api/v1/user/init-from-bohrium HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65374 - "POST /api/v1/user/init-from-bohrium HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65375 - "GET /api/v1/workflow/active HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:65376 - "GET /api/v1/workflow/active HTTP/1.1" 401 Unauthorized

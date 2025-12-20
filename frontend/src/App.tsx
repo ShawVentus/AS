@@ -9,8 +9,9 @@ import type { Report, Paper } from './types';
 import { UserAPI, PaperAPI, ReportAPI } from './services/api';
 
 import { useAuth } from './contexts/AuthContext';
-import { Login } from './components/auth/Login';
-import { Register } from './components/auth/Register';
+// 🚧 已移除: 系统已切换到玻尔平台认证，不再使用邮箱密码登录
+// import { Login } from './components/auth/Login';
+// import { Register } from './components/auth/Register';
 
 import { ReportGenerationModal } from './components/features/ReportGenerationModal';
 
@@ -33,8 +34,7 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
-    const { user, loading } = useAuth();
-    const [showRegister, setShowRegister] = useState(false);
+    const { user, loading, error: authError } = useAuth();
     const [currentView, setCurrentView] = useState('dashboard');
     // const [userProfile, setUserProfile] = useState<UserProfile | null>(null); // Removed: Handled by React Query
     // const [recommendations, setRecommendations] = useState<Paper[]>([]); // Removed: Handled by React Query
@@ -302,11 +302,24 @@ function AppContent() {
         return <LoadingScreen />;
     }
 
+    // 认证失败或未登录：显示错误页面
     if (!user) {
-        return showRegister ? (
-            <Register onLoginClick={() => setShowRegister(false)} />
-        ) : (
-            <Login onRegisterClick={() => setShowRegister(true)} />
+        return (
+            <div className="flex h-screen items-center justify-center bg-slate-950">
+                <div className="text-center p-8 bg-slate-900 rounded-xl border border-slate-800 max-w-md">
+                    <div className="text-4xl mb-4">⚠️</div>
+                    <h1 className="text-xl font-bold text-white mb-4">访问受限</h1>
+                    <p className="text-slate-400 mb-6">
+                        {authError || "获取您的信息失败，请刷新重试"}
+                    </p>
+                    <button 
+                        onClick={() => window.location.reload()}
+                        className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors"
+                    >
+                        刷新重试
+                    </button>
+                </div>
+            </div>
         );
     }
 

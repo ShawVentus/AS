@@ -1,66 +1,107 @@
+"""
+认证模块
+
+功能说明：
+    提供后端 API 的用户身份认证功能。
+    所有需要用户身份的接口都通过此模块获取 user_id。
+
+认证方式：
+    - 生产模式：从 Cookie 获取玻尔平台 accessKey → 调用玻尔 SDK 获取 user_id
+    - 开发模式：直接使用环境变量中的 DEV_USER_ID
+
+主要函数：
+    - get_current_user_id(): 必须登录的接口使用
+    - get_current_user_id_optional(): 可选登录的接口使用
+"""
+
 import os
 from typing import Optional
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.core.database import supabase
+from fastapi import HTTPException, status, Request
+
+# ===================== 配置常量 =====================
 
 # 开发模式配置
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 DEV_USER_ID = os.getenv("DEV_USER_ID", "6z023dyl")
 
-# 定义 Bearer Token 模式（开发模式下可选）
-security = HTTPBearer(auto_error=not DEV_MODE)
 
-def get_current_user_id(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> str:
+# ===================== 核心认证函数 =====================
+
+def get_current_user_id(request: Request) -> str:
     """
-    验证用户身份并返回 user_id
+    获取当前用户 ID（必须登录）。
     
-    开发模式：直接返回环境变量中的固定 user_id
-    生产模式：验证 Supabase JWT 并返回 user_id
+    此函数是所有需要用户身份的 API 接口的依赖注入函数。
+    通过以下流程获取用户身份：
+    
+    开发模式 (DEV_MODE=true):
+        直接返回环境变量 DEV_USER_ID
+    
+    生产模式 (DEV_MODE=false):
+        1. 从 Cookie 读取 appAccessKey
+        2. 调用 get_user_id_cached() 获取 user_id（带缓存）
+        3. 返回 user_id
+    
+    Args:
+        request: FastAPI Request 对象（用于读取 Cookie）
+    
+    Returns:
+        str: 用户 ID（如 '6z023dyl'）
+    
+    Raises:
+        HTTPException 401: 未登录或认证失败
     """
-    # 开发模式：跳过验证，使用固定 user_id
+    # 开发模式：直接返回固定 user_id
     if DEV_MODE:
         print(f"[Auth] 🔧 开发模式：使用固定 user_id = {DEV_USER_ID}")
         return DEV_USER_ID
     
-    if not credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="未提供认证凭证",
-        )
+    # 生产模式：从 Cookie 获取 accessKey
+    from app.services.bohrium_service import get_user_id_cached, get_access_key_or_default
     
-    token = credentials.credentials
     try:
-        # 调用 Supabase Auth API 验证 Token
-        user = supabase.auth.get_user(token)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
-            )
-        return user.user.id
-    except Exception as e:
+        # 1. 获取 accessKey
+        access_key = request.cookies.get("appAccessKey")
+        access_key = get_access_key_or_default(access_key)
+        
+        # 2. 获取 user_id（带缓存）
+        user_id = get_user_id_cached(access_key)
+        
+        return user_id
+        
+    except ValueError as e:
+        # accessKey 无效或缺失
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Authentication failed: {str(e)}",
+            detail="获取您的信息失败，请刷新重试"
+        )
+    except Exception as e:
+        # 其他错误（网络、玻尔 API 等）
+        print(f"[Auth] ❌ 认证失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="获取您的信息失败，请刷新重试"
         )
 
-def get_current_user_id_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Optional[str]:
+
+def get_current_user_id_optional(request: Request) -> Optional[str]:
     """
-    可选的验证 Supabase JWT。如果验证成功返回 user_id，否则返回 None。
-    不会抛出 401 异常。
+    获取当前用户 ID（可选登录）。
+    
+    与 get_current_user_id() 类似，但认证失败时返回 None 而不是抛出异常。
+    用于不强制要求登录的接口（如公开论文详情页）。
+    
+    Args:
+        request: FastAPI Request 对象
+    
+    Returns:
+        Optional[str]: 用户 ID，未登录时返回 None
     """
-    if not credentials:
-        return None
-        
-    token = credentials.credentials
     try:
-        user = supabase.auth.get_user(token)
-        if not user:
-            return None
-        return user.user.id
-    except Exception:
+        return get_current_user_id(request)
+    except HTTPException:
         return None
+
 
 
 # ===================== 玻尔平台认证（新） =====================

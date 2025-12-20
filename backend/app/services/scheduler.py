@@ -92,7 +92,7 @@ class SchedulerService:
             tuple: (categories, arxiv_date)
         """
         try:
-            url = "https://arxiv.org/list/cs/new"
+            url = "https://arxiv.org/list/econ.EM/new"
             print(f"正在检查 Arxiv 更新: {url}...")
             headers = {
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -120,7 +120,8 @@ class SchedulerService:
                 
                 print("正在汇总符合条件用户的关注类别...")
                 profiles = self.db.table("profiles").select("focus") \
-                    .gt("remaining_quota", 0).eq("receive_email", True).execute().data
+                    .gt("remaining_quota", 0).eq("receive_email", True) \
+                    .neq("info->>email", "").not_.is_("info->>email", "null").execute().data
                 
                 all_categories = set()
                 for p in profiles:
@@ -212,7 +213,8 @@ class SchedulerService:
 
             # 仅获取额度充足且开启报告的用户
             profiles_data = self.db.table("profiles").select("*") \
-                .gt("remaining_quota", 0).eq("receive_email", True).execute().data
+                .gt("remaining_quota", 0).eq("receive_email", True) \
+                .neq("info->>email", "").not_.is_("info->>email", "null").execute().data
             if not profiles_data:
                 print("没有符合条件的用户。")
                 return
@@ -261,7 +263,7 @@ class SchedulerService:
             if target_user_id:
                 profiles_response = self.db.table("profiles").select("*").eq("user_id", target_user_id).gt("remaining_quota", 0).execute()
             else:
-                profiles_response = self.db.table("profiles").select("*").gt("remaining_quota", 0).eq("receive_email", True).execute()
+                profiles_response = self.db.table("profiles").select("*").gt("remaining_quota", 0).eq("receive_email", True).neq("info->>email", "").not_.is_("info->>email", "null").execute()
                 
             profiles_data = profiles_response.data
             if not profiles_data:
@@ -366,7 +368,7 @@ class SchedulerService:
                 if target_user_id:
                     profiles = self.db.table("profiles").select("focus").eq("user_id", target_user_id).execute().data
                 else:
-                    profiles = self.db.table("profiles").select("focus").gt("remaining_quota", 0).eq("receive_email", True).execute().data
+                    profiles = self.db.table("profiles").select("focus").gt("remaining_quota", 0).eq("receive_email", True).neq("info->>email", "").not_.is_("info->>email", "null").execute().data
                 
                 all_cats = set()
                 for p in profiles:
