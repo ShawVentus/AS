@@ -24,3 +24,5 @@
 ==================================================
 2025-12-21 01:42:12,696 - app.services.workflow_engine - INFO - 👉 执行步骤 [generate_report] (尝试 1/4)...
 2025-12-21 01:42:12,696 - app.services.workflow_engine - INFO - ==================================================
+2025-12-21 01:42:43,106 - app.services.workflow_engine - INFO - ✅ 步骤 [generate_report] 完成。耗时: 27287ms, 成本: $0.005520
+2025-12-21 01:42:43,630 - app.services.workflow_engine - INFO - ✅ 工作流执行完成: b527475b-54bd-4dcd-82c1-6865255f2612
