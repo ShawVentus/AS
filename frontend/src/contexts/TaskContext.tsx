@@ -22,18 +22,25 @@ const TaskContext = createContext<TaskContextType | undefined>(undefined);
  * 
  * 功能：
  * 1. 管理后台任务状态 (executionId, isGenerating, steps)。
- * 2. 负责 SSE 连接的建立、监听和断开。
+ * 2. 负责轮询进度的管理（替代原 SSE 长连接）。
  * 3. 任务完成或失败时触发全局 Toast 通知。
  * 4. 状态持久化到 localStorage，防止页面刷新丢失任务。
+ * 
+ * 【重要修改】2024-12-21：
+ * 由于 Bohrium 容器环境的反向代理导致 SSE 连接不稳定（ERR_HTTP2_PROTOCOL_ERROR），
+ * 将原来的 SSE 长连接改为定时轮询模式，每 2 秒请求一次后端进度端点。
  */
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [executionId, setExecutionId] = useState<string | null>(null);
     const [steps, setSteps] = useState<StepProgress[]>([]);
-    const eventSourceRef = useRef<EventSource | null>(null);
+    
+    // 【轮询模式】替代原有的 SSE 相关 refs
+    const pollingTimeoutRef = useRef<number | null>(null);  // 轮询定时器
+    const isPollingRef = useRef<boolean>(false);             // 轮询状态标志
+    const failCountRef = useRef<number>(0);                  // 连续失败计数
+    
     const navigationRef = useRef<((view: string, data?: any) => void) | null>(null);
-    const heartbeatCheckerRef = useRef<number | null>(null);
-    const initialTimeoutRef = useRef<number | null>(null);
     const completedRef = useRef<boolean>(false);
     const { showToast } = useToast();
     const queryClient = useQueryClient();
@@ -50,146 +57,148 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     //     }
     // }, []);
 
-    // 监听 executionId 变化，管理 SSE 连接
+    // 监听 executionId 变化，管理轮询
+    // 注意：startPolling/stopPolling 使用 refs 管理状态，不需要作为依赖
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (executionId && isGenerating) {
-            connectToSSE(executionId);
+            startPolling(executionId);
         } else {
-            cleanupSSE();
+            stopPolling();
         }
 
         return () => {
-            cleanupSSE();
+            stopPolling();
         };
     }, [executionId, isGenerating]);
 
-    const cleanupSSE = () => {
-        if (eventSourceRef.current) {
-            console.log("Closing SSE connection");
-            eventSourceRef.current.close();
-            eventSourceRef.current = null;
+    /**
+     * 停止轮询
+     * 
+     * 功能：清理轮询定时器，重置状态
+     */
+    const stopPolling = () => {
+        console.log("[轮询] 停止轮询");
+        isPollingRef.current = false;
+        
+        if (pollingTimeoutRef.current) {
+            clearTimeout(pollingTimeoutRef.current);
+            pollingTimeoutRef.current = null;
         }
-
-        // 清理心跳检查定时器
-        if (heartbeatCheckerRef.current) {
-            clearInterval(heartbeatCheckerRef.current);
-            heartbeatCheckerRef.current = null;
-        }
-
-        // 【新增】清理初始超时设置
-        initialTimeoutRef.current = null;
+        
+        failCountRef.current = 0;
     };
 
-    const connectToSSE = (id: string) => {
-        if (eventSourceRef.current?.url.includes(id)) return; // 避免重复连接
+    // ===================== 轮询配置 =====================
+    const POLL_INTERVAL = 2000;         // 轮询间隔：2 秒
+    const MAX_FAIL_COUNT = 5;           // 最大连续失败次数
+    const BACKOFF_MULTIPLIER = 1.5;     // 失败后延迟倍数
 
-        console.log("Connecting to SSE for execution:", id);
-        const url = `${import.meta.env.VITE_API_BASE_URL || '/api'}/workflow/progress-stream/${id}`;
-        const eventSource = new EventSource(url);
-        eventSourceRef.current = eventSource;
+    /**
+     * 启动轮询
+     * 
+     * 功能：开始定时请求后端进度端点
+     * 
+     * Args:
+     *   id: 工作流执行 ID
+     */
+    const startPolling = (id: string) => {
+        if (isPollingRef.current) {
+            console.log("[轮询] 已在轮询中，跳过重复启动");
+            return;
+        }
+        
+        console.log(`[轮询] 开始轮询 execution: ${id}`);
+        isPollingRef.current = true;
+        failCountRef.current = 0;
+        
+        // 立即执行第一次轮询
+        pollProgress(id);
+    };
 
-        // 【新增】心跳超时检测
-        let lastMessageTime = Date.now();
-        let hasReceivedFirstMessage = false;  // 【新增】标记是否收到首条消息
-
-        // 【新增】从 ref 获取初始超时时间，默认 30 秒
-        const INITIAL_TIMEOUT = initialTimeoutRef.current || 30000;
-        const NORMAL_TIMEOUT = 30000;
-        const HEARTBEAT_CHECK_INTERVAL = 5000;
-
-        heartbeatCheckerRef.current = setInterval(() => {
-            const elapsed = Date.now() - lastMessageTime;
-
-            // 【修改】根据是否收到首条消息决定超时阈值
-            const timeoutThreshold = hasReceivedFirstMessage ? NORMAL_TIMEOUT : INITIAL_TIMEOUT;
-
-            if (elapsed > timeoutThreshold) {
-                const timeoutType = hasReceivedFirstMessage ? '正常执行超时' : '首次连接超时';
-                console.error(`SSE ${timeoutType} (${elapsed}ms > ${timeoutThreshold}ms)`);
-                handleTaskCompletion('failed', { error: "连接超时，后端可能已停止" });
-
-                // 强制更新步骤状态为失败
+    /**
+     * 执行单次轮询
+     * 
+     * 功能：请求后端进度端点，处理响应，安排下一次轮询
+     * 
+     * Args:
+     *   id: 工作流执行 ID
+     */
+    const pollProgress = async (id: string) => {
+        // 检查是否应该继续轮询
+        if (!isPollingRef.current) {
+            console.log("[轮询] 轮询已停止，退出");
+            return;
+        }
+        
+        try {
+            const url = `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/workflow/progress/${id}`;
+            const response = await fetch(url, { credentials: 'include' });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // 重置失败计数
+            failCountRef.current = 0;
+            
+            // 更新步骤状态
+            if (data.steps) {
+                updateSteps(data.steps);
+            }
+            
+            // 检查任务是否结束
+            if (data.status === 'completed') {
+                console.log("[轮询] 任务成功完成:", id);
+                handleTaskCompletion('completed', data);
+                return; // 停止轮询
+            } else if (data.status === 'stopped') {
+                console.log("[轮询] 任务提前终止:", id);
+                handleTaskCompletion('stopped', data);
                 setSteps(prev => prev.map(s =>
                     (s.status === 'running' || s.status === 'pending')
-                        ? { ...s, status: 'failed', message: '连接超时' }
+                        ? { ...s, status: 'completed', message: '已停止' }
                         : s
                 ));
-
-                // 清理资源
-                cleanupSSE();
+                return; // 停止轮询
+            } else if (data.status === 'failed') {
+                console.log("[轮询] 任务执行失败:", id);
+                handleTaskCompletion('failed', data);
+                setSteps(prev => prev.map(s =>
+                    (s.status === 'running' || s.status === 'pending')
+                        ? { ...s, status: 'failed', message: '任务失败' }
+                        : s
+                ));
+                return; // 停止轮询
             }
-        }, HEARTBEAT_CHECK_INTERVAL);
-
-        // [Fix] Listen for explicit system_error events from backend
-        eventSource.addEventListener('system_error', (event: MessageEvent) => {
-            console.error("SSE System Error:", event.data);
-            handleTaskCompletion('failed', { error: event.data || "生成出错" });
-            // Force update steps to failed
-            setSteps(prev => prev.map(s =>
-                (s.status === 'running' || s.status === 'pending')
-                    ? { ...s, status: 'failed', message: '任务中断' }
-                    : s
-            ));
-        });
-
-        eventSource.addEventListener('progress', (event: MessageEvent) => {
-            lastMessageTime = Date.now(); // 【新增】重置心跳时间戳
-            hasReceivedFirstMessage = true;  // 【新增】标记已收到首条消息
-
-            // 【新增】收到首条消息后重置超时时间（清除初始超时设置）
-            if (initialTimeoutRef.current) {
-                initialTimeoutRef.current = null;
+            
+            // 任务仍在进行中，安排下一次轮询
+            pollingTimeoutRef.current = window.setTimeout(() => pollProgress(id), POLL_INTERVAL);
+            
+        } catch (error) {
+            console.error("[轮询] 请求失败:", error);
+            failCountRef.current++;
+            
+            if (failCountRef.current >= MAX_FAIL_COUNT) {
+                // 连续失败次数过多，标记任务失败
+                console.error(`[轮询] 连续失败 ${MAX_FAIL_COUNT} 次，任务标记为失败`);
+                handleTaskCompletion('failed', { error: "连接中断，任务可能已停止" });
+                setSteps(prev => prev.map(s =>
+                    (s.status === 'running' || s.status === 'pending')
+                        ? { ...s, status: 'failed', message: '连接中断' }
+                        : s
+                ));
+                return;
             }
-
-            try {
-                const data = JSON.parse(event.data);
-
-                // 更新步骤状态
-                if (data.steps) {
-                    updateSteps(data.steps);
-                }
-
-                // [修复] 检查任务是否结束，支持三种状态
-                if (data.status === 'completed') {
-                    console.log("任务成功完成:", id);
-                    handleTaskCompletion('completed', data);
-                } else if (data.status === 'stopped') {
-                    // [新增] 处理提前终止状态
-                    console.log("任务提前终止:", id);
-                    handleTaskCompletion('stopped', data);
-                    // 更新步骤状态为 stopped
-                    setSteps(prev => prev.map(s =>
-                        (s.status === 'running' || s.status === 'pending')
-                            ? { ...s, status: 'completed', message: '已停止' }
-                            : s
-                    ));
-                } else if (data.status === 'failed') {
-                    console.log("任务执行失败:", id);
-                    handleTaskCompletion('failed', data);
-                    // 强制更新步骤状态为 failed
-                    setSteps(prev => prev.map(s =>
-                        (s.status === 'running' || s.status === 'pending')
-                            ? { ...s, status: 'failed', message: '任务失败' }
-                            : s
-                    ));
-                }
-            } catch (e) {
-                console.error("Error parsing SSE data", e);
-            }
-        });
-
-        eventSource.onerror = (err) => {
-            console.error("SSE Error:", err);
-            // [修复] 连接错误作为失败处理
-            handleTaskCompletion('failed', { error: "连接中断，任务可能已停止" });
-
-            // Force update steps to failed
-            setSteps(prev => prev.map(s =>
-                (s.status === 'running' || s.status === 'pending')
-                    ? { ...s, status: 'failed', message: '连接中断' }
-                    : s
-            ));
-        };
+            
+            // 计算退避延迟：基础延迟 * 倍数^失败次数
+            const backoffDelay = POLL_INTERVAL * Math.pow(BACKOFF_MULTIPLIER, failCountRef.current);
+            console.log(`[轮询] 将在 ${Math.round(backoffDelay)}ms 后重试 (失败 ${failCountRef.current}/${MAX_FAIL_COUNT})`);
+            
+            pollingTimeoutRef.current = window.setTimeout(() => pollProgress(id), backoffDelay);
+        }
     };
 
     const updateSteps = (backendSteps: any[]) => {
@@ -258,8 +267,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         console.log("处理任务完成:", { status, data });
 
-        // 清理 SSE 连接
-        cleanupSSE();
+        // 清理轮询
+        stopPolling();
 
         // 更新状态
         setIsGenerating(false);
@@ -350,7 +359,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setExecutionId(null);
         setSteps([]);
         localStorage.removeItem('current_manual_execution_id');
-        cleanupSSE();
+        stopPolling();
     }, []);
 
     const registerNavigation = useCallback((fn: (view: string, data?: any) => void) => {
@@ -391,8 +400,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
                             setSteps(mappedSteps);
                             setIsGenerating(true);
                             localStorage.setItem('current_manual_execution_id', result.execution_id);
-                            // 设置初始超时为 5 秒
-                            initialTimeoutRef.current = 5000;
+                            // 注意：轮询模式下不再需要设置初始超时
                             return;
                         } else {
                             // 4. 验证失败，清理状态

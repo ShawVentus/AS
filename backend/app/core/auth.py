@@ -56,16 +56,17 @@ def get_current_user_id(request: Request) -> str:
         print(f"[Auth] 🔧 开发模式：使用固定 user_id = {DEV_USER_ID}")
         return DEV_USER_ID
     
-    # 生产模式：从 Cookie 获取 accessKey
+    # 生产模式：从 Cookie 获取 accessKey 和 appKey
     from app.services.bohrium_service import get_user_id_cached, get_access_key_or_default
     
     try:
-        # 1. 获取 accessKey
+        # 1. 获取 accessKey 和 appKey
         access_key = request.cookies.get("appAccessKey")
         access_key = get_access_key_or_default(access_key)
+        app_key = request.cookies.get("clientName")  # 玻尔平台设置的 appKey
         
         # 2. 获取 user_id（带缓存）
-        user_id = get_user_id_cached(access_key)
+        user_id = get_user_id_cached(access_key, app_key)
         
         return user_id
         
@@ -129,12 +130,13 @@ async def get_bohrium_user_id(request: Request) -> str:
     from app.services.payment_service import ensure_user_exists
     
     try:
-        # 1. 获取 accessKey
+        # 1. 获取 accessKey 和 appKey
         access_key = request.cookies.get("appAccessKey")
         access_key = get_access_key_or_default(access_key)
+        app_key = request.cookies.get("clientName")  # 玻尔平台设置的 appKey
         
         # 2. 获取用户信息并确保用户存在
-        user_info = await ensure_user_exists(access_key)
+        user_info = await ensure_user_exists(access_key, app_key)
         
         return user_info.user_id
         
@@ -170,7 +172,8 @@ def get_bohrium_user_id_sync(request: Request) -> str:
     try:
         access_key = request.cookies.get("appAccessKey")
         access_key = get_access_key_or_default(access_key)
-        user_info = get_user_info(access_key)
+        app_key = request.cookies.get("clientName")  # 玻尔平台设置的 appKey
+        user_info = get_user_info(access_key, app_key)
         return user_info.user_id
         
     except ValueError as e:

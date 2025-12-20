@@ -17,15 +17,34 @@ import { WORKFLOW_STEPS } from '../../constants/workflow';
 
 const STEPS = WORKFLOW_STEPS;
 
+/**
+ * 报告生成弹窗组件
+ * 
+ * 功能：显示工作流执行进度，支持实时更新步骤状态
+ * 
+ * 【重要修改】2024-12-21：
+ * 由于 Bohrium 容器环境的反向代理导致 SSE 连接不稳定，
+ * 将原来的 SSE 长连接改为定时轮询模式。
+ */
 export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ isOpen, onClose, userId, onComplete }) => {
     const [steps, setSteps] = useState<StepProgress[]>(
         STEPS.map(s => ({ ...s, status: 'pending', progress: 0 }))
     );
     const [error, setError] = useState<string | null>(null);
     const [isCompleted, setIsCompleted] = useState(false);
-    const eventSourceRef = useRef<EventSource | null>(null);
+    
+    // 【轮询模式】替代原有的 SSE 相关 refs
+    const pollingTimeoutRef = useRef<number | null>(null);
+    const isPollingRef = useRef<boolean>(false);
+    const failCountRef = useRef<number>(0);
+    
     const hasTriggeredRef = useRef(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    // 轮询配置
+    const POLL_INTERVAL = 2000;         // 轮询间隔：2 秒
+    const MAX_FAIL_COUNT = 5;           // 最大连续失败次数
+    const BACKOFF_MULTIPLIER = 1.5;     // 失败后延迟倍数
 
     // Auto-scroll to bottom when steps update
     useEffect(() => {
@@ -40,16 +59,26 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
         }
 
         return () => {
-            cleanupSSE();
+            stopPolling();
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
-    const cleanupSSE = () => {
-        if (eventSourceRef.current) {
-            console.log("Closing SSE connection...");
-            eventSourceRef.current.close();
-            eventSourceRef.current = null;
+    /**
+     * 停止轮询
+     * 
+     * 功能：清理轮询定时器，重置状态
+     */
+    const stopPolling = () => {
+        console.log("[轮询] 停止轮询");
+        isPollingRef.current = false;
+        
+        if (pollingTimeoutRef.current) {
+            clearTimeout(pollingTimeoutRef.current);
+            pollingTimeoutRef.current = null;
         }
+        
+        failCountRef.current = 0;
     };
 
     // [NEW] Refs for persistent counts
@@ -208,12 +237,20 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
         });
     };
 
-    const handleSSEError = (errorMessage: string) => {
-        console.error("SSE Error:", errorMessage);
+    /**
+     * 处理轮询错误
+     * 
+     * 功能：设置错误状态，停止轮询，更新步骤状态
+     * 
+     * Args:
+     *   errorMessage: 错误消息
+     */
+    const handlePollingError = (errorMessage: string) => {
+        console.error("[轮询] 错误:", errorMessage);
         setError(errorMessage);
-        cleanupSSE();
+        stopPolling();
 
-        // Force update running/pending steps to failed to stop UI spinners
+        // 强制更新 running/pending 步骤为 failed
         setSteps(prevSteps => prevSteps.map(step => {
             if (step.status === 'running' || step.status === 'pending') {
                 return { ...step, status: 'failed', message: '任务中断' };
@@ -222,63 +259,115 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
         }));
     };
 
-    const connectToSSE = (executionId: string) => {
-        // Close existing connection if any
-        cleanupSSE();
-
-        const url = `${import.meta.env.VITE_API_BASE_URL || '/api'}/workflow/progress-stream/${executionId}`;
-        console.log(`Connecting to SSE: ${url}`);
-
-        const eventSource = new EventSource(url);
-        eventSourceRef.current = eventSource;
-
-        // [Fix] Listen for named 'progress' event
-        eventSource.addEventListener('progress', (event: MessageEvent) => {
-            try {
-                const data = JSON.parse(event.data);
-                // console.log("SSE Data:", data);
-
-                if (data.steps) {
-                    updateSteps(data.steps);
-                }
-
-                if (data.status === 'completed') {
-                    setIsCompleted(true);
-                    cleanupSSE(); // Stop reconnection loop
-                    if (onComplete) onComplete();
-                    return;
-                }
-
-                // Handle failed status from backend payload
-                if (data.status === 'failed') {
-                    handleSSEError("任务执行失败");
-                    return;
-                }
-            } catch (e) {
-                console.error("Error parsing SSE data", e);
-            }
-        });
-
-        // [Fix] Listen for explicit system_error events from backend
-        eventSource.addEventListener('system_error', (event: MessageEvent) => {
-            handleSSEError(event.data || "生成出错");
-        });
-
-        eventSource.onerror = (err) => {
-            console.error("SSE Connection Error", err);
-            // Always treat onerror as a failure in this context
-            // because we expect a continuous stream until completion.
-            // If it breaks, it's an error.
-
-            handleSSEError("连接中断，任务可能已停止");
-        };
+    /**
+     * 启动轮询
+     * 
+     * 功能：开始定时请求后端进度端点
+     * 
+     * Args:
+     *   executionId: 工作流执行 ID
+     */
+    const startPolling = (executionId: string) => {
+        stopPolling(); // 先停止现有轮询
+        
+        console.log(`[轮询] 开始轮询 execution: ${executionId}`);
+        isPollingRef.current = true;
+        failCountRef.current = 0;
+        
+        // 立即执行第一次轮询
+        pollProgress(executionId);
     };
 
+    /**
+     * 执行单次轮询
+     * 
+     * 功能：请求后端进度端点，处理响应，安排下一次轮询
+     * 
+     * Args:
+     *   executionId: 工作流执行 ID
+     */
+    const pollProgress = async (executionId: string) => {
+        // 检查是否应该继续轮询
+        if (!isPollingRef.current) {
+            console.log("[轮询] 轮询已停止，退出");
+            return;
+        }
+        
+        try {
+            const url = `${import.meta.env.VITE_API_BASE_URL || '/api/v1'}/workflow/progress/${executionId}`;
+            const response = await fetch(url, { credentials: 'include' });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            // 重置失败计数
+            failCountRef.current = 0;
+            
+            // 更新步骤状态
+            if (data.steps) {
+                updateSteps(data.steps);
+            }
+            
+            // 检查任务是否结束
+            if (data.status === 'completed') {
+                console.log("[轮询] 任务成功完成");
+                setIsCompleted(true);
+                stopPolling();
+                if (onComplete) onComplete();
+                return;
+            } else if (data.status === 'failed') {
+                console.log("[轮询] 任务执行失败");
+                handlePollingError("任务执行失败");
+                return;
+            } else if (data.status === 'stopped') {
+                console.log("[轮询] 任务提前终止");
+                setIsCompleted(true);
+                stopPolling();
+                setSteps(prevSteps => prevSteps.map(step => {
+                    if (step.status === 'running' || step.status === 'pending') {
+                        return { ...step, status: 'completed', message: '已停止' };
+                    }
+                    return step;
+                }));
+                if (onComplete) onComplete();
+                return;
+            }
+            
+            // 任务仍在进行中，安排下一次轮询
+            pollingTimeoutRef.current = window.setTimeout(() => pollProgress(executionId), POLL_INTERVAL);
+            
+        } catch (error) {
+            console.error("[轮询] 请求失败:", error);
+            failCountRef.current++;
+            
+            if (failCountRef.current >= MAX_FAIL_COUNT) {
+                // 连续失败次数过多，标记任务失败
+                console.error(`[轮询] 连续失败 ${MAX_FAIL_COUNT} 次，任务标记为失败`);
+                handlePollingError("连接中断，任务可能已停止");
+                return;
+            }
+            
+            // 计算退避延迟
+            const backoffDelay = POLL_INTERVAL * Math.pow(BACKOFF_MULTIPLIER, failCountRef.current);
+            console.log(`[轮询] 将在 ${Math.round(backoffDelay)}ms 后重试 (失败 ${failCountRef.current}/${MAX_FAIL_COUNT})`);
+            
+            pollingTimeoutRef.current = window.setTimeout(() => pollProgress(executionId), backoffDelay);
+        }
+    };
+
+    /**
+     * 开始生成报告
+     * 
+     * 功能：触发工作流执行，启动轮询
+     */
     const startGeneration = async () => {
         hasTriggeredRef.current = true;
         setError(null);
         setIsCompleted(false);
-        // [Optimistic] Immediately set first step to running
+        // 乐观更新：立即将第一步设为 running
         setSteps(STEPS.map((s, i) => ({
             ...s,
             status: i === 0 ? 'running' : 'pending',
@@ -286,14 +375,14 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
             message: i === 0 ? '正在连接...' : undefined
         })));
 
-        // Reset counts
+        // 重置计数
         countsRef.current = { fetched: 0, analyzed: 0, filtered: 0 };
 
         try {
             const { execution_id } = await WorkflowAPI.triggerDaily(userId);
 
             if (execution_id) {
-                connectToSSE(execution_id);
+                startPolling(execution_id);
             } else {
                 setError("无法获取执行 ID");
             }
@@ -302,8 +391,13 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
         }
     };
 
+    /**
+     * 关闭弹窗
+     * 
+     * 功能：停止轮询，重置状态，关闭弹窗
+     */
     const handleClose = () => {
-        cleanupSSE();
+        stopPolling();
         hasTriggeredRef.current = false;
         onClose();
     };

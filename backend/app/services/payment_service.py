@@ -67,7 +67,8 @@ async def process_purchase(
     user_id: str,
     access_key: str,
     event_value: int,
-    quota_amount: int
+    quota_amount: int,
+    app_key: str = None  # 【修复】新增：用户的客户端标识（从 Cookie clientName 获取）
 ) -> PurchaseResult:
     """
     处理完整的购买流程。
@@ -107,8 +108,8 @@ async def process_purchase(
             message=f"次数与价格不匹配: {event_value}光子应获得{expected_quota}次"
         )
     
-    # 2. 调用玻尔扣费接口
-    consume_result = await consume_integral(access_key, event_value)
+    # 2. 调用玻尔扣费接口（【修复】传入 app_key 参数）
+    consume_result = await consume_integral(access_key, event_value, app_key)
     
     if not consume_result.success:
         return PurchaseResult(
@@ -240,12 +241,13 @@ def increase_user_quota(user_id: str, amount: int) -> int:
     return new_quota
 
 
-async def ensure_user_exists(access_key: str) -> BohriumUserInfo:
+async def ensure_user_exists(access_key: str, app_key: str = None) -> BohriumUserInfo:
     """
     确保用户存在于数据库中，不存在则创建。
     
     Args:
-        access_key: 用户的玻尔平台 accessKey
+        access_key: 用户的玻尔平台 accessKey（从 Cookie appAccessKey 获取）
+        app_key: 用户的玻尔平台 appKey（从 Cookie clientName 获取）
     
     Returns:
         BohriumUserInfo: 用户信息
@@ -253,8 +255,8 @@ async def ensure_user_exists(access_key: str) -> BohriumUserInfo:
     Raises:
         Exception: 获取用户信息或创建用户失败
     """
-    # 1. 获取玻尔用户信息
-    user_info = get_user_info(access_key)
+    # 1. 获取玻尔用户信息（需要同时传入 access_key 和 app_key）
+    user_info = get_user_info(access_key, app_key)
     
     if not user_info.user_id:
         raise Exception("无法获取用户 ID")

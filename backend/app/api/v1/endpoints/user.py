@@ -149,12 +149,13 @@ async def init_user_from_bohrium(request: Request):
     from app.services.user_service import user_service
     
     try:
-        # 1. 获取 accessKey
+        # 1. 获取 accessKey 和 appKey
         access_key = request.cookies.get("appAccessKey")
         access_key = get_access_key_or_default(access_key)
+        app_key = request.cookies.get("clientName")  # 玻尔平台设置的 appKey
         
         # 2. 确保用户存在（不存在则创建）
-        user_info = await ensure_user_exists(access_key)
+        user_info = await ensure_user_exists(access_key, app_key)
         
         # 3. 返回完整的用户画像
         return user_service.get_profile(user_info.user_id)

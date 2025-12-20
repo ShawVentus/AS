@@ -425,6 +425,7 @@ class ProcessManager:
                 sys.executable, "-m", "uvicorn",
                 "app.main:app",
                 "--reload",
+                "--host", "0.0.0.0",  # 监听所有网络接口，允许外部访问
                 "--port", str(BACKEND_PORT)
             ]
             
