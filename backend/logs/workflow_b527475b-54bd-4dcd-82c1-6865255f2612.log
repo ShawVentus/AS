@@ -19,3 +19,8 @@
 ==================================================
 2025-12-21 01:41:38,098 - app.services.workflow_engine - INFO - 👉 执行步骤 [personalized_filter] (尝试 1/4)...
 2025-12-21 01:41:38,098 - app.services.workflow_engine - INFO - ==================================================
+2025-12-21 01:42:12,173 - app.services.workflow_engine - INFO - ✅ 步骤 [personalized_filter] 完成。耗时: 30411ms, 成本: $0.023814
+2025-12-21 01:42:12,696 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-21 01:42:12,696 - app.services.workflow_engine - INFO - 👉 执行步骤 [generate_report] (尝试 1/4)...
+2025-12-21 01:42:12,696 - app.services.workflow_engine - INFO - ==================================================
