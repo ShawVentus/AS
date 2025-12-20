@@ -54,26 +54,38 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({ run, onComplete }) => {
    * 此时步骤2的目标元素（输入框）会出现在DOM中。
    * 我们检测到目标元素后，自动切换到步骤2。
    */
+  /**
+   * 监听ManualReportPage打开，自动从步骤1切换到步骤2
+   * 
+   * 当用户点击"立即生成报告"按钮后，ManualReportPage会显示，
+   * 此时步骤2的目标元素（输入框）会出现在DOM中。
+   * 我们检测到目标元素后，自动切换到步骤2。
+   */
   React.useEffect(() => {
     if (stepIndex === 0 && run) {
+      console.log('[引导气泡] 开始检测步骤2目标元素...');
+      let attemptCount = 0;
+      
       // 检查步骤2的目标元素是否存在
+      // 只要还在步骤1且引导正在运行，就一直检测，直到找到目标元素
       const interval = setInterval(() => {
+        attemptCount++;
         const step2Target = document.querySelector('[data-tour="manual-query-input"]');
+        
+        // 降低日志频率：每50次打印一次（5秒一次）
+        if (attemptCount % 50 === 0) {
+             console.log(`[引导气泡] 正在等待步骤2目标元素... (已检测${attemptCount}次)`);
+        }
+        
         if (step2Target) {
-          console.log('[引导气泡] 检测到Modal已打开，自动进入步骤2');
+          console.log('[引导气泡] ✅ 检测到ManualReportPage已打开，自动进入步骤2');
           setStepIndex(1);
           clearInterval(interval);
         }
       }, 100); // 每100ms检查一次
       
-      // 5秒后清理
-      const timeout = setTimeout(() => {
-        clearInterval(interval);
-      }, 5000);
-      
       return () => {
         clearInterval(interval);
-        clearTimeout(timeout);
       };
     }
   }, [stepIndex, run]);
@@ -95,7 +107,11 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({ run, onComplete }) => {
       // 步骤1：指向"立即生成报告"按钮
       // 强制用户点击目标按钮，不能点击"下一步"或"跳过"
       target: '[data-tour="generate-report-btn"]',
-      content: '💡 报告生成组件 - 立即体验。点击这里开始生成您的第一份报告！',
+      content: (
+        <div style={{ fontSize: '1.3rem', fontWeight: 400 }}>
+          👏🏻欢迎来到ArxivScout！点击这里开始生成您的第一份今日报告！
+        </div>
+      ),
       placement: 'bottom',
       disableBeacon: true,
       spotlightClicks: true, // 允许点击按钮
@@ -112,7 +128,14 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({ run, onComplete }) => {
       // 步骤2：指向输入框
       // 只允许点击"下一步"按钮，不允许返回，但允许跳过
       target: '[data-tour="manual-query-input"]',
-      content: '💡 填写信息 + AI 润色。输入您的研究兴趣，可以使用 AI 智能填充优化描述。',
+      content: (
+        <div style={{ fontSize: '1.1rem', lineHeight: 1.5 }}>
+          <div style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '8px' }}>
+            💡 输入偏好 + AI 智能填充
+          </div>
+          <div>输入您的研究兴趣，AI 将自动为您分析相关论文的所属类别。点击生成研报，Arxivscout会为您检索阅读相关类别下符合您需求的论文。</div>
+        </div>
+      ),
       placement: 'bottom',
       disableBeacon: true,
       spotlightClicks: true, // 允许操作表单
@@ -122,14 +145,27 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({ run, onComplete }) => {
         options: {
           zIndex: 10000,
         },
+        tooltip: {
+          width: 450, // 增加气泡框宽度，使内容展示更舒适
+        },
       },
     },
     {
       // 步骤3：指向"保存为默认设置"按钮
       // 只允许点击"完成"按钮，不允许返回，但允许跳过
       target: '[data-tour="save-default-checkbox"]',
-      content: '💡 保存 - 作为报告生成根据。勾选保存，下次生成时将自动使用此配置。',
-      placement: 'top',
+      content: (
+        <div style={{ fontSize: '1.1rem', lineHeight: 1.5 }}>
+          <div style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '8px' }}>
+            📌 保存为默认偏好
+          </div>
+          <div>将本次偏好保存为默认设置，即可作为每日研报偏好，自动为您检索分析相关论文。您也可在顶部设置页面中管理偏好。</div>
+        </div>
+      ),
+      placement: 'top-start',
+      floaterProps: {
+        offset: 0, // 减小偏移，使气泡更贴近按钮
+      },
       disableBeacon: true,
       spotlightClicks: true, // 允许操作表单
       hideBackButton: true, // 隐藏"上一步"按钮
@@ -138,9 +174,55 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({ run, onComplete }) => {
         options: {
           zIndex: 10000,
         },
+        tooltip: {
+          width: 400, // 设置固定宽度有助于气泡框对齐
+        },
       },
     },
   ];
+
+  /**
+   * 组件生命周期管理
+   * 
+   * 功能：
+   * 1. 组件卸载时强制恢复页面滚动样式，防止样式残留导致页面死锁。
+   * 2. 🆕 增加对内部滚动容器的精准清理。
+   * 
+   * Args:
+   *   无
+   * 
+   * Returns:
+   *   void
+   */
+  React.useEffect(() => {
+    return () => {
+      console.log('[引导气泡] 组件卸载，执行暴力样式清理...');
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      
+      // 🆕 精准清理内部滚动容器
+      const container = document.getElementById('main-scroll-container');
+      if (container) {
+        container.style.overflow = '';
+      }
+    };
+  }, []);
+
+  /**
+   * 监听 run 状态变化
+   * 当引导开始时 (run=true)，重置步骤索引为 0
+   * 
+   * Args:
+   *   run (boolean): 引导运行状态
+   * 
+   * Returns:
+   *   void
+   */
+  React.useEffect(() => {
+    if (run) {
+      setStepIndex(0);
+    }
+  }, [run]);
 
   /**
    * 引导事件回调处理器
@@ -160,14 +242,6 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({ run, onComplete }) => {
   const handleJoyrideCallback = (data: CallBackProps) => {
     const { status, action, type, index } = data;
     
-    // 打印调试信息（开发环境下方便排查问题）
-    console.log('[引导气泡] 事件触发:', { 
-      状态: status, 
-      操作: action, 
-      类型: type, 
-      步骤: index 
-    });
-    
     // 处理步骤切换（用户点击"下一步"）
     if (action === 'next' && type === 'step:after') {
       setStepIndex(index + 1);
@@ -181,7 +255,13 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({ run, onComplete }) => {
     if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
       const statusText = status === STATUS.FINISHED ? '已完成' : '已跳过';
       console.log(`[引导气泡] 引导${statusText}`);
-      setStepIndex(0); // 重置步骤索引
+      
+      // 🆕 立即清理样式 (第一道防线)
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      const container = document.getElementById('main-scroll-container');
+      if (container) container.style.overflow = '';
+      
       onComplete();
     }
   };
@@ -190,44 +270,46 @@ export const GuidedTour: React.FC<GuidedTourProps> = ({ run, onComplete }) => {
     <Joyride
       steps={steps}
       run={run}
-      stepIndex={stepIndex}  // 🆕 受控模式：手动控制当前步骤
-      continuous // 连续模式，用户点击"下一步"自动进入下一步
+      stepIndex={stepIndex}
+      continuous // 连续模式
       showSkipButton // 显示"跳过"按钮
-      showProgress // 显示进度指示器 (1/3, 2/3, 3/3)
+      showProgress // 显示进度指示器
       callback={handleJoyrideCallback}
-      disableOverlayClose={false} // 允许点击遮罩层关闭（步骤2/3）
-      disableCloseOnEsc={false} // 允许 ESC 键关闭
+      disableOverlayClose={false}
+      disableCloseOnEsc={false}
+      disableScrolling={true} // 禁用 Joyride 的自动滚动接管
+      disableScrollParentFix={true} // 🆕 禁用 Joyride 的滚动父级修复逻辑（防止其将容器设为 initial）
       styles={{
         // 自定义样式，匹配系统深色主题
         options: {
-          primaryColor: '#6366f1', // 主题色（Indigo-600）
-          backgroundColor: '#1e293b', // 深色背景（Slate-800）
-          textColor: '#f1f5f9', // 浅色文字（Slate-100）
-          overlayColor: 'rgba(0, 0, 0, 0.7)', // 遮罩层颜色（70%透明度黑色）
-          zIndex: 10000, // 确保在所有元素之上
+          primaryColor: '#6366f1', // 主题色
+          backgroundColor: '#1e293b', // 深色背景
+          textColor: '#f1f5f9', // 浅色文字
+          overlayColor: 'rgba(0, 0, 0, 0.7)', // 遮罩层颜色
+          zIndex: 10000, // 确保在最上层
         },
         tooltip: {
-          borderRadius: 12, // 圆角
-          fontSize: 14, // 字体大小
-          padding: 20, // 内边距
+          borderRadius: 12,
+          fontSize: 14,
+          padding: 20,
         },
         tooltipContainer: {
-          textAlign: 'left', // 文本左对齐
+          textAlign: 'left',
         },
         buttonNext: {
-          backgroundColor: '#6366f1', // 下一步按钮背景色
-          borderRadius: 8, // 按钮圆角
-          padding: '8px 16px', // 按钮内边距
+          backgroundColor: '#6366f1',
+          borderRadius: 8,
+          padding: '8px 16px',
         },
         buttonBack: {
-          color: '#94a3b8', // 上一步按钮文字颜色（Slate-400）
-          marginRight: 10, // 右边距
+          color: '#94a3b8',
+          marginRight: 10,
         },
         buttonSkip: {
-          color: '#94a3b8', // 跳过按钮文字颜色（Slate-400）
+          color: '#94a3b8',
         },
         spotlight: {
-          borderRadius: 8, // 高亮区域圆角
+          borderRadius: 8,
         },
       }}
       locale={{

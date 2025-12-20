@@ -1,0 +1,11 @@
+2025-12-20 11:53:42,909 - app.services.workflow_engine - INFO - 📂 日志文件已创建: /Users/mac/Desktop/AS/backend/logs/workflow_6935377a-7eaa-4727-a750-e50e6711d7ca.log
+2025-12-20 11:53:42,910 - app.services.workflow_engine - INFO - 🚀 开始执行工作流: daily_update (ID: 6935377a-7eaa-4727-a750-e50e6711d7ca)
+2025-12-20 11:53:44,316 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-20 11:53:44,316 - app.services.workflow_engine - INFO - 👉 执行步骤 [clear_daily_db] (尝试 1/4)...
+2025-12-20 11:53:44,316 - app.services.workflow_engine - INFO - ==================================================
+2025-12-20 11:53:45,824 - app.services.workflow_engine - INFO - ✅ 步骤 [clear_daily_db] 完成。耗时: 386ms, 成本: $0.000000
+2025-12-20 11:53:45,990 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-20 11:53:45,990 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 1/4)...
+2025-12-20 11:53:45,991 - app.services.workflow_engine - INFO - ==================================================

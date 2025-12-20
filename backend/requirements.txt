@@ -10,3 +10,6 @@ jinja2
 parsel
 scrapy
 arxiv
+bohrium-open-sdk
+httpx
+flask

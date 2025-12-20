@@ -17,7 +17,8 @@ async def get_reports(user_id: str = Depends(get_current_user_id)):
 async def generate_report():
     profile = user_service.get_profile()
     papers = paper_service.get_papers() # 应该是筛选后的论文
-    return report_service.generate_daily_report(papers, profile)
+    report, _, _ = report_service.generate_daily_report(papers, profile)
+    return report
 
 @router.post("/send")
 async def send_report(report_id: str, email: str = Body(..., embed=True)):

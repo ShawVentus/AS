@@ -75,7 +75,7 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = 
                 <h3 className="text-base font-bold text-white mb-2 leading-snug group-hover:text-cyan-400 transition-colors line-clamp-2 mt-1">
                     {paper.meta.title}
                 </h3>
-                <p className="text-xs text-slate-500 mb-4 line-clamp-1">{paper.meta.authors.join(", ")}</p>
+                <p className="text-xs text-slate-500 mb-4 line-clamp-1">{(paper.meta.authors || []).join(", ")}</p>
 
                 {/* Why This Paper - Highlight */}
                 {paper.user_state?.why_this_paper ? (

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from app.core.auth import get_current_user_id
 from app.core.database import get_db
 from app.schemas.user import UserProfile, Focus, UserInfo, Context, Memory, UserFeedback, UserInitializationRequest
@@ -113,4 +113,60 @@ def complete_user_tour(user_id: str = Depends(get_current_user_id)):
         raise HTTPException(
             status_code=500, 
             detail="标记引导完成失败，请稍后重试"
+        )
+
+
+# ===================== 玻尔平台用户初始化（新） =====================
+
+@router.post("/init-from-bohrium")
+async def init_user_from_bohrium(request: Request):
+    """
+    通过玻尔平台 accessKey 初始化用户。
+    
+    此接口用于用户首次访问时自动创建/获取用户信息。
+    前端应在应用启动时调用此接口初始化用户状态。
+    
+    处理流程：
+    1. 从 Cookie 读取 appAccessKey
+    2. 调用玻尔 SDK 获取用户信息（user_id, name）
+    3. 检查 profiles 表中是否存在该用户
+       - 存在 → 返回现有用户信息
+       - 不存在 → 创建新用户（赠送 1 次额度）
+    4. 返回完整的 UserProfile
+    
+    Args:
+        request: FastAPI Request 对象（用于读取 Cookie）
+    
+    Returns:
+        UserProfile: 用户画像对象
+    
+    Raises:
+        HTTPException 401: accessKey 无效或缺失
+        HTTPException 500: 服务器内部错误
+    """
+    from app.services.bohrium_service import get_access_key_or_default
+    from app.services.payment_service import ensure_user_exists
+    from app.services.user_service import user_service
+    
+    try:
+        # 1. 获取 accessKey
+        access_key = request.cookies.get("appAccessKey")
+        access_key = get_access_key_or_default(access_key)
+        
+        # 2. 确保用户存在（不存在则创建）
+        user_info = await ensure_user_exists(access_key)
+        
+        # 3. 返回完整的用户画像
+        return user_service.get_profile(user_info.user_id)
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=401,
+            detail="未登录或登录已过期，请刷新页面"
+        )
+    except Exception as e:
+        print(f"❌ [用户初始化] 失败: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"用户初始化失败: {str(e)}"
         )

@@ -309,6 +309,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (shouldNavigate) {
             // 只有成功时才 invalidate queries
             queryClient.invalidateQueries({ queryKey: ['reports'] });
+            // 同时刷新用户画像，以更新额度显示
+            queryClient.invalidateQueries({ queryKey: ['userProfile'] });
 
             if (navigationRef.current) {
                 setTimeout(() => {

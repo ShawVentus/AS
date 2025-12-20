@@ -59,7 +59,7 @@ class WorkflowService:
         通过 subprocess 调用 Scrapy 爬虫，抓取最新的论文数据并存入数据库。
         支持传入类别列表，如果传入则只爬取指定类别。
         
-        [修改] 现在会捕获爬虫输出并解析统计数据，返回真实的爬取数量。
+        [修改] 现在使用 Popen 实时输出爬虫进度，同时解析统计数据。
 
         Args:
             categories (Optional[List[str]]): 需要爬取的类别列表。如果不传，爬虫将使用环境变量中的默认配置。
@@ -84,42 +84,62 @@ class WorkflowService:
                 print(f"Crawling specific categories: {categories_str}")
                 cmd.extend(["-a", f"categories={categories_str}"])
             
-            # [修改] 捕获爬虫输出，以便解析统计数据
-            result = subprocess.run(cmd, check=True, cwd=backend_root, 
-                                   capture_output=True, text=True)
+            # [修改] 使用 Popen 实现实时输出
+            process = subprocess.Popen(
+                cmd,
+                cwd=backend_root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # 合并 stderr 到 stdout
+                text=True,
+                bufsize=1  # 行缓冲，确保实时输出
+            )
             
-            # [新增] 解析爬虫输出的 JSON_STATS
-            # 爬虫会在输出的最后一行打印统计数据: JSON_STATS:{...}
+            # 实时打印输出并收集完整输出
+            output_lines = []
+            for line in iter(process.stdout.readline, ''):
+                if line:
+                    print(line, end='')  # 实时打印到终端
+                    output_lines.append(line)  # 同时收集用于解析
+            
+            # 等待进程结束
+            return_code = process.wait()
+            
+            # 检查返回码
+            if return_code != 0:
+                raise subprocess.CalledProcessError(return_code, cmd)
+            
+            # 合并所有输出用于解析
+            output = ''.join(output_lines)
+            
+            # [保留] 解析爬虫输出的 JSON_STATS
             import json
             
-            stats = None  # 初始为 None，表示尚未成功解析
+            stats = None
             
-            # 从 stdout 中提取 JSON_STATS 行
-            for line in result.stdout.split('\n'):
+            # 从输出中提取 JSON_STATS 行
+            for line in output_lines:
                 if line.startswith("JSON_STATS:"):
-                    json_str = line.replace("JSON_STATS:", "")
+                    json_str = line.replace("JSON_STATS:", "").strip()
                     try:
                         stats = json.loads(json_str)
                         print(f"[DEBUG] 成功解析爬虫统计: yielded={stats.get('yielded', 0)}, unique_found={stats.get('unique_found', 0)}")
-                        break  # 找到就退出循环，不再解析后续行
+                        break
                     except Exception as e:
                         print(f"[ERROR] JSON_STATS 解析失败: {e}")
                         print(f"[ERROR] 原始数据: {json_str}")
             
-            # [修复] 如果解析失败，抛出异常
-            # 原因：解析失败说明爬虫执行有问题，不应该继续执行工作流
+            # 如果解析失败，抛出异常
             if stats is None:
                 print("[ERROR] 爬虫未输出有效的 JSON_STATS")
                 print("[ERROR] 爬虫可能发生错误，请检查爬虫代码")
-                # 只打印最后20行用于调试（避免日志过多）
-                lines = result.stdout.split('\n')
+                # 只打印最后20行用于调试
                 print("[DEBUG] 爬虫输出的最后20行:")
-                for line in lines[-20:]:
-                    print(f"  {line}")
+                for line in output_lines[-20:]:
+                    print(f"  {line}", end='')
                 raise Exception("爬虫统计数据解析失败，请检查爬虫输出")
             
             print("Crawler finished.")
-            return stats  # 返回统计数据
+            return stats
             
         except Exception as e:
             print(f"Crawler failed: {e}")

@@ -7,6 +7,7 @@ import { ToolsAPI, WorkflowAPI, UserAPI } from '../../services/api';
 import type { UserProfile } from '../../types';
 import { useTaskContext } from '../../contexts/TaskContext';
 import { useToast } from '../../contexts/ToastContext';
+import { useQueryClient } from '@tanstack/react-query';
 import type { StepProgress } from '../../types';
 
 interface ManualReportPageProps {
@@ -242,10 +243,12 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
     const [isSaving, setIsSaving] = useState(false); // 保存按钮的 loading 状态
     const [showConfirm, setShowConfirm] = useState(false);
     const [showSaveConfirm, setShowSaveConfirm] = useState(false); // 保存设置确认弹窗状态
+    const [showQuotaModal, setShowQuotaModal] = useState(false); // 额度不足弹窗状态
 
     // Workflow States (工作流状态)
     const { isGenerating, steps, startTask } = useTaskContext();
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
     const [error, setError] = useState<string | null>(null);
 
     // Transform steps for UI display
@@ -372,6 +375,14 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
      * 3. 建立 SSE 连接监听进度。
      */
     const startGeneration = async () => {
+        // === 新增：前置额度校验 ===
+        const remainingQuota = userProfile.info.remaining_quota || 0;
+        if (remainingQuota < 1) {
+            setShowConfirm(false);
+            setShowQuotaModal(true); // 显示额度不足弹窗
+            return;
+        }
+
         setError(null);
         setShowConfirm(false);
         setIsStarting(true);
@@ -392,7 +403,12 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                 setError("无法获取执行 ID");
             }
         } catch (err: any) {
-            setError(err.message || "启动失败");
+            // === 新增：捕获额度不足的 API 错误 (403) ===
+            if (err.response?.status === 403 && err.response?.data?.detail?.error === 'insufficient_quota') {
+                setShowQuotaModal(true);
+            } else {
+                setError(err.message || "启动失败");
+            }
         } finally {
             setIsStarting(false);
         }
@@ -460,18 +476,26 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                 {/* Actions & Cost */}
                 <div className="mt-12 pt-8 border-t border-slate-800 flex items-center justify-between">
                     <div className="flex items-center gap-4">
+                        {/* 剩余额度显示 */}
+                        <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 flex items-center gap-2">
+                            <span className="text-slate-400 text-sm">剩余额度:</span>
+                            <span className={`font-bold ${userProfile.info.remaining_quota === 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                {userProfile.info.remaining_quota || 0}
+                            </span>
+                        </div>
+
+                        {/* 本次消耗 */}
                         <div className="px-4 py-2 bg-slate-900 rounded-lg border border-slate-800 flex items-center gap-2 relative group cursor-help">
-                            <span className="text-slate-400 text-sm">预计消耗:</span>
-                            <span className="text-amber-400 font-bold">{estimatedCost} 光子</span>
+                            <span className="text-slate-400 text-sm">本次消耗:</span>
+                            <span className="text-amber-400 font-bold">1 个额度</span>
                             <HelpCircle size={14} className="text-slate-600" />
 
                             {/* Cost Explanation Tooltip */}
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                                <h4 className="text-xs font-bold text-white mb-1">计费规则</h4>
-                                <ul className="text-xs text-slate-400 space-y-1">
-                                    <li>• 基础消耗: 99 光子 (200篇内论文)</li>
-                                    <li>• 处理论文数在201-300篇之间: 149光子</li>
-                                    <li>• 以此类推...</li>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-4 bg-slate-800 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                <h4 className="text-sm font-bold text-white mb-2">计费规则</h4>
+                                <ul className="text-sm text-slate-400 space-y-2">
+                                    <li>• 每次生成报告消耗 1 个额度，将在成功生成后扣除</li>
+                                    <li>• 若您开启了日报功能，每日研报自动消耗一次额度</li>
                                 </ul>
                                 <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 border-r border-b border-slate-700 rotate-45"></div>
                             </div>
@@ -525,10 +549,8 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                             <AlertTriangle className="text-amber-500" />
                             确认生成？
                         </h3>
-                        <p className="text-slate-400 mb-6">
-                            这将执行新的分析流程，可能会覆盖您今日已生成的部分论文数据。
-                            <br /><br />
-                            预计消耗光子: <span className="text-amber-400 font-bold">{estimatedCost}</span>
+                        <p className="text-lg text-slate-300 mb-5 leading-relaxed">
+                            这将执行新的分析流程，可能会覆盖您今日已生成的部分论文数据。（若您今日未生成研报请忽略本提示）
                         </p>
                         <div className="flex justify-end gap-3">
                             <button
@@ -541,7 +563,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                                 onClick={startGeneration}
                                 className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium"
                             >
-                                确认并支付
+                                确认生成
                             </button>
                         </div>
                     </div>
@@ -577,6 +599,41 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                             >
                                 {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                                 确认保存
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Insufficient Quota Modal (额度不足弹窗) */}
+            {showQuotaModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
+                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <AlertTriangle className="text-amber-500" />
+                            额度不足
+                        </h3>
+                        <p className="text-slate-400 mb-6">
+                            您当前的剩余额度为 <span className="text-red-400 font-bold">0</span>，无法生成新报告。
+                            <br /><br />
+                            请充值或联系管理员获取更多额度。
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowQuotaModal(false)}
+                                className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={() => {
+                                    // TODO: 集成充值流程
+                                    showToast("充值功能即将上线", "info");
+                                    setShowQuotaModal(false);
+                                }}
+                                className="px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-medium"
+                            >
+                                立即充值
                             </button>
                         </div>
                     </div>

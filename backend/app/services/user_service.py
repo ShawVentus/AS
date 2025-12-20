@@ -198,6 +198,14 @@ class UserService:
                 # 获取 has_completed_tour 字段（兼容旧数据，默认为 False）
                 has_completed_tour = data.get("has_completed_tour", False)
                 
+                # 获取 remaining_quota 字段（核心：从独立列获取，不再依赖 info JSON）
+                remaining_quota = data.get("remaining_quota", 1)
+                info_data["remaining_quota"] = remaining_quota
+                
+                # 获取 receive_email 字段（核心：从独立列获取，不再依赖 info JSON）
+                receive_email = data.get("receive_email", False)
+                info_data["receive_email"] = receive_email
+                
                 return UserProfile(
                     info=info_data,
                     focus=focus_data,
@@ -279,7 +287,8 @@ class UserService:
                     },
                     "memory": {
                         "user_prompt": []
-                    }
+                    },
+                    "remaining_quota": 1 # 新用户初始赠送 1 个额度
                 }
                 self.db.table("profiles").insert(empty_profile).execute()
             
@@ -290,10 +299,17 @@ class UserService:
                 init_data.info.email = email
             
             # 更新数据库 (Info, Focus, Context)
+            # 核心：从 info 中移除已提升为独立列的字段，避免冗余
+            info_to_save = init_data.info.model_dump()
+            remaining_quota = info_to_save.pop("remaining_quota", 1)
+            receive_email = info_to_save.pop("receive_email", False)
+
             self.db.table("profiles").update({
-                "info": init_data.info.model_dump(),
+                "info": info_to_save,
                 "focus": init_data.focus.model_dump(),
-                "context": init_data.context.model_dump()
+                "context": init_data.context.model_dump(),
+                "remaining_quota": remaining_quota,
+                "receive_email": receive_email
             }).eq("user_id", user_id).execute()
             
             return self.get_profile(user_id)
@@ -430,6 +446,16 @@ class UserService:
             updates['context'] = current_context
 
         if updates:
+            # 核心：如果更新了 info，从中移除冗余字段并同步到独立列
+            if 'info' in updates:
+                info_to_save = updates['info']
+                # 提取并移除冗余字段
+                if 'remaining_quota' in info_to_save:
+                    updates['remaining_quota'] = info_to_save.pop('remaining_quota')
+                if 'receive_email' in info_to_save:
+                    updates['receive_email'] = info_to_save.pop('receive_email')
+                updates['info'] = info_to_save
+
             self.db.table("profiles").update(updates).eq("user_id", user_id).execute()
             
         return self.get_profile(user_id)
@@ -506,6 +532,138 @@ class UserService:
             print(f"❌ 标记引导完成失败: {e}")
             import traceback
             traceback.print_exc()
+            return False
+
+    def get_remaining_quota(self, user_id: str) -> int:
+        """
+        获取用户的剩余额度。
+
+        Args:
+            user_id (str): 用户的唯一标识符。
+
+        Returns:
+            int: 剩余额度数量。
+        """
+        try:
+            response = self.db.table("profiles").select("remaining_quota").eq("user_id", user_id).execute()
+            if response.data:
+                return response.data[0].get("remaining_quota", 0)
+            return 0
+        except Exception as e:
+            print(f"❌ 获取额度失败: {e}")
+            return 0
+
+    def has_sufficient_quota(self, user_id: str, required: int = 1) -> bool:
+        """
+        检查用户额度是否充足。
+
+        Args:
+            user_id (str): 用户的唯一标识符。
+            required (int): 所需的额度数量，默认为 1。
+
+        Returns:
+            bool: True 表示充足，False 表示不足。
+        """
+        current_quota = self.get_remaining_quota(user_id)
+        return current_quota >= required
+
+    def _update_quota_and_log(self, user_id: str, new_quota: int, change_amount: int, reason: str, related_report_id: Optional[str] = None) -> bool:
+        """
+        [内部方法] 更新额度并记录日志。
+        
+        Args:
+            user_id (str): 用户 ID
+            new_quota (int): 新的额度值
+            change_amount (int): 变动数量（正数增加，负数减少）
+            reason (str): 变动原因
+            related_report_id (Optional[str]): 关联报告 ID
+            
+        Returns:
+            bool: 是否更新成功
+        """
+        try:
+            # TODO: 高并发场景下存在竞态条件。
+            # 建议未来迁移到 Supabase RPC (PostgreSQL存储过程) 以实现原子更新。
+            # 示例: self.db.rpc('update_quota', {'uid': user_id, 'delta': change_amount}).execute()
+            
+            # 1. 更新额度
+            self.db.table("profiles").update({
+                "remaining_quota": new_quota
+            }).eq("user_id", user_id).execute()
+            
+            # 2. 记录日志
+            self.db.table("quota_logs").insert({
+                "user_id": user_id,
+                "change_amount": change_amount,
+                "reason": reason,
+                "related_report_id": related_report_id
+            }).execute()
+            
+            return True
+        except Exception as e:
+            print(f"❌ 更新额度数据库失败: {e}")
+            return False
+
+    def deduct_quota(self, user_id: str, amount: int = 1, reason: str = "report_generated", report_id: Optional[str] = None) -> bool:
+        """
+        扣减用户额度，并记录日志。
+
+        Args:
+            user_id (str): 用户的唯一标识符。
+            amount (int): 扣减的额度数量，默认为 1。
+            reason (str): 扣减原因，默认为 'report_generated'。
+            report_id (Optional[str]): 关联的报告 ID。
+
+        Returns:
+            bool: 是否扣减成功。
+        """
+        try:
+            # 1. 获取当前额度
+            current = self.get_remaining_quota(user_id)
+            if current < amount:
+                print(f"⚠️ 用户 {user_id} 额度不足: 当前 {current}, 需要 {amount}")
+                return False
+            
+            # 2. 计算新额度
+            new_quota = current - amount
+            
+            # 3. 执行更新
+            if self._update_quota_and_log(user_id, new_quota, -amount, reason, report_id):
+                print(f"✅ 用户 {user_id} 额度扣减成功: {current} -> {new_quota} (原因: {reason})")
+                return True
+            return False
+            
+        except Exception as e:
+            print(f"❌ 扣减额度流程失败: {e}")
+            return False
+
+    def add_quota(self, user_id: str, amount: int, reason: str = "recharge") -> bool:
+        """
+        增加用户额度（如充值或系统赠送），并记录日志。
+
+        Args:
+            user_id (str): 用户的唯一标识符。
+            amount (int): 增加的额度数量。
+            reason (str): 增加原因，默认为 'recharge'。
+
+        Returns:
+            bool: 是否增加成功。
+        """
+        try:
+            # 1. 获取当前额度
+            current = self.get_remaining_quota(user_id)
+            
+            # 2. 计算新额度
+            new_quota = current + amount
+            
+            # 3. 执行更新
+            if self._update_quota_and_log(user_id, new_quota, amount, reason):
+                print(f"✅ 用户 {user_id} 额度增加成功: {current} -> {new_quota} (原因: {reason})")
+                return True
+            return False
+            
+        except Exception as e:
+            print(f"❌ 增加额度流程失败: {e}")
             return False
 
 user_service = UserService()

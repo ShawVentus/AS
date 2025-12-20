@@ -7,6 +7,8 @@ class UserInfo(BaseModel):
     name: str = "" 
     email: str
     avatar: str = "" # 头像，初始化时根据name自动生成
+    remaining_quota: Optional[int] = 1 # 剩余额度，默认赠送 1 个
+    receive_email: Optional[bool] = False # 是否接收每日自动报告，新用户默认关闭
 
 class Focus(BaseModel):
     """用户关注模型"""

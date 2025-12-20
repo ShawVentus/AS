@@ -17,6 +17,8 @@ MAX_WORKERS = int(os.getenv("LLM_MAX_WORKERS", 2))
 class PaperService:
     def __init__(self):
         self.db = get_db()
+        # 加载类别映射表
+        self._load_category_mapping()
     
     def _format_preferences_for_llm(self, preferences: List[str]) -> str:
         """
@@ -42,6 +44,78 @@ class PaperService:
         else:
             # 空列表，返回提示文本
             return "（用户未设置研究偏好）"
+    
+    def _load_category_mapping(self):
+        """
+        加载 arXiv 类别映射表。
+        
+        从 frontend/src/assets/arxiv_category_simple.json 加载类别映射关系，
+        用于将主类别（如 'stat'、'q-fin'）展开为所有子类别。
+        
+        Args:
+            None
+            
+        Returns:
+            None
+        """
+        try:
+            # 构造 JSON 文件的绝对路径
+            # backend/app/services/paper_service.py -> backend/
+            # 然后向上找到项目根目录，再定位到 frontend/src/assets/
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            backend_root = os.path.dirname(os.path.dirname(current_dir))
+            project_root = os.path.dirname(backend_root)
+            json_path = os.path.join(project_root, "frontend", "src", "assets", "arxiv_category_simple.json")
+            
+            with open(json_path, 'r', encoding='utf-8') as f:
+                self.category_mapping = json.load(f)
+            
+            print(f"[类别映射] 已加载 {len(self.category_mapping)} 个主类别的映射表")
+        except Exception as e:
+            print(f"[类别映射] 加载失败: {e}，将使用空映射表")
+            self.category_mapping = {}
+    
+    def expand_categories(self, categories: List[str]) -> List[str]:
+        """
+        展开类别列表，将主类别转换为所有子类别。
+        
+        功能：
+            1. 遍历输入的类别列表
+            2. 如果是主类别（存在于映射表中），展开为所有子类别
+            3. 如果已经是子类别，保持不变
+            4. 返回展开后的完整类别列表（去重）
+        
+        Args:
+            categories (List[str]): 输入的类别列表，可能包含主类别或子类别
+            
+        Returns:
+            List[str]: 展开后的类别列表
+            
+        Example:
+            输入: ['stat', 'q-fin', 'cs.AI']
+            输出: ['stat.AP', 'stat.CO', 'stat.ML', 'stat.ME', 'stat.OT', 'math.ST',
+                   'q-fin.CP', 'econ.GN', 'q-fin.GN', ..., 'cs.AI']
+        """
+        expanded = []
+        
+        for cat in categories:
+            # 检查是否为主类别（在映射表的键中）
+            if cat in self.category_mapping:
+                # 展开为所有子类别
+                subcategories = self.category_mapping[cat]
+                expanded.extend(subcategories)
+                print(f"[类别展开] '{cat}' -> {len(subcategories)} 个子类别")
+            else:
+                # 已经是子类别或未知类别，直接添加
+                expanded.append(cat)
+        
+        # 去重并保持顺序
+        expanded = list(dict.fromkeys(expanded))
+        
+        if len(expanded) != len(categories):
+            print(f"[类别展开] 输入 {len(categories)} 个类别，展开为 {len(expanded)} 个类别")
+        
+        return expanded
 
 
     def clear_daily_papers(self) -> bool:
@@ -289,6 +363,7 @@ class PaperService:
             # 使用 overlaps (数组重叠) 匹配类别
             # 注意: Supabase (PostgREST) 的 overlaps 语法是 cs (contains) 或 cd (contained by) 或 ov (overlap)
             # 这里假设 category 字段是 text[] 类型
+            print(f"[DEBUG] 查询参数: table={table_name}, categories={categories}, published_date={published_date}, limit={limit}")
             query = self.db.table(table_name).select("*").overlaps("category", categories).order("created_at", desc=True).limit(limit)
             
             # [NEW] Date Filtering
@@ -305,6 +380,7 @@ class PaperService:
 
             response = query.execute()
             papers_data = response.data if response.data else []
+            print(f"[DEBUG] 查询返回 {len(papers_data)} 篇论文")
 
             # 内存过滤 (为了保险起见，或者如果 not_in 语法有问题)
             candidates = []
@@ -467,6 +543,12 @@ class PaperService:
                     selected_papers=[],
                     rejected_papers=[]
                 )
+            
+            # [新增] 展开类别：将主类别转换为所有子类别
+            # 例如: ['stat', 'q-fin'] -> ['stat.AP', 'stat.CO', ..., 'q-fin.CP', ...]
+            expanded_categories = self.expand_categories(categories)
+            print(f"[类别处理] 原始类别: {categories}")
+            print(f"[类别处理] 展开后类别: {expanded_categories}")
 
             # 获取未处理的论文
             # 优先从 daily_papers 获取 (当日更新)
@@ -477,7 +559,7 @@ class PaperService:
             # [Fix] 增加 limit，否则默认只取 1 条，如果该条已处理则会导致无结果
             # [Fix] Pass force parameter
             # [Fix] Pass published_date parameter
-            papers = self.get_papers_by_categories(categories, user_id, limit=200, table_name="daily_papers", force=force, published_date=published_date)
+            papers = self.get_papers_by_categories(expanded_categories, user_id, limit=200, table_name="daily_papers", force=force, published_date=published_date)
             
             
             paper_ids = [p.meta.id for p in papers]
@@ -485,7 +567,7 @@ class PaperService:
             print(f"User: {profile.info.name}, Pending Paper Count: {len(papers)}")
             
             if not papers:
-                print(f"No pending papers found for user {profile.info.name} ({user_id}) in categories {categories}.")
+                print(f"No pending papers found for user {profile.info.name} ({user_id}) in expanded categories {expanded_categories}.")
                 from app.schemas.paper import FilterResponse
                 from datetime import datetime
                 return FilterResponse(

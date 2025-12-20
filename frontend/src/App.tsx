@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from './services/supabase';
 import { Header } from './components/layout/Header';
-import { PaperList } from './components/features/papers/PaperList';
-import { PaperCard } from './components/features/papers/PaperCard';
 import { PaperDetailModal } from './components/shared/PaperDetailModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { LoadingScreen } from './components/common/LoadingScreen';
@@ -261,6 +258,7 @@ function AppContent() {
      * 1. 隐藏引导气泡
      * 2. 调用后端 API 标记引导完成
      * 3. 刷新用户信息（确保 has_completed_tour 更新）
+     * 4. 🆕 强制清理所有可能的滚动锁定样式（包括 body, html 和内部容器）
      * 
      * Args:
      *   无
@@ -271,6 +269,22 @@ function AppContent() {
     const handleTourComplete = async () => {
         console.log('[引导] 用户完成或跳过引导');
         setRunTour(false);
+        
+        // 🆕 延迟清理样式，确保 Joyride 先执行内部清理逻辑
+        // 增加超时时间到 300ms，并同时清理 body、html 以及识别出的内部滚动容器
+        setTimeout(() => {
+            document.body.style.overflow = '';
+            document.documentElement.style.overflow = '';
+            
+            // 针对 F12 发现的元凶：清理内部滚动容器的内联样式
+            const container = document.getElementById('main-scroll-container');
+            if (container) {
+                container.style.overflow = '';
+                console.log('[引导] ✅ 已清理内部滚动容器样式');
+            }
+            
+            console.log('[引导] ✅ 已清理所有滚动锁定样式，恢复页面滚动');
+        }, 300);
         
         try {
             await UserAPI.completeTour();
@@ -420,11 +434,13 @@ function AppContent() {
                 />
             )}
             
-            {/* 🆕 产品引导组件 */}
-            <GuidedTour 
-                run={runTour} 
-                onComplete={handleTourComplete} 
-            />
+            {/* 🆕 产品引导组件：采用条件渲染确保引导结束后组件彻底卸载，触发内部清理逻辑 */}
+            {runTour && (
+                <GuidedTour 
+                    run={runTour} 
+                    onComplete={handleTourComplete} 
+                />
+            )}
         </div>
     );
 }

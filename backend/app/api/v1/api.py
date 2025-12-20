@@ -6,7 +6,8 @@ from app.api.v1.endpoints import (
     workflow,
     email,
     reports,
-    tools
+    tools,
+    payment  # 新增：支付模块
 )
 
 api_router = APIRouter()
@@ -20,4 +21,5 @@ api_router.include_router(workflow.router, prefix="/workflow", tags=["workflow"]
 api_router.include_router(email.router, prefix="/email", tags=["email"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(tools.router, prefix="/tools", tags=["tools"])
+api_router.include_router(payment.router, prefix="/payment", tags=["payment"])  # 新增：支付接口
 

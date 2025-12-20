@@ -4,64 +4,76 @@
         "MainCategory_ZH": "物理学",
         "Subcategories": [
             {
-                "Name": "Astrophysics of Galaxies(astro-ph.GA)",
-                "Abbreviation": "astro-ph.GA"
+                "Name": "Astrophysics(astro-ph)",
+                "Abbreviation": "astro-ph",
+                "Subcategories": [
+                    {
+                        "Name": "Astrophysics of Galaxies(astro-ph.GA)",
+                        "Abbreviation": "astro-ph.GA"
+                    },
+                    {
+                        "Name": "Cosmology and Nongalactic Astrophysics(astro-ph.CO)",
+                        "Abbreviation": "astro-ph.CO"
+                    },
+                    {
+                        "Name": "Earth and Planetary Astrophysics(astro-ph.EP)",
+                        "Abbreviation": "astro-ph.EP"
+                    },
+                    {
+                        "Name": "High Energy Astrophysical Phenomena(astro-ph.HE)",
+                        "Abbreviation": "astro-ph.HE"
+                    },
+                    {
+                        "Name": "Instrumentation and Methods for Astrophysics(astro-ph.IM)",
+                        "Abbreviation": "astro-ph.IM"
+                    },
+                    {
+                        "Name": "Solar and Stellar Astrophysics(astro-ph.SR)",
+                        "Abbreviation": "astro-ph.SR"
+                    }
+                ]
             },
             {
-                "Name": "Cosmology and Nongalactic Astrophysics(astro-ph.CO)",
-                "Abbreviation": "astro-ph.CO"
-            },
-            {
-                "Name": "Earth and Planetary Astrophysics(astro-ph.EP)",
-                "Abbreviation": "astro-ph.EP"
-            },
-            {
-                "Name": "High Energy Astrophysical Phenomena(astro-ph.HE)",
-                "Abbreviation": "astro-ph.HE"
-            },
-            {
-                "Name": "Instrumentation and Methods for Astrophysics(astro-ph.IM)",
-                "Abbreviation": "astro-ph.IM"
-            },
-            {
-                "Name": "Solar and Stellar Astrophysics(astro-ph.SR)",
-                "Abbreviation": "astro-ph.SR"
-            },
-            {
-                "Name": "Disordered Systems and Neural Networks(cond-mat.dis-nn)",
-                "Abbreviation": "cond-mat.dis-nn"
-            },
-            {
-                "Name": "Materials Science(cond-mat.mtrl-sci)",
-                "Abbreviation": "cond-mat.mtrl-sci"
-            },
-            {
-                "Name": "Mesoscale and Nanoscale Physics(cond-mat.mes-hall)",
-                "Abbreviation": "cond-mat.mes-hall"
-            },
-            {
-                "Name": "Other Condensed Matter(cond-mat.other)",
-                "Abbreviation": "cond-mat.other"
-            },
-            {
-                "Name": "Quantum Gases(cond-mat.quant-gas)",
-                "Abbreviation": "cond-mat.quant-gas"
-            },
-            {
-                "Name": "Soft Condensed Matter(cond-mat.soft)",
-                "Abbreviation": "cond-mat.soft"
-            },
-            {
-                "Name": "Statistical Mechanics(cond-mat.stat-mech)",
-                "Abbreviation": "cond-mat.stat-mech"
-            },
-            {
-                "Name": "Strongly Correlated Electrons(cond-mat.str-el)",
-                "Abbreviation": "cond-mat.str-el"
-            },
-            {
-                "Name": "Superconductivity(cond-mat.supr-con)",
-                "Abbreviation": "cond-mat.supr-con"
+                "Name": "Condensed Matter(cond-mat)",
+                "Abbreviation": "cond-mat",
+                "Subcategories": [
+                    {
+                        "Name": "Disordered Systems and Neural Networks(cond-mat.dis-nn)",
+                        "Abbreviation": "cond-mat.dis-nn"
+                    },
+                    {
+                        "Name": "Materials Science(cond-mat.mtrl-sci)",
+                        "Abbreviation": "cond-mat.mtrl-sci"
+                    },
+                    {
+                        "Name": "Mesoscale and Nanoscale Physics(cond-mat.mes-hall)",
+                        "Abbreviation": "cond-mat.mes-hall"
+                    },
+                    {
+                        "Name": "Other Condensed Matter(cond-mat.other)",
+                        "Abbreviation": "cond-mat.other"
+                    },
+                    {
+                        "Name": "Quantum Gases(cond-mat.quant-gas)",
+                        "Abbreviation": "cond-mat.quant-gas"
+                    },
+                    {
+                        "Name": "Soft Condensed Matter(cond-mat.soft)",
+                        "Abbreviation": "cond-mat.soft"
+                    },
+                    {
+                        "Name": "Statistical Mechanics(cond-mat.stat-mech)",
+                        "Abbreviation": "cond-mat.stat-mech"
+                    },
+                    {
+                        "Name": "Strongly Correlated Electrons(cond-mat.str-el)",
+                        "Abbreviation": "cond-mat.str-el"
+                    },
+                    {
+                        "Name": "Superconductivity(cond-mat.supr-con)",
+                        "Abbreviation": "cond-mat.supr-con"
+                    }
+                ]
             },
             {
                 "Name": "General Relativity and Quantum Cosmology(gr-qc)",
@@ -88,24 +100,30 @@
                 "Abbreviation": "math-ph"
             },
             {
-                "Name": "Adaptation and Self-Organizing Systems(nlin.AO)",
-                "Abbreviation": "nlin.AO"
-            },
-            {
-                "Name": "Cellular Automata and Lattice Gases(nlin.CG)",
-                "Abbreviation": "nlin.CG"
-            },
-            {
-                "Name": "Chaotic Dynamics(nlin.CD)",
-                "Abbreviation": "nlin.CD"
-            },
-            {
-                "Name": "Exactly Solvable and Integrable Systems(nlin.ES)",
-                "Abbreviation": "nlin.ES"
-            },
-            {
-                "Name": "Pattern Formation and Solitons(nlin.PS)",
-                "Abbreviation": "nlin.PS"
+                "Name": "Nonlinear Sciences(nlin)",
+                "Abbreviation": "nlin",
+                "Subcategories": [
+                    {
+                        "Name": "Adaptation and Self-Organizing Systems(nlin.AO)",
+                        "Abbreviation": "nlin.AO"
+                    },
+                    {
+                        "Name": "Cellular Automata and Lattice Gases(nlin.CG)",
+                        "Abbreviation": "nlin.CG"
+                    },
+                    {
+                        "Name": "Chaotic Dynamics(nlin.CD)",
+                        "Abbreviation": "nlin.CD"
+                    },
+                    {
+                        "Name": "Exactly Solvable and Integrable Systems(nlin.SI)",
+                        "Abbreviation": "nlin.SI"
+                    },
+                    {
+                        "Name": "Pattern Formation and Solitons(nlin.PS)",
+                        "Abbreviation": "nlin.PS"
+                    }
+                ]
             },
             {
                 "Name": "Nuclear Experiment(nucl-ex)",
@@ -116,98 +134,105 @@
                 "Abbreviation": "nucl-th"
             },
             {
-                "Name": "Accelerator Physics(physics.acc-ph)",
-                "Abbreviation": "physics.acc-ph"
-            },
-            {
-                "Name": "Applied Physics(physics.app-ph)",
-                "Abbreviation": "physics.app-ph"
-            },
-            {
-                "Name": "Atmospheric and Oceanic Physics(physics.ao-ph)",
-                "Abbreviation": "physics.ao-ph"
-            },
-            {
-                "Name": "Atomic and Molecular Clusters(physics.atm-clus)",
-                "Abbreviation": "physics.atm-clus"
-            },
-            {
-                "Name": "Atomic Physics(physics.atom-ph)",
-                "Abbreviation": "physics.atom-ph"
-            },
-            {
-                "Name": "Biological Physics(physics.bio-ph)",
-                "Abbreviation": "physics.bio-ph"
-            },
-            {
-                "Name": "Chemical Physics(physics.chem-ph)",
-                "Abbreviation": "physics.chem-ph"
-            },
-            {
-                "Name": "Classical Physics(physics.class-ph)",
-                "Abbreviation": "physics.class-ph"
-            },
-            {
-                "Name": "Computational Physics(physics.comp-ph)",
-                "Abbreviation": "physics.comp-ph"
-            },
-            {
-                "Name": "Data Analysis, Statistics and Probability(physics.data-an)",
-                "Abbreviation": "physics.data-an"
-            },
-            {
-                "Name": "Fluid Dynamics(physics.flu-dyn)",
-                "Abbreviation": "physics.flu-dyn"
-            },
-            {
-                "Name": "General Physics(physics.gen-ph)",
-                "Abbreviation": "physics.gen-ph"
-            },
-            {
-                "Name": "Geophysics(physics.geo-ph)",
-                "Abbreviation": "physics.geo-ph"
-            },
-            {
-                "Name": "History and Philosophy of Physics(physics.hist-ph)",
-                "Abbreviation": "physics.hist-ph"
-            },
-            {
-                "Name": "Instrumentation and Detectors(physics.ins-det)",
-                "Abbreviation": "physics.ins-det"
-            },
-            {
-                "Name": "Medical Physics(physics.med-ph)",
-                "Abbreviation": "physics.med-ph"
-            },
-            {
-                "Name": "Optics(physics.optics)",
-                "Abbreviation": "physics.optics"
-            },
-            {
-                "Name": "Physics and Society(physics.soc-ph)",
-                "Abbreviation": "physics.soc-ph"
-            },
-            {
-                "Name": "Physics Education(physics.ed-ph)",
-                "Abbreviation": "physics.ed-ph"
-            },
-            {
-                "Name": "Plasma Physics(physics.plasm-ph)",
-                "Abbreviation": "physics.plasm-ph"
-            },
-            {
-                "Name": "Popular Physics(physics.pop-ph)",
-                "Abbreviation": "physics.pop-ph"
-            },
-            {
-                "Name": "Space Physics(physics.space-ph)",
-                "Abbreviation": "physics.space-ph"
+                "Name": "Physics(physics)",
+                "Abbreviation": "physics",
+                "Subcategories": [
+                    {
+                        "Name": "Accelerator Physics(physics.acc-ph)",
+                        "Abbreviation": "physics.acc-ph"
+                    },
+                    {
+                        "Name": "Applied Physics(physics.app-ph)",
+                        "Abbreviation": "physics.app-ph"
+                    },
+                    {
+                        "Name": "Atmospheric and Oceanic Physics(physics.ao-ph)",
+                        "Abbreviation": "physics.ao-ph"
+                    },
+                    {
+                        "Name": "Atomic and Molecular Clusters(physics.atm-clus)",
+                        "Abbreviation": "physics.atm-clus"
+                    },
+                    {
+                        "Name": "Atomic Physics(physics.atom-ph)",
+                        "Abbreviation": "physics.atom-ph"
+                    },
+                    {
+                        "Name": "Biological Physics(physics.bio-ph)",
+                        "Abbreviation": "physics.bio-ph"
+                    },
+                    {
+                        "Name": "Chemical Physics(physics.chem-ph)",
+                        "Abbreviation": "physics.chem-ph"
+                    },
+                    {
+                        "Name": "Classical Physics(physics.class-ph)",
+                        "Abbreviation": "physics.class-ph"
+                    },
+                    {
+                        "Name": "Computational Physics(physics.comp-ph)",
+                        "Abbreviation": "physics.comp-ph"
+                    },
+                    {
+                        "Name": "Data Analysis, Statistics and Probability(physics.data-an)",
+                        "Abbreviation": "physics.data-an"
+                    },
+                    {
+                        "Name": "Fluid Dynamics(physics.flu-dyn)",
+                        "Abbreviation": "physics.flu-dyn"
+                    },
+                    {
+                        "Name": "General Physics(physics.gen-ph)",
+                        "Abbreviation": "physics.gen-ph"
+                    },
+                    {
+                        "Name": "Geophysics(physics.geo-ph)",
+                        "Abbreviation": "physics.geo-ph"
+                    },
+                    {
+                        "Name": "History and Philosophy of Physics(physics.hist-ph)",
+                        "Abbreviation": "physics.hist-ph"
+                    },
+                    {
+                        "Name": "Instrumentation and Detectors(physics.ins-det)",
+                        "Abbreviation": "physics.ins-det"
+                    },
+                    {
+                        "Name": "Medical Physics(physics.med-ph)",
+                        "Abbreviation": "physics.med-ph"
+                    },
+                    {
+                        "Name": "Optics(physics.optics)",
+                        "Abbreviation": "physics.optics"
+                    },
+                    {
+                        "Name": "Physics and Society(physics.soc-ph)",
+                        "Abbreviation": "physics.soc-ph"
+                    },
+                    {
+                        "Name": "Physics Education(physics.ed-ph)",
+                        "Abbreviation": "physics.ed-ph"
+                    },
+                    {
+                        "Name": "Plasma Physics(physics.plasm-ph)",
+                        "Abbreviation": "physics.plasm-ph"
+                    },
+                    {
+                        "Name": "Popular Physics(physics.pop-ph)",
+                        "Abbreviation": "physics.pop-ph"
+                    },
+                    {
+                        "Name": "Space Physics(physics.space-ph)",
+                        "Abbreviation": "physics.space-ph"
+                    }
+                ]
             },
             {
                 "Name": "Quantum Physics(quant-ph)",
                 "Abbreviation": "quant-ph"
             }
         ]
+
     },
     {
         "MainCategory_EN": "Mathematics",
@@ -262,8 +287,8 @@
                 "Abbreviation": "math.GM"
             },
             {
-                "Name": "General Topology(math.GT)",
-                "Abbreviation": "math.GT"
+                "Name": "General Topology(math.GN)",
+                "Abbreviation": "math.GN"
             },
             {
                 "Name": "Geometric Topology(math.GT)",
@@ -278,8 +303,8 @@
                 "Abbreviation": "math.HO"
             },
             {
-                "Name": "Information Theory(math.IT)",
-                "Abbreviation": "math.IT"
+                "Name": "Information Theory(cs.IT)",
+                "Abbreviation": "cs.IT"
             },
             {
                 "Name": "K-Theory and Homology(math.KT)",
@@ -290,8 +315,8 @@
                 "Abbreviation": "math.LO"
             },
             {
-                "Name": "Mathematical Physics(math.MP)",
-                "Abbreviation": "math.MP"
+                "Name": "Mathematical Physics(math-ph)",
+                "Abbreviation": "math-ph"
             },
             {
                 "Name": "Metric Geometry(math.MG)",
@@ -334,8 +359,8 @@
                 "Abbreviation": "math.SP"
             },
             {
-                "Name": "Statistics Theory(stat.TH)",
-                "Abbreviation": "stat.TH"
+                "Name": "Statistics Theory(math.ST)",
+                "Abbreviation": "math.ST"
             },
             {
                 "Name": "Symplectic Geometry(math.SG)",
@@ -464,8 +489,8 @@
                 "Abbreviation": "cs.NE"
             },
             {
-                "Name": "Numerical Analysis(cs.NA)",
-                "Abbreviation": "cs.NA"
+                "Name": "Numerical Analysis(math.NA)",
+                "Abbreviation": "math.NA"
             },
             {
                 "Name": "Operating Systems(cs.OS)",
@@ -504,7 +529,7 @@
                 "Abbreviation": "cs.SC"
             },
             {
-                "Name": "Systems and Control(cs.SY)",
+                "Name": "Systems and Control(eess.SY)",
                 "Abbreviation": "eess.SY"
             }
         ]
@@ -564,8 +589,8 @@
                 "Abbreviation": "q-fin.CP"
             },
             {
-                "Name": "Economics(q-fin.EC)",
-                "Abbreviation": "q-fin.EC"
+                "Name": "Economics(econ.GN)",
+                "Abbreviation": "econ.GN"
             },
             {
                 "Name": "General Finance(q-fin.GN)",
@@ -622,8 +647,8 @@
                 "Abbreviation": "stat.OT"
             },
             {
-                "Name": "Statistics Theory(stat.TH)",
-                "Abbreviation": "stat.TH"
+                "Name": "Statistics Theory(math.ST)",
+                "Abbreviation": "math.ST"
             }
         ]
     },

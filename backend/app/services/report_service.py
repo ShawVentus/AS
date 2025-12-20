@@ -65,7 +65,10 @@ class ReportService:
             context (Optional[Dict[str, Any]]): 工作流上下文，包含 crawled_count 等信息
 
         Returns:
-            tuple[Report, Dict[str, int]]: 生成的报告对象和 Usage 统计 (Generated report object and usage stats)。
+            tuple[Report, Dict[str, int], bool]: 
+                - Report: 生成的报告对象 (Generated report object)
+                - Dict[str, int]: Usage 统计 (Usage stats)
+                - bool: 邮件是否成功发送 (Whether email was sent successfully)
         """
         # 0. 应用统一的数量限制
         limit = int(os.environ.get("REPORT_PAPER_LIMIT", 15))
@@ -224,13 +227,14 @@ class ReportService:
             
         # 7. 发送邮件
         # 【修复】传递正确的统计数据给邮件格式化器
-        self.send_report_email_advanced(report, papers, user_profile.info.email, 
+        email_success = self.send_report_email_advanced(report, papers, user_profile.info.email, 
                                         total_count=total_count, 
                                         recommended_count=recommended_count)
         
         # 提取 usage
         usage = llm_result.get("_usage", {})
-        return report, usage
+        # 【新增】返回邮件发送状态，用于判断是否应扣减额度
+        return report, usage, email_success
 
     def send_report_email_advanced(self, report: Report, papers: List[PersonalizedPaper], user_email: str,
                                    total_count: int = None, recommended_count: int = None) -> bool:

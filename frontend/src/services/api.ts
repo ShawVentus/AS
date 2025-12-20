@@ -210,3 +210,7 @@ export const ReportAPI = useMock ? MockReportAPI : RealReportAPI;
 export const WorkflowAPI = RealWorkflowAPI; // 暂无 Mock
 export const ToolsAPI = RealToolsAPI; // 暂无 Mock
 
+// 支付 API（新增）
+export { PaymentAPI, PRICE_TIERS } from './api/payment';
+export type { PriceTier, ConsumeRequest, ConsumeResponse } from './api/payment';
+

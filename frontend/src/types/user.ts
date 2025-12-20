@@ -13,6 +13,8 @@ export interface UserInfo {
     role?: string;
     /** 是否接收邮件 */
     receive_email?: boolean;
+    /** 剩余额度 */
+    remaining_quota?: number;
 }
 
 export interface Focus {

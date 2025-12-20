@@ -179,7 +179,7 @@ class Settings:
     RECIPIENT_EMAILS: str = os.getenv("RECIPIENT_EMAILS", "")
     
     # 错误通知邮件配置
-    ERROR_NOTIFICATION_EMAIL: str = os.getenv("ERROR_NOTIFICATION_EMAIL", "")
+    ERROR_NOTIFICATION_EMAIL: str = os.getenv("ERROR_NOTIFICATION_EMAIL") or os.getenv("ADMIN_EMAILS", "").split(",")[0] or os.getenv("SENDER_EMAIL", "")
     ENABLE_ERROR_NOTIFICATIONS: bool = os.getenv("ENABLE_ERROR_NOTIFICATIONS", "true").lower() == "true"
     ERROR_NOTIFICATION_COOLDOWN: int = int(os.getenv("ERROR_NOTIFICATION_COOLDOWN", "1800"))  # 同类错误冷却时间（秒），默认30分钟
     ERROR_NOTIFICATION_MAX_PER_HOUR: int = int(os.getenv("ERROR_NOTIFICATION_MAX_PER_HOUR", "5"))  # 每小时最多发送错误邮件数

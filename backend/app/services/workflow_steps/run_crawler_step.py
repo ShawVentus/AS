@@ -135,7 +135,14 @@ class RunCrawlerStep(WorkflowStep):
             print(f"[INFO] 爬虫统计: 本次提交处理 {crawled_count} 篇论文")
             
             # 5. 更新 system_status (在运行爬虫后更新，表示这些分类已爬取)
-            new_categories = list(existing_categories.union(set(missing_categories)))
+            # [修改] 既包含访问的页面类别，也包含所有抓取到的子类别
+            crawled_page_categories = set(missing_categories)  # 访问的页面类别
+            crawled_subcategories = set(crawler_stats.get("all_subcategories", []))  # 论文的子类别
+            
+            # 合并：existing + 本次访问的页面 + 本次抓取的子类别
+            all_categories = existing_categories.union(crawled_page_categories).union(crawled_subcategories)
+            new_categories = list(all_categories)
+            
             new_status = {
                 "date": arxiv_date,
                 "categories": new_categories,

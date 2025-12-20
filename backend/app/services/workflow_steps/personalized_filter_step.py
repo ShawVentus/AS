@@ -51,28 +51,25 @@ class PersonalizedFilterStep(WorkflowStep):
         source = context.get("source")
         is_manual = (source == "manual")
         
-        if is_manual:
-            # 手动查询：使用当日日期（今天爬取的所有论文）
-            iso_published_date = datetime.now().strftime("%Y-%m-%d")
-            print(f"[DEBUG] 手动查询模式，使用当日日期: {iso_published_date}")
-        else:
-            # 自动任务：使用 ArXiv 日期
-            arxiv_date = context.get("arxiv_date") # 从 context 获取
-            if not arxiv_date:
-                # 从 system_status 表读取最后一次 ArXiv 更新日期
-                status_row = db.table("system_status").select("*").eq("key", "last_arxiv_update").execute()
-                if status_row.data:
-                    arxiv_date = status_row.data[0]["value"]
-                    print(f"[DEBUG] 从 system_status 获取 arxiv_date: {arxiv_date}")
-                else:
-                    # Fallback 到今天的日期（ArXiv 格式）
-                    arxiv_date = datetime.now().strftime("%A, %d %B %Y")
-                    print(f"[DEBUG] 使用当前日期作为 arxiv_date: {arxiv_date}")
-            
-            # 【重要】转换为 ISO 格式用于数据库查询
-            from app.core.utils import parse_arxiv_date
-            iso_published_date = parse_arxiv_date(arxiv_date)
-            print(f"[DEBUG] 日期处理: 输入='{arxiv_date}', 输出='{iso_published_date}'")
+        # [修复] 无论是手动还是自动，都优先使用系统记录的最新 ArXiv 日期
+        # 这样能确保手动查询也能查到最新爬取的论文（通常是前一天的）
+        arxiv_date = context.get("arxiv_date") # 从 context 获取
+        
+        if not arxiv_date:
+            # 从 system_status 表读取最后一次 ArXiv 更新日期
+            status_row = db.table("system_status").select("*").eq("key", "last_arxiv_update").execute()
+            if status_row.data:
+                arxiv_date = status_row.data[0]["value"]
+                print(f"[DEBUG] 从 system_status 获取 arxiv_date: {arxiv_date}")
+            else:
+                # Fallback 到今天的日期（ArXiv 格式）
+                arxiv_date = datetime.now().strftime("%A, %d %B %Y")
+                print(f"[DEBUG] 使用当前日期作为 arxiv_date: {arxiv_date}")
+        
+        # 【重要】转换为 ISO 格式用于数据库查询
+        from app.core.utils import parse_arxiv_date
+        iso_published_date = parse_arxiv_date(arxiv_date)
+        print(f"[DEBUG] 日期处理 ({'手动' if is_manual else '自动'}): 输入='{arxiv_date}', 输出='{iso_published_date}'")
         
         
         # ========== 确定目标用户 ==========

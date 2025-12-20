@@ -1,0 +1,11 @@
+2025-12-20 11:41:19,684 - app.services.workflow_engine - INFO - 📂 日志文件已创建: /Users/mac/Desktop/AS/backend/logs/workflow_0d9b22a5-0332-436e-8221-fa04167ce11f.log
+2025-12-20 11:41:19,684 - app.services.workflow_engine - INFO - 🚀 开始执行工作流: daily_update (ID: 0d9b22a5-0332-436e-8221-fa04167ce11f)
+2025-12-20 11:41:21,420 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-20 11:41:21,420 - app.services.workflow_engine - INFO - 👉 执行步骤 [run_crawler] (尝试 1/4)...
+2025-12-20 11:41:21,420 - app.services.workflow_engine - INFO - ==================================================
+2025-12-20 11:45:56,261 - app.services.workflow_engine - INFO - ✅ 步骤 [run_crawler] 完成。耗时: 273027ms, 成本: $0.000000
+2025-12-20 11:45:56,566 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-20 11:45:56,566 - app.services.workflow_engine - INFO - 👉 执行步骤 [fetch_details] (尝试 1/4)...
+2025-12-20 11:45:56,566 - app.services.workflow_engine - INFO - ==================================================

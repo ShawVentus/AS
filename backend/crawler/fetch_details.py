@@ -10,6 +10,41 @@ load_dotenv()
 
 from typing import Optional, Callable, Dict, Any
 
+def get_arxiv_date_from_db() -> str:
+    """
+    从 system_status 表读取 ArXiv 网页日期（ISO 格式）。
+    
+    功能：
+        1. 查询 system_status 表的 latest_arxiv_date 键
+        2. 返回 ISO 格式日期（如 "2025-12-19"）
+        3. 如果不存在，fallback 到当前系统日期
+    
+    Returns:
+        str: ISO 格式日期字符串 (YYYY-MM-DD)
+    
+    注意：
+        - latest_arxiv_date 由 arxiv.py 爬虫写入
+        - 已经是 ISO 格式，无需转换
+    """
+    db = get_db()
+    try:
+        # 读取 latest_arxiv_date（已经是 ISO 格式）
+        result = db.table("system_status").select("value").eq("key", "latest_arxiv_date").execute()
+        if result.data and result.data[0].get("value"):
+            arxiv_date = result.data[0]["value"]
+            print(f"[fetch_details] 使用 ArXiv 日期: {arxiv_date}")
+            return arxiv_date
+        else:
+            # Fallback：如果数据库中没有日期，使用当前日期
+            fallback_date = datetime.now().strftime("%Y-%m-%d")
+            print(f"[fetch_details] 警告：未找到 ArXiv 日期，使用当前日期: {fallback_date}")
+            return fallback_date
+    except Exception as e:
+        # 异常处理：如果数据库查询失败，使用当前日期
+        fallback_date = datetime.now().strftime("%Y-%m-%d")
+        print(f"[fetch_details] 错误：读取 ArXiv 日期失败 ({e})，使用当前日期: {fallback_date}")
+        return fallback_date
+
 def fetch_and_update_details(table_name: str = "papers", progress_callback: Optional[Callable[[int, int, str], None]] = None):
     """
     Stage 2: 批量获取论文详情并更新到数据库
@@ -23,6 +58,9 @@ def fetch_and_update_details(table_name: str = "papers", progress_callback: Opti
         delay_seconds=3.0,
         num_retries=5
     )
+    
+    # [新增] 获取 ArXiv 网页日期
+    arxiv_date = get_arxiv_date_from_db()
     
     print(f"Starting Stage 2: Batch fetching paper details from {table_name}...")
     
@@ -75,7 +113,7 @@ def fetch_and_update_details(table_name: str = "papers", progress_callback: Opti
                     "id": paper_id, 
                     "title": paper.title,
                     "authors": [a.name for a in paper.authors],
-                    "published_date": datetime.now().strftime("%Y-%m-%d"),
+                    "published_date": arxiv_date,  # 使用 ArXiv 网页日期
                     "category": paper.categories or [], # 更新为 API 返回的完整分类列表，确保不为 None
                     "abstract": paper.summary,
                     "comment": paper.comment or "",

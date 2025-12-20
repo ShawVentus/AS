@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
-import { UserAPI } from '../../services/api';
+import { UserAPI, PaymentAPI, PRICE_TIERS } from '../../services/api';
 import type { UserProfile } from '../../types/user';
 import { useToast } from '../../contexts/ToastContext';
 import { Avatar } from '../common/Avatar';
 import { TagInput } from '../common/TagInput';
 import { CategorySelector } from '../common/CategorySelector';
-import { ArrowLeft, Lightbulb, Save, LogOut, User, Plus, MoreVertical, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Lightbulb, Save, LogOut, User, Plus, MoreVertical, Edit, Trash2, Coins, Loader2, Star, Flame } from 'lucide-react';
 
 interface SettingsProps {
     userProfile: UserProfile;
@@ -19,6 +19,9 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
     const { showToast } = useToast();
 
     const [loading, setLoading] = useState(false);
+    
+    // 购买状态（新增）
+    const [purchasing, setPurchasing] = useState<string | null>(null);
 
     // Preferences 弹窗状态
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -309,6 +312,109 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                 </div>
             </section>
 
+            {/* 账户额度（新增） */}
+            <section className="bg-slate-900/50 rounded-xl p-5 border border-slate-800 backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-4 text-amber-400">
+                    <Coins size={20} />
+                    <h2 className="text-lg font-semibold text-white">账户额度</h2>
+                </div>
+
+                {/* 当前余额显示 */}
+                <div className="mb-6">
+                    <span className="text-slate-400 text-sm">当前剩余次数：</span>
+                    <span className="ml-2 inline-flex items-center px-3 py-1 bg-green-500/20 text-green-400 rounded-full font-semibold">
+                        {userProfile?.info?.remaining_quota ?? 0} 次
+                    </span>
+                </div>
+
+                {/* 价格卡片 */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {PRICE_TIERS.map((tier) => (
+                        <div
+                            key={tier.name}
+                            className={`relative bg-slate-800/50 rounded-xl p-5 border transition-all hover:border-blue-500 ${
+                                tier.recommended ? 'border-yellow-500/50' : tier.hot ? 'border-orange-500/50' : 'border-slate-700'
+                            }`}
+                        >
+                            {/* 标签 */}
+                            {tier.recommended && (
+                                <div className="absolute -top-2 left-4 flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-full">
+                                    <Star size={12} /> 推荐
+                                </div>
+                            )}
+                            {tier.hot && (
+                                <div className="absolute -top-2 left-4 flex items-center gap-1 px-2 py-0.5 bg-orange-500/20 text-orange-400 text-xs rounded-full">
+                                    <Flame size={12} /> 超值
+                                </div>
+                            )}
+
+                            {/* 档位名称 */}
+                            <h3 className="text-white font-semibold mb-3 mt-1">{tier.name}</h3>
+
+                            {/* 价格 */}
+                            <div className="text-2xl font-bold text-blue-400 mb-1">
+                                💎 {tier.eventValue} 光子
+                            </div>
+
+                            {/* 获得次数 */}
+                            <div className="text-slate-400 text-sm mb-3">
+                                获得 <span className="text-white font-semibold">{tier.quotaAmount}</span> 次
+                            </div>
+
+                            {/* 折扣标签 */}
+                            {tier.discount && (
+                                <div className="mb-3">
+                                    <span className="inline-block px-2 py-0.5 bg-green-500 text-white text-xs font-medium rounded-full">
+                                        {tier.discount}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* 购买按钮 */}
+                            <button
+                                onClick={async () => {
+                                    if (purchasing) return;
+                                    setPurchasing(tier.name);
+                                    try {
+                                        const result = await PaymentAPI.consume({
+                                            eventValue: tier.eventValue,
+                                            quotaAmount: tier.quotaAmount
+                                        });
+                                        if (result.success) {
+                                            showToast(`购买成功，已获得 ${tier.quotaAmount} 次生成额度`, 'success');
+                                            // 调用 onUpdate 刷新用户数据（优化：避免强制刷新整个页面）
+                                            onUpdate();
+                                        } else {
+                                            showToast(result.message, 'error');
+                                        }
+                                    } catch (error: unknown) {
+                                        const errorMessage = error instanceof Error ? error.message : '购买失败，请稍后重试';
+                                        showToast(errorMessage, 'error');
+                                    } finally {
+                                        setPurchasing(null);
+                                    }
+                                }}
+                                disabled={purchasing !== null}
+                                className={`w-full py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                                    purchasing === tier.name
+                                        ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                                        : 'bg-blue-600 hover:bg-blue-500 text-white'
+                                }`}
+                            >
+                                {purchasing === tier.name ? (
+                                    <>
+                                        <Loader2 size={16} className="animate-spin" />
+                                        购买中...
+                                    </>
+                                ) : (
+                                    '立即购买'
+                                )}
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
             {/* 研究偏好设置 - 重构为列表+弹窗模式 */}
             <section className="bg-slate-900/50 rounded-xl p-5 border border-slate-800 backdrop-blur-sm">
                 {/* 顶部按钮栏 */}
@@ -343,7 +449,7 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                         <div className="text-center py-8 text-slate-500">
                             <Lightbulb size={32} className="mx-auto mb-2 opacity-50" />
                             <p>还没有设置研究偏好</p>
-                            <p className="text-xs mt-1">点击 "Add" 按钮添加你的第一条偏好</p>
+                            <p className="text-xs mt-1">点击 "添加偏好" 按钮添加你的第一条偏好</p>
                         </div>
                     ) : (
                         formData.preferences.map((pref, index) => (
@@ -446,13 +552,13 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                     />
 
                     {/* 4. Institutions */}
-                    <TagInput
+                    {/* <TagInput
                         label="关注机构 (Institutions)"
                         tags={formData.institutions}
                         onChange={tags => setFormData({ ...formData, institutions: tags })}
                         placeholder="输入机构名称并回车..."
                         addButtonText="添加机构"
-                    />
+                    /> */}
                 </div>
             </section>
 

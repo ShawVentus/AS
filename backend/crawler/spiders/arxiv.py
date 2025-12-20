@@ -33,6 +33,10 @@ class ArxivSpider(scrapy.Spider):
     
     custom_settings = {
         "LOG_LEVEL": "INFO",
+        # [NEW] 重试配置
+        "RETRY_ENABLED": True,  # 启用重试中间件
+        "RETRY_TIMES": 3,  # 重试次数
+        "RETRY_HTTP_CODES": [500, 502, 503, 504, 522, 524, 408, 429],  # 需要重试的HTTP状态码
     }
 
     def __init__(self, *args, **kwargs):
@@ -55,9 +59,10 @@ class ArxivSpider(scrapy.Spider):
         else:
             self.target_categories = set(map(str.strip, categories_str.split(",")))
         
-        self.start_urls = [
-            f"https://arxiv.org/list/{cat}/new" for cat in self.target_categories
-        ]
+        # [REMOVED] start_urls - 改用 start_requests() 方法以支持 errback
+        # self.start_urls = [
+        #     f"https://arxiv.org/list/{cat}/new" for cat in self.target_categories
+        # ]
         
         # 统计数据
         self.stats = {
@@ -65,13 +70,34 @@ class ArxivSpider(scrapy.Spider):
             "unique_found": 0, # [NEW] 去重后的数量
             "yielded": 0,
             "skipped_category": 0,
-            "categories_found": set()
+            "categories_found": set(),
+            "all_subcategories": set(),  # [NEW] 所有论文的子类别标签（去重）
+            "failed_categories": []  # [NEW] 爬取失败的类别列表
         }
         self.seen_ids = set() # [NEW] 用于本次爬取会话去重
         
         # 数据库连接
         self.db = get_db()
         self.date_saved = False # 标志位，避免重复写入日期
+    
+    def start_requests(self):
+        """
+        生成初始请求。
+        
+        为每个目标类别生成请求，并添加 errback 钩子以捕获失败。
+        
+        Yields:
+            scrapy.Request: 带有 callback 和 errback 的请求对象
+        """
+        for cat in self.target_categories:
+            url = f"https://arxiv.org/list/{cat}/new"
+            yield scrapy.Request(
+                url=url,
+                callback=self.parse,
+                errback=self.handle_error,  # 捕获所有类型的请求失败
+                meta={'category': cat},  # 传递类别信息给 errback
+                dont_filter=True  # 允许重试时重复请求同一个 URL
+            )
 
     def parse(self, response):
         self.logger.info(f"正在解析页面: {response.url}")
@@ -213,12 +239,12 @@ class ArxivSpider(scrapy.Spider):
                 all_tags.remove(primary_category)
                 all_tags.insert(0, primary_category)
 
-            # [UPDATED] 过滤：只要任意一个分类在目标类别中就保留
-            # 检查 all_tags 和 target_categories 是否有交集
-            if not any(tag in self.target_categories for tag in all_tags):
-                self.logger.debug(f"跳过 {arxiv_id} - 分类不匹配 {all_tags}")
-                self.stats["skipped_category"] += 1
-                continue
+            # [DISABLED] 分类过滤已禁用 - 获取所有论文（Replacements除外）
+            # 原逻辑：只保留分类标签与 target_categories 有交集的论文
+            # if not any(tag in self.target_categories for tag in all_tags):
+            #     self.logger.debug(f"跳过 {arxiv_id} - 分类不匹配 {all_tags}")
+            #     self.stats["skipped_category"] += 1
+            #     continue
 
             # 构建 Item
             item = PaperItem()
@@ -231,6 +257,10 @@ class ArxivSpider(scrapy.Spider):
             item["comment"] = ""
             
             items_to_yield.append(item)
+            
+            # [NEW] 收集该论文的所有子类别标签
+            for tag in all_tags:
+                self.stats["all_subcategories"].add(tag)
             
         # 开始写入数据库 (可视化进度)
         from tqdm import tqdm
@@ -251,8 +281,38 @@ class ArxivSpider(scrapy.Spider):
                 pbar.update(1)
                 
             pbar.close()
+            
+            # [NEW] 实时显示该页面的爬取进度
+            print(f"✅ {current_category}: 抓取到 {len(items_to_yield)} 篇论文")
         else:
-            self.logger.info(f"No papers found for {current_category} matching criteria.")
+            # [MODIFIED] 显示未找到论文的提示
+            print(f"⚠️  {current_category}: 未找到符合条件的论文")
+    
+    def handle_error(self, failure):
+        """
+        处理请求失败。
+        
+        当请求因网络错误、HTTP错误或其他原因失败时，此方法会被调用。
+        记录失败信息并打印友好提示，避免整个爬取流程中断。
+        
+        Args:
+            failure: Scrapy 的 Failure 对象，包含错误信息
+        """
+        # 从 meta 中获取类别信息
+        category = failure.request.meta.get('category', 'unknown')
+        
+        # 获取错误详情
+        error_msg = str(failure.value)
+        
+        # 记录失败的类别
+        self.stats["failed_categories"].append({
+            "category": category,
+            "error": error_msg
+        })
+        
+        # 打印友好提示
+        print(f"❌ {category}: 爬取失败 - {error_msg}")
+        self.logger.error(f"Failed to crawl {category}: {failure}")
 
     def closed(self, reason):
         """爬虫关闭时输出总结"""
@@ -264,6 +324,12 @@ class ArxivSpider(scrapy.Spider):
         print(f"📄 总共发现论文 (去重后): {self.stats['unique_found']} (原始抓取: {self.stats['total_found']})")
         print(f"✅ 捕获并提交处理: {self.stats['yielded']}")
         print(f"🚫 因分类不符跳过: {self.stats['skipped_category']}")
+        
+        # [NEW] 显示失败的类别
+        if self.stats['failed_categories']:
+            print(f"❌ 爬取失败的类别: {len(self.stats['failed_categories'])} 个")
+            for failed in self.stats['failed_categories']:
+                print(f"   - {failed['category']}: {failed['error']}")
         
         # 尝试获取 Pipeline 的统计信息 (如果 Pipeline 更新了 crawler.stats)
         inserted = self.crawler.stats.get_value('papers/inserted', 0)
@@ -286,5 +352,8 @@ class ArxivSpider(scrapy.Spider):
         stats_serializable = self.stats.copy()
         if "categories_found" in stats_serializable:
             stats_serializable["categories_found"] = list(stats_serializable["categories_found"])
+        # [NEW] 转换 all_subcategories 为列表
+        if "all_subcategories" in stats_serializable:
+            stats_serializable["all_subcategories"] = list(stats_serializable["all_subcategories"])
             
         print(f"JSON_STATS:{json.dumps(stats_serializable)}")

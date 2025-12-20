@@ -14,643 +14,336 @@ import re
 from typing import Optional, List, Callable, Dict, Any
 
 class SchedulerService:
+    """
+    后台任务调度服务
+    
+    负责管理 ArXiv 论文的自动爬取、公共分析、个性化筛选以及报告生成。
+    支持每日定时执行和手动触发执行。
+    """
+    
     def __init__(self):
+        """
+        初始化调度服务。
+        """
         self.scheduler = BackgroundScheduler()
         self.db = get_db()
     
     def _should_generate_report(self, user_profile, manual_query: Optional[str] = None) -> bool:
         """
-        检查用户是否满足报告生成条件
+        检查用户是否满足报告生成条件。
         
-        核心条件：用户必须设置了研究偏好 (preferences)，至少包含一条偏好。
-        未设置偏好的用户将跳过报告生成，引导其完成基础配置。
+        核心条件：
+        1. 用户必须有剩余额度 (remaining_quota > 0)。
+        2. 用户必须开启了自动报告开关 (receive_email = True)（仅限自动任务）。
+        3. 用户必须设置了研究偏好 (preferences)，至少包含一条偏好（仅限自动任务）。
         
         Args:
-            user_profile: 用户画像对象
-            manual_query (Optional[str]): 手动查询字符串，如果存在则豁免 preferences 检查
+            user_profile: 用户画像对象。
+            manual_query (Optional[str]): 手动查询字符串，如果存在则视为手动触发，豁免部分检查。
         
         Returns:
-            bool: True 表示满足条件，应生成报告；False 表示不满足，跳过报告
-            
-        Note:
-            - 手动查询模式 (manual_query 存在) 时，豁免 preferences 检查
-            - 自动任务模式下，严格要求 preferences 非空
+            bool: True 表示满足条件，应生成报告；False 表示不满足，跳过报告。
         """
-        # 手动查询模式：豁免前置条件检查
+        # 1. 检查额度（核心条件）
+        if not user_service.has_sufficient_quota(user_profile.info.id):
+            print(f"⏭️  跳过用户 {user_profile.info.name} ({user_profile.info.id}): 额度不足")
+            return False
+
+        # 2. 检查接收开关（仅限自动任务）
+        if not manual_query and not user_profile.info.receive_email:
+            print(f"⏭️  跳过用户 {user_profile.info.name} ({user_profile.info.id}): 已关闭自动报告推送")
+            return False
+
+        # 3. 检查偏好设置
         if manual_query:
             return True
         
-        # 自动任务模式：必须有 preferences
         if not user_profile.context.preferences or len(user_profile.context.preferences) == 0:
+            print(f"⏭️  跳过用户 {user_profile.info.name} ({user_profile.info.id}): 未设置研究偏好")
             return False
         
         return True
-
 
     def start(self):
         """
         启动后台调度器。
         
         配置每日任务 (run_daily_workflow)，执行时间从配置文件读取（默认 09:30）。
-
-        Args:
-            None
-
-        Returns:
-            None
         """
         if self.scheduler.running:
-            print("Scheduler is already running.")
+            print("调度器已在运行中。")
             return
 
-        # 从配置文件读取每日任务执行时间
         from app.core.config import settings
         hour, minute = settings.get_daily_report_time()
         
-        # 安排每日任务
         self.scheduler.add_job(self.run_daily_workflow, 'cron', hour=hour, minute=minute)
         self.scheduler.start()
-        print(f"Scheduler started. Daily job scheduled for {hour:02d}:{minute:02d}.")
+        print(f"调度器已启动。每日任务安排在 {hour:02d}:{minute:02d}。")
 
     def check_arxiv_update(self) -> tuple[Optional[List[str]], Optional[str]]:
         """
         检查 Arxiv 是否有更新。
+        
         比对 "Showing new listings for" 后的日期字符串。
-        如果更新，则获取所有用户的关注类别并集返回。
-
-        Args:
-            None
-
+        如果更新，则获取所有“额度充足且开启报告”的用户的关注类别并集。
+        
         Returns:
             tuple: (categories, arxiv_date)
-            - categories (List[str]): 需要爬取的类别列表，如果没有更新则为 None
-            - arxiv_date (str): Arxiv 上的日期字符串，如果没有找到则为 None
         """
         try:
-            # 1. Get current status from Arxiv
-            # Default to cs.CL, or get from env
-            url = f"https://arxiv.org/list/cs/new"
-            
-            print(f"Checking Arxiv update at {url}...")
-            # Use a browser-like header to avoid 403
+            url = "https://arxiv.org/list/cs/new"
+            print(f"正在检查 Arxiv 更新: {url}...")
             headers = {
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
             response = httpx.get(url, headers=headers, timeout=10.0)
             if response.status_code != 200:
-                print(f"Failed to fetch Arxiv page: {response.status_code}")
+                print(f"获取 Arxiv 页面失败: {response.status_code}")
                 return None, None
                 
             html = response.text
-            # Match: <h3>Showing new listings for Friday, 5 December 2024</h3>
             match = re.search(r"Showing new listings for (.*?)</h3>", html)
             if not match:
-                print("Could not find 'Showing new listings for' in HTML.")
+                print("未在 HTML 中找到日期信息。")
                 return None, None
                 
             current_date_str = match.group(1).strip()
-            print(f"Arxiv Date: {current_date_str}")
+            print(f"Arxiv 当前日期: {current_date_str}")
             
-            # 2. Get last status from DB
             status_row = self.db.table("system_status").select("*").eq("key", "last_arxiv_update").execute()
             last_date_str = status_row.data[0]["value"] if status_row.data else None
             
             if current_date_str != last_date_str:
-                print(f"Update detected! Old: {last_date_str}, New: {current_date_str}")
-                # Update DB
-                self.db.table("system_status").upsert({
-                    "key": "last_arxiv_update",
-                    "value": current_date_str
-                }).execute()
+                print(f"检测到更新！旧日期: {last_date_str}, 新日期: {current_date_str}")
+                self.db.table("system_status").upsert({"key": "last_arxiv_update", "value": current_date_str}).execute()
                 
-                # 3. Aggregate User Categories
-                print("Aggregating user categories...")
-                try:
-                    # 获取所有用户的 profile
-                    profiles = self.db.table("profiles").select("focus").execute().data
-                    all_categories = set()
-                    
-                    for p in profiles:
-                        focus = p.get("focus", {})
-                        if focus and "category" in focus:
-                            cats = focus["category"]
-                            if isinstance(cats, list):
-                                all_categories.update(cats)
-                            elif isinstance(cats, str):
-                                all_categories.add(cats)
-                    
-                    # 如果没有用户类别，使用默认配置
-                    if not all_categories:
-                        print("No user categories found, using default.")
-                        default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
-                        return [c.strip() for c in default_cats], current_date_str
-                        
-                    result_categories = list(all_categories)
-                    print(f"Categories to crawl: {result_categories}")
-                    return result_categories, current_date_str
-                    
-                except Exception as e:
-                    print(f"Error aggregating categories: {e}")
-                    # Fallback to default
+                print("正在汇总符合条件用户的关注类别...")
+                profiles = self.db.table("profiles").select("focus") \
+                    .gt("remaining_quota", 0).eq("receive_email", True).execute().data
+                
+                all_categories = set()
+                for p in profiles:
+                    focus = p.get("focus", {})
+                    if focus and "category" in focus:
+                        cats = focus["category"]
+                        if isinstance(cats, list): all_categories.update(cats)
+                        elif isinstance(cats, str): all_categories.add(cats)
+                
+                if not all_categories:
+                    print("未找到符合条件的用户类别，使用默认配置。")
                     default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
                     return [c.strip() for c in default_cats], current_date_str
+                        
+                result_categories = list(all_categories)
+                print(f"需要爬取的类别并集: {result_categories}")
+                return result_categories, current_date_str
             else:
-                print("No update detected.")
+                print("未检测到更新。")
                 return None, current_date_str
                 
         except Exception as e:
-            print(f"Error checking Arxiv update: {e}")
+            print(f"检查 Arxiv 更新时发生异常: {e}")
             return None, None
 
     def run_crawler(self):
         """
         运行 ArXiv 爬虫任务。
-        
-        通过 subprocess 调用 Scrapy 爬虫，抓取最新的论文数据并存入数据库。
-
-        Args:
-            None
-
-        Returns:
-            None
         """
-        print("Starting ArXiv Crawler...")
-        # 以子进程方式运行scrapy
         try:
-            # cwd should be backend root (where scrapy.cfg is)
-            # __file__ = backend/app/services/scheduler.py
-            # dirname = backend/app/services
-            # ../.. = backend
             backend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-            print(f"Running Scrapy in: {backend_root}")
+            print(f"正在运行爬虫，目录: {backend_root}")
             subprocess.run(["scrapy", "crawl", "arxiv"], check=True, cwd=backend_root)
-            print("Crawler finished.")
+            print("爬虫运行完成。")
             
-            # Stage 2: Fetch Details (Arxiv API)
-            print("Starting Stage 2: Fetching details...")
+            print("开始获取论文详细信息...")
             from crawler.fetch_details import fetch_and_update_details
             fetch_and_update_details(table_name="daily_papers")
-            print("Details fetched.")
+            print("详细信息获取完成。")
         except Exception as e:
-            error_msg = f"爬虫执行失败: {str(e)}"
-            print(error_msg)
-            
-            # 发送错误通知邮件
-            import traceback
-            error_notifier.notify_critical_error(
-                error_type="CRAWLER_EXECUTION_FAILED",
-                error_message=error_msg,
-                context={
-                    "backend_root": backend_root,
-                    "failed_at": datetime.now().isoformat()
-                },
-                stack_trace=traceback.format_exc()
-            )
-            raise  # 继续向上抛出异常，让工作流引擎捕获
+            print(f"爬虫执行失败: {e}")
+            raise
 
     def process_public_papers(self):
         """
         处理公共论文分析。
-        
-        获取状态为 'fetched' 的新论文，并进行公共分析（如生成 TLDR、提取 Motivation 等）。
-        这些分析结果是通用的，不针对特定用户。
-
-        Args:
-            None
-
-        Returns:
-            None
         """
-        print("Starting Public Analysis...")
-        from app.services.paper_service import paper_service
-        from app.schemas.paper import PersonalizedPaper, RawPaperMetadata
-        
         try:
-            print("--- Public Analysis ---")
-            # 获取尚未分析的论文 (status 为 fetched)
+            from app.services.paper_service import paper_service
+            from app.schemas.paper import PersonalizedPaper, RawPaperMetadata
+            
+            print("开始公共论文分析...")
             response = self.db.table("daily_papers").select("*").eq("status", "fetched").execute()
             raw_papers = response.data
             
+            if not raw_papers:
+                print("没有待分析的新论文。")
+                return
+                
             papers_to_analyze = []
             for p in raw_papers:
-                # 构造 PersonalizedPaper (analysis=None, user_state=None)
-                # 注意: 这里我们需要先构造 RawPaperMetadata
-                meta_data = {
-                    "id": p["id"],
-                    "title": p["title"],
-                    "authors": p["authors"],
-                    "published_date": p["published_date"],
-                    "category": p["category"],
-                    "abstract": p["abstract"],
-                    "links": p["links"],
-                    "comment": p.get("comment")
-                }
-                meta = RawPaperMetadata(**meta_data)
+                meta = RawPaperMetadata(
+                    id=p["id"], title=p["title"], authors=p["authors"],
+                    published_date=p["published_date"], category=p["category"],
+                    abstract=p["abstract"], links=p["links"], comment=p.get("comment")
+                )
                 papers_to_analyze.append(PersonalizedPaper(meta=meta, analysis=None, user_state=None))
             
-            if papers_to_analyze:
-                print(f"Found {len(papers_to_analyze)} papers needing public analysis.")
-                paper_service.batch_analyze_papers(papers_to_analyze)
-            else:
-                print("No papers need public analysis.")
-
+            print(f"找到 {len(papers_to_analyze)} 篇论文待分析。")
+            paper_service.batch_analyze_papers(papers_to_analyze)
+            print("公共分析完成。")
         except Exception as e:
-            print(f"Error in process_public_papers: {e}")
+            print(f"公共分析失败: {e}")
+            raise
 
     def process_personalized_papers(self):
         """
         处理个性化论文筛选。
-        
-        遍历所有用户，针对每个用户筛选其尚未处理的论文。
-        根据用户的兴趣和历史行为，决定是否推荐该论文。
-
-        Args:
-            None
-
-        Returns:
-            None
         """
-        print("Starting Personalized Filter...")
-        from app.services.paper_service import paper_service
-        from app.schemas.paper import PersonalizedPaper, RawPaperMetadata
-        from app.services.user_service import user_service
-        
         try:
-            print("--- Personalized Filter ---")
+            from app.services.paper_service import paper_service
+            from app.schemas.paper import PersonalizedPaper, RawPaperMetadata
             
-            # 1. 获取所有待处理的原始论文
-            # 注意：这里我们再次获取 daily_papers，因为之前的步骤可能已经更新了某些状态，
-            # 但对于个性化筛选，我们需要的是当天的所有论文数据。
-            # 理论上应该只获取 status='analyzed' 的论文，但为了鲁棒性，我们获取所有 fetched/analyzed 的。
-            # 简单起见，我们重新获取一次 daily_papers
-            response = self.db.table("daily_papers").select("*").execute()
-            raw_papers = response.data
-            
+            print("开始个性化论文筛选...")
+            raw_papers = self.db.table("daily_papers").select("*").execute().data
             if not raw_papers:
-                print("No papers found in daily_papers. Skipping personalized filter.")
+                print("没有论文待筛选。")
                 return
 
-            # 2. 获取所有用户画像
-            try:
-                profiles_response = self.db.table("profiles").select("*").execute()
-                profiles_data = profiles_response.data
-            except Exception as e:
-                print(f"Error fetching profiles: {e}")
-                profiles_data = []
-
+            # 仅获取额度充足且开启报告的用户
+            profiles_data = self.db.table("profiles").select("*") \
+                .gt("remaining_quota", 0).eq("receive_email", True).execute().data
             if not profiles_data:
-                print("No user profiles found. Skipping filter.")
+                print("没有符合条件的用户。")
                 return
 
-            print(f"Found {len(profiles_data)} users to process.")
-
+            print(f"正在为 {len(profiles_data)} 个用户进行筛选...")
             for profile_dict in profiles_data:
                 try:
-                    # 构造 UserProfile 对象
-                    # 注意: 数据库里的 profile 结构可能需要清洗，这里假设 user_service.get_profile 里的清洗逻辑
-                    # 为了复用清洗逻辑，最好调用 user_service.get_profile(user_id)
-                    # 但为了效率，这里直接构造，或者在 user_service 中增加 get_all_profiles
-                    
-                    # 简单起见，我们直接用 user_service.get_profile(user_id) 来获取清洗后的对象
                     user_id = profile_dict.get("user_id")
-                    if not user_id:
-                        continue
-                        
-                    # 使用 user_service 获取完整的 profile 对象
                     user_profile = user_service.get_profile(user_id)
-                    if not user_profile:
-                        continue
+                    if not user_profile: continue
 
-                    print(f"Processing for user: {user_profile.info.name} ({user_id})")
-
-                    # 优化：只查询今日候选论文中，用户已经处理过的那些
-                    # 避免拉取用户所有的历史记录
+                    print(f"正在处理用户: {user_profile.info.name} ({user_id})")
                     daily_paper_ids = [p['id'] for p in raw_papers]
-                    if not daily_paper_ids:
-                        continue
-
-                    state_response = self.db.table("user_paper_states") \
-                        .select("paper_id") \
-                        .eq("user_id", user_id) \
-                        .in_("paper_id", daily_paper_ids) \
-                        .execute()
-                    
-                    processed_paper_ids = {s['paper_id'] for s in state_response.data} if state_response.data else set()
+                    state_response = self.db.table("user_paper_states").select("paper_id") \
+                        .eq("user_id", user_id).in_("paper_id", daily_paper_ids).execute()
+                    processed_ids = {s['paper_id'] for s in state_response.data} if state_response.data else set()
                     
                     papers_to_filter = []
                     for p in raw_papers:
-                        if p['id'] in processed_paper_ids:
-                            continue
-                        
-                        # 构造对象
-                        meta_data = {
-                            "id": p["id"],
-                            "title": p["title"],
-                            "authors": p["authors"],
-                            "published_date": p["published_date"],
-                            "category": p["category"],
-                            "abstract": p["abstract"],
-                            "links": p["links"],
-                            "comment": p.get("comment")
-                        }
-                        meta = RawPaperMetadata(**meta_data)
-                        # 注意：这里传入 user_state=None，等待 filter_papers 填充
+                        if p['id'] in processed_ids: continue
+                        meta = RawPaperMetadata(
+                            id=p["id"], title=p["title"], authors=p["authors"],
+                            published_date=p["published_date"], category=p["category"],
+                            abstract=p["abstract"], links=p["links"], comment=p.get("comment")
+                        )
                         papers_to_filter.append(PersonalizedPaper(meta=meta, analysis=None, user_state=None))
                     
                     if papers_to_filter:
-                        print(f"Found {len(papers_to_filter)} papers to filter for user {user_id}.")
+                        print(f"为用户 {user_id} 筛选 {len(papers_to_filter)} 篇论文...")
                         paper_service.filter_papers(papers_to_filter, user_profile, user_id)
-                    else:
-                        print(f"No new papers to filter for user {user_id}.")
-                
                 except Exception as e:
-                    print(f"Error processing user {profile_dict.get('user_id')}: {e}")
-                    continue
-
+                    print(f"处理用户 {profile_dict.get('user_id')} 时出错: {e}")
+            print("个性化筛选完成。")
         except Exception as e:
-            print(f"Error in process_personalized_papers: {e}")
+            print(f"个性化筛选失败: {e}")
+            raise
 
-    def generate_report_job(self, force: bool = False, target_user_id: Optional[str] = None, progress_callback: Optional[Callable[[int, int, str], None]] = None, manual_query: Optional[str] = None, manual_categories: Optional[List[str]] = None, manual_authors: Optional[List[str]] = None, specific_paper_ids: Optional[List[str]] = None, context: Optional[Dict[str, Any]] = None):
+    def generate_report_job(self, force: bool = False, target_user_id: Optional[str] = None, progress_callback: Optional[Callable] = None, manual_query: Optional[str] = None, manual_categories: Optional[List[str]] = None, manual_authors: Optional[List[str]] = None, specific_paper_ids: Optional[List[str]] = None, context: Optional[Dict[str, Any]] = None) -> dict:
         """
-        生成并发送每日报告的任务。
-        
-        功能说明：
-        1. 获取目标用户（所有用户或指定用户）的画像。
-        2. 为每个用户获取今日的个性化推荐论文或用户指定的论文。
-        3. 调用 report_service.generate_daily_report() 生成报告（内部自动发送邮件）。
-        4. 支持手动查询模式：即使没有找到论文，也允许生成提示性报告。
-
-        Args:
-            force (bool): 是否强制生成报告（即使今日已生成），默认 False
-            target_user_id (Optional[str]): 指定生成报告的用户 ID，None 表示为所有用户生成
-            progress_callback (Optional[Callable[[int, int, str], None]]): 进度回调函数，
-                接收参数：(当前进度, 总进度, 进度消息)
-            manual_query (Optional[str]): 手动输入的查询（用于即时报告），
-                例如："量化金融"
-            manual_categories (Optional[List[str]]): 手动输入的分类列表，
-                例如：["cs.AI", "cs.LG"]
-            manual_authors (Optional[List[str]]): 手动输入的作者列表，
-                例如：["Yann LeCun", "Geoffrey Hinton"]
-            specific_paper_ids (Optional[List[str]]): 指定要包含在报告中的论文 ID 列表
-            context (Optional[Dict[str, Any]]): 工作流上下文，包含：
-                - user_filter_stats: 分用户的论文统计数据
-                - crawled_count: 爬虫抓取的总数
-                - actually_filtered_count: 实际筛选的总数
-
-        Returns:
-            Dict[str, Any]: 统计数据字典，包含以下字段：
-                - tokens_input (int): 输入 token 总数
-                - tokens_output (int): 输出 token 总数
-                - cost (float): 总成本（美元）
-                - cache_hit_tokens (int): 缓存命中的 token 数
-                - request_count (int): LLM 请求次数
+        执行报告生成任务。
         """
-        print("开始生成每日报告...")
-        
-        # 统计数据
-        total_stats = {
-            "tokens_input": 0,
-            "tokens_output": 0,
-            "cost": 0.0,
-            "cache_hit_tokens": 0,
-            "request_count": 0
-        }
+        print("开始生成报告任务...")
+        total_stats = {"tokens_input": 0, "tokens_output": 0, "cost": 0.0, "cache_hit_tokens": 0, "request_count": 0}
         
         try:
-            # === 1. 获取目标用户 ===
             if target_user_id:
-                # 仅处理指定用户
-                profiles_response = self.db.table("profiles").select("*").eq("user_id", target_user_id).execute()
+                profiles_response = self.db.table("profiles").select("*").eq("user_id", target_user_id).gt("remaining_quota", 0).execute()
             else:
-                # 获取所有用户
-                profiles_response = self.db.table("profiles").select("*").execute()
+                profiles_response = self.db.table("profiles").select("*").gt("remaining_quota", 0).eq("receive_email", True).execute()
                 
             profiles_data = profiles_response.data
-            
             if not profiles_data:
-                print("未找到任何用户")
-                if progress_callback:
-                    progress_callback(100, 100, "未找到用户")
+                print("没有符合条件的用户。")
+                if progress_callback: progress_callback(100, 100, "未找到用户")
                 return total_stats
             
-            print(f"找到 {len(profiles_data)} 个用户，开始生成报告...")
-            
             total_users = len(profiles_data)
-            processed_count = 0
-            
-            # === 2. 遍历每个用户 ===
-            for profile_dict in profiles_data:
-                processed_count += 1
+            for i, profile_dict in enumerate(profiles_data):
                 user_id = profile_dict.get("user_id")
-                
-                if progress_callback:
-                    progress_callback(processed_count, total_users, f"正在为用户 {user_id[:8]}... 生成报告")
-                
-                if not user_id:
-                    continue
+                if progress_callback: progress_callback(i+1, total_users, f"正在为用户 {user_id[:8]}... 生成报告")
                 
                 try:
-                    # 2.1 获取用户画像（使用 user_service 确保数据清洗）
                     user_profile = user_service.get_profile(user_id)
+                    if not self._should_generate_report(user_profile, manual_query): continue
                     
-                    # 新增：检查用户是否设置了 preferences（必须条件）
-                    if not self._should_generate_report(user_profile, manual_query):
-                        print(f"⏭️  跳过用户 {user_profile.info.name} ({user_id}): 未设置研究偏好 (preferences)")
-                        continue
-                    
-                    # [Manual Override] 如果有手动参数，临时修改 User Profile
-                    custom_title = None
-                    if manual_query:
-                        print(f"[DEBUG] Applying manual query for report: {manual_query}")
-                        # Set custom title
-                        custom_title = f"{manual_query} - Instant Report"
+                    custom_title = f"{manual_query} - 即时报告" if manual_query else None
+                    if manual_authors: user_profile.focus.authors = manual_authors
+                    if not user_profile.info.email: continue
                         
-                    if manual_authors:
-                        user_profile.focus.authors = manual_authors
+                    print(f"正在为用户生成报告: {user_profile.info.name}")
                     
-                    # 检查用户是否有邮箱
-                    if not user_profile.info.email:
-                        print(f"用户 {user_profile.info.name} 未设置邮箱，跳过")
-                        continue
-                        
-                    print(f"\n处理用户: {user_profile.info.name} ({user_id})")
-
-                    # [New] 检查今日是否已生成报告
-                    # 如果是手动查询 (Instant Report)，则不检查重复，允许生成多份
                     if not force and not manual_query:
-                        from datetime import datetime
                         today_str = datetime.now().strftime("%Y-%m-%d")
-                        existing_reports = self.db.table("reports") \
-                            .select("id") \
-                            .eq("user_id", user_id) \
-                            .eq("date", today_str) \
-                            .execute()
-                        
-                        if existing_reports.data:
-                            print(f"用户 {user_profile.info.name} 今日已生成报告，跳过 (Force=False)")
+                        if self.db.table("reports").select("id").eq("user_id", user_id).eq("date", today_str).execute().data:
+                            print(f"用户 {user_profile.info.name} 今日已生成报告，跳过。")
                             continue
                     
-                    # === 3. 获取今日的个性化论文 ===
-                    # 如果指定了 paper_ids，直接使用
                     if specific_paper_ids is not None:
-                        print(f"Using specific paper IDs: {len(specific_paper_ids)}")
-                        if not specific_paper_ids:
-                             if manual_query:
-                                 print(f"用户 {user_id} 指定的论文列表为空，但存在手动查询，继续生成报告 (无论文)")
-                                 states_response = None # No states
-                             else:
-                                 print(f"用户 {user_id} 指定的论文列表为空，跳过")
-                                 continue
-                        else:     
-                            # Fetch states for these papers
-                            states_response = self.db.table("user_paper_states") \
-                                .select("*") \
-                                .eq("user_id", user_id) \
-                                .in_("paper_id", specific_paper_ids) \
-                                .execute()
+                        if not specific_paper_ids and not manual_query: continue
+                        states_res = self.db.table("user_paper_states").select("*").eq("user_id", user_id).in_("paper_id", specific_paper_ids).execute() if specific_paper_ids else None
                     else:
-                        # 【修复】手动查询和自动任务都查询今天被接受的论文
-                        from datetime import datetime
                         today = datetime.now().strftime("%Y-%m-%d")
-                        
-                        # 查询今天筛选的、被接受的论文
-                        states_response = self.db.table("user_paper_states") \
-                            .select("*") \
-                            .eq("user_id", user_id) \
-                            .eq("accepted", True) \
-                            .gte("created_at", f"{today} 00:00:00") \
-                            .order("relevance_score", desc=True) \
-                            .limit(int(os.environ.get("REPORT_PAPER_LIMIT", 50))) \
-                            .execute()
+                        states_res = self.db.table("user_paper_states").select("*").eq("user_id", user_id).eq("accepted", True).gte("created_at", f"{today} 00:00:00").order("relevance_score", desc=True).limit(50).execute()
                     
-                    if (not states_response or not states_response.data) and not manual_query:
-                        print(f"用户 {user_id} 今天没有推荐论文 (或指定的论文未找到状态)，跳过")
-                        continue
-                    
-                    # === 4. 处理论文状态数据 ===
-                    if states_response and states_response.data:
-                        print(f"找到 {len(states_response.data)} 篇推荐论文")
-                        
-                        # 获取完整论文数据
-                        paper_ids = [s["paper_id"] for s in states_response.data]
-                        papers_response = self.db.table("papers") \
-                            .select("*") \
-                            .in_("id", paper_ids) \
-                            .execute()
-                        papers_data = papers_response.data
-                        
-                        # 构建状态映射
-                        state_map = {s["paper_id"]: s for s in states_response.data}
-                    else:
-                        # 【修复】手动查询模式下的 fallback
-                        # 当手动查询未找到任何论文时，允许生成一个空报告或提示性报告
-                        print(f"未找到推荐论文 (Manual Query: {manual_query})")
-                        papers_data = []
-                        state_map = {}
-                    
-                    if not papers_data and not manual_query:
-                        print(f"未找到论文详细数据，跳过")
-                        continue
-                    
-                    # === 5. 构建 PersonalizedPaper 对象 ===
-                    from app.services.paper_service import paper_service
+                    if (not states_res or not states_res.data) and not manual_query: continue
                     
                     papers = []
-                    for p in papers_data:
-                        state_data = state_map.get(p["id"])
-                        # 使用 paper_service 的辅助方法合并数据
-                        paper_obj = paper_service.merge_paper_state(p, state_data)
-                        papers.append(paper_obj)
+                    if states_res and states_res.data:
+                        paper_ids = [s["paper_id"] for s in states_res.data]
+                        papers_data = self.db.table("papers").select("*").in_("id", paper_ids).execute().data
+                        state_map = {s["paper_id"]: s for s in states_res.data}
+                        from app.services.paper_service import paper_service
+                        for p in papers_data:
+                            papers.append(paper_service.merge_paper_state(p, state_map.get(p["id"])))
                     
-                    # === 6. 生成报告（内部会自动发送邮件）===
-                    # [Fix] 正确解包返回值 (report, usage)
-                    # Pass custom_title if exists
-                    # 【修复】查询今日论文数并传递给 report_service
-                    # [修复] 优先使用传入的 context 中的统计数据
-                    temp_context = {}
-                    if context:
-                        temp_context.update(context)
-                        
-                    # [新增] 尝试从 context 中获取分用户统计数据
-                    # 解决多用户任务中，报告显示的论文总数是所有用户总和的问题
-                    user_filter_stats = context.get("user_filter_stats", {}) if context else {}
-                    if user_id in user_filter_stats:
-                        user_stats = user_filter_stats[user_id]
-                        # 使用该用户特定的统计数据覆盖全局数据
-                        # crawled_count 在这里代表该用户实际被分析的论文数
+                    temp_context = context.copy() if context else {}
+                    user_stats = temp_context.get("user_filter_stats", {}).get(user_id, {})
+                    if user_stats:
                         temp_context["crawled_count"] = user_stats.get("analyzed", 0)
                         temp_context["actually_filtered_count"] = user_stats.get("analyzed", 0)
-                        print(f"[INFO] 使用用户 {user_id} 的特定统计数据: 分析 {temp_context['crawled_count']} 篇")
                     
-                    # 如果 context 中没有 crawled_count 且没有用户特定数据，则回退到数据库查询
-                    if "crawled_count" not in temp_context:
-                        from datetime import date
-                        today = date.today().isoformat()
-                        count_res = self.db.table("daily_papers") \
-                            .select("*", count="exact") \
-                            .gte("created_at", f"{today} 00:00:00") \
-                            .lt("created_at", f"{today} 23:59:59") \
-                            .execute()
-                        crawled_count = count_res.count if count_res.count is not None else len(count_res.data)
-                        temp_context["crawled_count"] = crawled_count
+                    report, usage, email_success = report_service.generate_daily_report(papers, user_profile, custom_title=custom_title, manual_query=manual_query, context=temp_context)
                     
-                    report, usage = report_service.generate_daily_report(
-                        papers, user_profile, 
-                        custom_title=custom_title, 
-                        manual_query=manual_query,
-                        context=temp_context
-                    )
-                    
-                    # 累加统计
                     if usage:
                         total_stats["tokens_input"] += usage.get("prompt_tokens", 0)
                         total_stats["tokens_output"] += usage.get("completion_tokens", 0)
                         total_stats["cost"] += usage.get("cost", 0.0)
                         total_stats["cache_hit_tokens"] += usage.get("cache_hit_tokens", 0)
                         total_stats["request_count"] += 1
+                    
+                    if email_success:
+                        user_service.deduct_quota(user_id=user_id, amount=1, reason="report_generated", report_id=report.id)
+                        print(f"✓ 报告已发送并扣减额度: {user_profile.info.name}")
+                    else:
+                        print(f"⚠️ 报告生成但发送失败: {user_profile.info.name}")
                         
-                    print(f"✓ 已为用户 {user_profile.info.name} 生成并发送报告: {report.title}")
-                    
                 except Exception as e:
-                    error_msg = f"为用户 {user_id} 生成报告失败: {e}"
-                    print(f"✗ {error_msg}")
-                    import traceback
-                    traceback.print_exc()
-                    
-                    # 发送警告通知（单个用户失败不影响整体）
-                    error_notifier.notify_warning(
-                        error_type="USER_REPORT_FAILED",
-                        error_message=error_msg,
-                        context={
-                            "user_id": user_id,
-                            "failed_at": datetime.now().isoformat()
-                        },
-                        stack_trace=traceback.format_exc()
-                    )
-                    continue
-                    
+                    print(f"为用户 {user_id} 生成报告失败: {e}")
+                    error_notifier.notify_warning("USER_REPORT_FAILED", f"为用户 {user_id} 生成报告失败: {e}", {"user_id": user_id})
             return total_stats
-                    
         except Exception as e:
-            print(f"生成报告任务失败: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"报告生成任务失败: {e}")
             return total_stats
 
     def run_daily_workflow(self, force: bool = False, target_user_id: Optional[str] = None, execution_id: Optional[str] = None):
         """
         运行每日工作流。
-        
-        Args:
-            force (bool): 是否强制运行（忽略日期检查）。
-            target_user_id (Optional[str]): 指定运行的目标用户 ID。
-            execution_id (Optional[str]): 指定执行 ID（用于前端追踪）。
         """
-        # [Fix] 禁止 httpx 输出 INFO 日志
         import logging
         logging.getLogger("httpx").setLevel(logging.WARNING)
-        
-        print(f"Running daily workflow (Force={force}, ExecutionID={execution_id})...")
+        print(f"正在运行每日工作流 (Force={force}, ExecutionID={execution_id})...")
         
         from app.services.workflow_engine import WorkflowEngine
         from app.services.workflow_steps.check_update_step import CheckUpdateStep
@@ -658,119 +351,59 @@ class SchedulerService:
         from app.services.workflow_steps.run_crawler_step import RunCrawlerStep
         from app.services.workflow_steps.fetch_details_step import FetchDetailsStep
         from app.services.workflow_steps.analyze_public_step import AnalyzePublicStep
-        from app.services.workflow_steps.archive_step import ArchiveStep
         from app.services.workflow_steps.personalized_filter_step import PersonalizedFilterStep
         from app.services.workflow_steps.generate_report_step import GenerateReportStep
         
         engine = WorkflowEngine()
-        if execution_id:
-            engine.execution_id = execution_id
+        if execution_id: engine.execution_id = execution_id
         
-        # 注册步骤
-        # 1. 检查更新 (如果 force=True，此步骤内部逻辑可能会跳过检查或直接返回 True，需确认 CheckUpdateStep 逻辑)
-        # CheckUpdateStep 目前只检查更新，不处理 force。
-        # 如果 force=True，我们可以手动设置 context["force"] = True，并在 CheckUpdateStep 中处理，
-        # 或者我们在这里手动检查，如果 force=True，则跳过 CheckUpdateStep 或忽略其 should_stop。
-        # 但为了保持一致性，最好让 CheckUpdateStep 处理 force。
-        # 目前 CheckUpdateStep 只是调用 scheduler_service.check_arxiv_update()。
-        # 我们可以简单地注册所有步骤，并让 engine 处理。
-        # 但 CheckUpdateStep 会返回 should_stop=True 如果没更新。
-        # 如果 force=True，我们希望忽略 should_stop。
-        
-        # 方案：在 context 中传入 force=True 和 target_user_id
-        initial_context = {
-            "force": force,
-            "target_user_id": target_user_id
-        }
-        
-        # 1. Check Update & Get Categories
+        initial_context = {"force": force, "target_user_id": target_user_id}
         categories, arxiv_date = self.check_arxiv_update()
         
-        # [Fix] 如果是 force 模式 OR 指定了 target_user_id (手动触发)，则尝试聚合类别
         if (force or target_user_id) and not categories:
-            print("Force mode or Target User detected. Aggregating user categories...")
+            print("强制模式或指定用户模式：正在汇总类别...")
             try:
-                # 如果指定了用户，只获取该用户的类别？
-                # 为了简单和数据完整性，我们还是获取所有用户的类别，或者至少包含该用户的类别。
-                # 如果只获取该用户类别，可能会漏掉其他人的。
-                # 但如果是手动触发，可能只关心该用户。
-                # 策略：如果是 target_user_id，优先获取该用户的 focus。
-                
-                target_profiles = []
                 if target_user_id:
-                    p = self.db.table("profiles").select("focus").eq("user_id", target_user_id).execute().data
-                    if p:
-                        target_profiles = p
+                    profiles = self.db.table("profiles").select("focus").eq("user_id", target_user_id).execute().data
                 else:
-                    target_profiles = self.db.table("profiles").select("focus").execute().data
-
-                all_categories = set()
-                for p in target_profiles:
+                    profiles = self.db.table("profiles").select("focus").gt("remaining_quota", 0).eq("receive_email", True).execute().data
+                
+                all_cats = set()
+                for p in profiles:
                     focus = p.get("focus", {})
                     if focus and "category" in focus:
                         cats = focus["category"]
-                        if isinstance(cats, list):
-                            all_categories.update(cats)
-                        elif isinstance(cats, str):
-                            all_categories.add(cats)
-                
-                if all_categories:
-                    categories = list(all_categories)
-                    print(f"Aggregated categories: {categories}")
-                else:
-                    # Fallback
-                    default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
-                    categories = [c.strip() for c in default_cats]
+                        if isinstance(cats, list): all_cats.update(cats)
+                        elif isinstance(cats, str): all_cats.add(cats)
+                categories = list(all_cats) if all_cats else os.environ.get("CATEGORIES", "cs.CL").split(",")
             except Exception as e:
-                print(f"Error aggregating categories: {e}")
-                default_cats = os.environ.get("CATEGORIES", "cs.CL").split(",")
-                categories = [c.strip() for c in default_cats]
+                print(f"汇总类别失败: {e}")
+                categories = os.environ.get("CATEGORIES", "cs.CL").split(",")
         
         if not categories:
-            print("Arxiv not updated and not in force mode. Skipping workflow.")
+            print("Arxiv 未更新且非强制模式。跳过工作流。")
             return
 
-        print(f"Starting workflow for categories: {categories}")
+        print(f"开始工作流，类别: {categories}")
         initial_context["categories"] = categories
         initial_context["arxiv_date"] = arxiv_date
         
-        # 注册后续步骤
-        # 2. Clear Daily DB (只有非 force 且非单用户触发才清空?)
-        # 如果是单用户触发，绝对不能清空 daily_papers，因为可能影响其他人或已有数据。
         if not force and not target_user_id:
             engine.register_step(ClearDailyStep())
-        else:
-            print("Force mode or Single User: Skipping ClearDailyStep.")
-            
+        
         engine.register_step(RunCrawlerStep())
         engine.register_step(FetchDetailsStep())
         engine.register_step(AnalyzePublicStep())
-        # [Modified] 归档逻辑已合并到 AnalyzePublicStep，不再单独注册
-        # engine.register_step(ArchiveStep())
         engine.register_step(PersonalizedFilterStep())
         engine.register_step(GenerateReportStep())
         
-        # 执行工作流
         try:
             engine.execute_workflow("daily_update", initial_context=initial_context)
         except Exception as e:
             error_msg = f"每日工作流执行失败: {str(e)}"
             print(error_msg)
-            
-            # 发送错误通知邮件
             import traceback
-            error_notifier.notify_critical_error(
-                error_type="DAILY_WORKFLOW_FAILED",
-                error_message=error_msg,
-                context={
-                    "force": force,
-                    "target_user_id": target_user_id,
-                    "execution_id": execution_id,
-                    "categories": initial_context.get("categories"),
-                    "failed_at": datetime.now().isoformat()
-                },
-                stack_trace=traceback.format_exc()
-            )
-            raise  # 继续向上抛出，允许APScheduler记录错误
+            error_notifier.notify_critical_error("DAILY_WORKFLOW_FAILED", error_msg, {"force": force, "target_user_id": target_user_id, "execution_id": execution_id, "categories": categories}, traceback.format_exc())
+            raise
 
 scheduler_service = SchedulerService()

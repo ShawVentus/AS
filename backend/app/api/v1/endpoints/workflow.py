@@ -118,6 +118,18 @@ async def manual_trigger_workflow(request: ManualTriggerRequest):
         dict: 包含执行 ID 和消息的字典。
     """
     try:
+        # === 新增：额度前置校验 ===
+        from app.services.user_service import user_service
+        if not user_service.has_sufficient_quota(request.user_id):
+            print(f"⚠️ 用户 {request.user_id} 尝试手动触发，但额度不足")
+            raise HTTPException(
+                status_code=403, 
+                detail={
+                    "error": "insufficient_quota",
+                    "message": "您的额度不足，请充值后继续使用"
+                }
+            )
+
         # 构造上下文，包含手动输入的参数
         initial_context = {
             "target_user_id": request.user_id,

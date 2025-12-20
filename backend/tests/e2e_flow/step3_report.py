@@ -31,7 +31,7 @@ async def run_step3():
     print(f"Generating report for {len(papers)} papers...")
     
     try:
-        report = report_service.generate_daily_report(papers, profile)
+        report, usage, email_success = report_service.generate_daily_report(papers, profile)
         
         if not report:
             print("❌ Report generation returned None")

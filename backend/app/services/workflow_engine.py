@@ -567,9 +567,9 @@ class WorkflowEngine:
         包含: 阶段名 | Model | Cost | Input | Output | Cache Hit | Requests | Time
         """
         try:
-            print("\n" + "="*120)
+            print("\n" + "="*107)
             print(f"📊 工作流执行汇总报告 (ID: {self.execution_id})")
-            print("="*120)
+            print("="*107)
              
             # 获取所有步骤记录
             response = self.db.table("workflow_steps") \
@@ -632,7 +632,7 @@ class WorkflowEngine:
 
             print("-" * len(header))
             print(f"{'TOTAL':<25} | {'-':<15} | {total_cost:<10.6f} | {total_input:<8} | {total_output:<8} | {total_cache:<8} | {total_reqs:<5} | {total_time_str:<10}")
-            print("="*95 + "\n")
+            print("="*107 + "\n")
             
         except Exception as e:
             logger.error(f"生成汇总报告失败: {e}")
