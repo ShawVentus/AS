@@ -9,3 +9,13 @@
 ==================================================
 2025-12-21 01:41:24,461 - app.services.workflow_engine - INFO - 👉 执行步骤 [fetch_details] (尝试 1/4)...
 2025-12-21 01:41:24,461 - app.services.workflow_engine - INFO - ==================================================
+2025-12-21 01:41:29,705 - app.services.workflow_engine - INFO - ✅ 步骤 [fetch_details] 完成。耗时: 2097ms, 成本: $0.000000
+2025-12-21 01:41:30,228 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-21 01:41:30,228 - app.services.workflow_engine - INFO - 👉 执行步骤 [analyze_public_papers] (尝试 1/4)...
+2025-12-21 01:41:30,228 - app.services.workflow_engine - INFO - ==================================================
+2025-12-21 01:41:37,570 - app.services.workflow_engine - INFO - ✅ 步骤 [analyze_public_papers] 完成。耗时: 4191ms, 成本: $0.000000
+2025-12-21 01:41:38,098 - app.services.workflow_engine - INFO - 
+==================================================
+2025-12-21 01:41:38,098 - app.services.workflow_engine - INFO - 👉 执行步骤 [personalized_filter] (尝试 1/4)...
+2025-12-21 01:41:38,098 - app.services.workflow_engine - INFO - ==================================================
