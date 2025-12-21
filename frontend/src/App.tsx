@@ -441,8 +441,10 @@ function AppContent() {
                     onClose={() => setShowReportModal(false)}
                     userId={user.id}
                     onComplete={() => {
-                        // Refresh reports list
+                        // 全局刷新：研报列表、推荐论文、论文库
                         queryClient.invalidateQueries({ queryKey: ['reports'] });
+                        queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+                        queryClient.invalidateQueries({ queryKey: ['papers'] });
                     }}
                 />
             )}

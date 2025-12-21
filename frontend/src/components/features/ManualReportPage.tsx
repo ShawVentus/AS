@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Play, Save, AlertTriangle, X, Loader2, HelpCircle } from 'lucide-react';
+import { Sparkles, Play, Save, AlertTriangle, X, Loader2, HelpCircle, Mail } from 'lucide-react';
 import { WorkflowProgress } from './workflow/WorkflowProgress';
 import { CategorySelector } from '../common/CategorySelector';
 import { TagInput } from '../common/TagInput';
@@ -13,6 +13,7 @@ import type { StepProgress } from '../../types';
 interface ManualReportPageProps {
     userProfile: UserProfile;
     onBack: () => void;
+    onNavigate?: (view: string) => void;  // 新增：页面导航函数
     // 表单状态（受控组件）
     naturalQuery: string;
     categories: string[];
@@ -217,6 +218,7 @@ const transformStepsForUI = (steps: StepProgress[]): StepProgress[] => {
 export const ManualReportPage: React.FC<ManualReportPageProps> = ({
     userProfile,
     onBack,
+    onNavigate,
     naturalQuery,
     categories,
     authors,
@@ -244,6 +246,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
     const [showConfirm, setShowConfirm] = useState(false);
     const [showSaveConfirm, setShowSaveConfirm] = useState(false); // 保存设置确认弹窗状态
     const [showQuotaModal, setShowQuotaModal] = useState(false); // 额度不足弹窗状态
+    const [showEmailWarning, setShowEmailWarning] = useState(false); // 无邮箱警告弹窗状态
 
     // Workflow States (工作流状态)
     const { isGenerating, steps, startTask } = useTaskContext();
@@ -366,6 +369,30 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
         } finally {
             setIsSaving(false);
         }
+    };
+
+    /**
+     * 处理生成按钮点击。
+     * 按优先级检查：额度 → 邮箱 → 确认弹窗
+     */
+    const handleGenerateClick = () => {
+        const remainingQuota = userProfile.info.remaining_quota || 0;
+        const email = userProfile.info.email?.trim() || '';
+        
+        // 1. 优先检查额度
+        if (remainingQuota < 1) {
+            setShowQuotaModal(true);
+            return;
+        }
+        
+        // 2. 检查邮箱
+        if (!email) {
+            setShowEmailWarning(true);
+            return;
+        }
+        
+        // 3. 邮箱和额度都正常，显示确认弹窗
+        setShowConfirm(true);
     };
 
     /**
@@ -512,7 +539,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                     </div>
 
                     <button
-                        onClick={() => setShowConfirm(true)}
+                        onClick={handleGenerateClick}
                         disabled={isGenerating || isStarting || categories.length === 0}
                         className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95"
                     >
@@ -599,6 +626,56 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                             >
                                 {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                                 确认保存
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Email Warning Modal (邮箱未设置警告弹窗) */}
+            {showEmailWarning && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in">
+                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl max-w-md w-full shadow-2xl animate-in zoom-in-95">
+                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                            <Mail className="text-amber-500" />
+                            未设置接收邮箱
+                        </h3>
+                        <p className="text-slate-400 mb-6 leading-relaxed">
+                            您当前没有设置邮箱，<strong className="text-amber-400">将无法获取每日的研报推送</strong>。
+                            <br /><br />
+                            手动生成的报告仅能在应用内查看。
+                            <br /><br />
+                            是否继续生成？
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowEmailWarning(false)}
+                                className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
+                            >
+                                取消
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowEmailWarning(false);
+                                    // 跳转到设置页面
+                                    if (onNavigate) {
+                                        onNavigate('settings');
+                                    } else {
+                                        onBack();
+                                    }
+                                }}
+                                className="px-4 py-2 border border-indigo-500 text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors"
+                            >
+                                去设置邮箱
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowEmailWarning(false);
+                                    setShowConfirm(true); // 跳过邮箱检查，继续显示确认弹窗
+                                }}
+                                className="px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-medium"
+                            >
+                                仍然生成
                             </button>
                         </div>
                     </div>

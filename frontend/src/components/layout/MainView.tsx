@@ -198,6 +198,7 @@ export const MainView = memo(({
         return <ManualReportPage
             userProfile={userProfile}
             onBack={() => onNavigate('dashboard')}
+            onNavigate={onNavigate}
             naturalQuery={manualReportQuery}
             categories={manualReportCategories}
             authors={manualReportAuthors}

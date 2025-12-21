@@ -1,6 +1,9 @@
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import json
+
+# 定义中国时区 (UTC+8)，解决容器环境下 datetime.now() 默认 UTC 的问题
+CN_TZ = timezone(timedelta(hours=8))
 import os
 import uuid
 from app.schemas.report import Report
@@ -153,13 +156,13 @@ class ReportService:
                     "user_email": user_profile.info.email,
                     "manual_query": manual_query,
                     "papers_count": len(papers),
-                    "failed_at": datetime.now().isoformat()
+                    "failed_at": datetime.now(CN_TZ).isoformat()
                 },
                 stack_trace=traceback.format_exc() if traceback else None
             )
 
             llm_result = {
-                "title": f"{datetime.now().strftime('%Y/%m/%d')} - Daily Report (Fallback)",
+                "title": f"{datetime.now(CN_TZ).strftime('%Y/%m/%d')} - Daily Report (Fallback)",
                 "summary": "Failed to generate report via LLM.",
                 "content": "No content generated.",
                 "ref_papers": []
@@ -174,11 +177,11 @@ class ReportService:
                 report_date = status_res.data[0]["value"]
                 print(f"使用 ArXiv 日期作为报告日期: {report_date}")
             else:
-                report_date = datetime.now().strftime("%Y-%m-%d")
+                report_date = datetime.now(CN_TZ).strftime("%Y-%m-%d")
                 print(f"警告: 未找到 ArXiv 日期，使用系统日期: {report_date}")
         except Exception as e:
             print(f"获取 ArXiv 日期失败: {e}")
-            report_date = datetime.now().strftime("%Y-%m-%d")
+            report_date = datetime.now(CN_TZ).strftime("%Y-%m-%d")
         
         # 4. 计算统计数据
         # 区分自动任务和手动任务的统计逻辑
@@ -218,7 +221,7 @@ class ReportService:
                 report_data["user_id"] = user_profile.info.id
             
             # 【修复】添加 created_at 字段，避免数据库非空约束错误
-            report_data["created_at"] = datetime.now().isoformat()
+            report_data["created_at"] = datetime.now(CN_TZ).isoformat()
             
             self.db.table("reports").insert(report_data).execute()
         except Exception as e:
@@ -293,7 +296,7 @@ class ReportService:
                     "user_id": report.user_id,
                     "user_email": user_email,
                     "report_title": report.title,
-                    "failed_at": datetime.now().isoformat()
+                    "failed_at": datetime.now(CN_TZ).isoformat()
                 },
                 stack_trace=traceback.format_exc()
             )
@@ -363,7 +366,7 @@ class ReportService:
             try:
                 # 获取今日日期（如果未提供）
                 if not report_date:
-                    report_date = datetime.now().strftime("%Y-%m-%d")
+                    report_date = datetime.now(CN_TZ).strftime("%Y-%m-%d")
                 
                 # 查询今日创建的用户论文状态记录
                 today_states_res = self.db.table("user_paper_states") \
