@@ -312,8 +312,8 @@ export const Settings: React.FC<SettingsProps> = ({ userProfile, onUpdate, onBac
                 </div>
             </section>
 
-            {/* 账户额度（新增） */}
-            <section className="bg-slate-900/50 rounded-xl p-5 border border-slate-800 backdrop-blur-sm">
+            {/* 账户额度（新增） - 添加 id 用于页面内定位 */}
+            <section id="payment" className="bg-slate-900/50 rounded-xl p-5 border border-slate-800 backdrop-blur-sm">
                 <div className="flex items-center gap-2 mb-4 text-amber-400">
                     <Coins size={20} />
                     <h2 className="text-lg font-semibold text-white">账户额度</h2>

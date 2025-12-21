@@ -363,6 +363,32 @@ function AppContent() {
         await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
     };
 
+    /**
+     * 处理页面导航
+     * 
+     * 功能：支持普通导航和带 hash 的锚点定位
+     * 
+     * Args:
+     *   view: 目标视图名称，支持 'viewName#elementId' 格式
+     * 
+     * Returns:
+     *   void
+     */
+    const handleNavigate = (view: string) => {
+        const [viewName, hash] = view.split('#');
+        setCurrentView(viewName);
+        
+        // 如果有 hash，延迟滚动到对应元素
+        if (hash) {
+            setTimeout(() => {
+                const element = document.getElementById(hash);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100); // 等待视图渲染完成
+        }
+    };
+
     return (
         <div className="flex flex-col h-screen bg-slate-950 text-slate-200 font-sans selection:bg-cyan-500/30 selection:text-cyan-100 overflow-hidden">
             {/* Hide Header on Onboarding */}
@@ -388,7 +414,7 @@ function AppContent() {
                             latestReport={latestReport}
                             loadingPapers={dataLoading}
                             dateFilter={dateFilter}
-                            onNavigate={setCurrentView}
+                            onNavigate={handleNavigate}
                             onSelectReport={setSelectedReport}
                             onSelectPaper={setSelectedPaper}
                             onNavigateToPaper={handleNavigateToPaper}
@@ -440,6 +466,7 @@ function AppContent() {
                     isOpen={showReportModal}
                     onClose={() => setShowReportModal(false)}
                     userId={user.id}
+                    userEmail={userProfile?.info?.email}
                     onComplete={() => {
                         // 全局刷新：研报列表、推荐论文、论文库
                         queryClient.invalidateQueries({ queryKey: ['reports'] });

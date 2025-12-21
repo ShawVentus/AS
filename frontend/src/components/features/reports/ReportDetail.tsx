@@ -1,16 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, Microscope, ArrowRightCircle, Compass, Mail, Loader2, X, Target, Quote } from 'lucide-react';
+import { ChevronLeft, Microscope, ArrowRightCircle, Compass, X, Target, Quote } from 'lucide-react';
 import type { Report, Paper } from '../../../types';
 import { PaperAPI } from '../../../services/api/paper';
-import { ReportAPI } from '../../../services/api/report';
 import { cn } from '../../../utils/cn';
 import { parseMarkdown } from '../../../utils/markdownParser';
 import type { ParsedParagraph } from '../../../utils/markdownParser';
 import { RefSentence } from './RefSentence';
-
-
-import { formatReportTime } from '../../../utils/date';
 
 interface ReportDetailProps {
     report: Report;
@@ -26,7 +22,6 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
     const [hoveredPaperId, setHoveredPaperId] = useState<string | null>(null); // 悬停的论文 ID (右侧)
 
     const [parsedContent, setParsedContent] = useState<ParsedParagraph[]>([]);
-    const [sendingEmail, setSendingEmail] = useState(false);
 
     // [Refactor] Use React Query for fetching referenced papers
     const { data: papers = [], isLoading: loadingPapers } = useQuery({
@@ -105,21 +100,7 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
         setHoveredPaperId(paperId);
     };
 
-    const handleSendEmail = async () => {
-        const email = prompt("请输入接收邮箱:");
-        if (!email) return;
 
-        setSendingEmail(true);
-        try {
-            await ReportAPI.sendEmail(report.id, email);
-            alert('邮件发送成功');
-        } catch (error) {
-            console.error('Failed to send email:', error);
-            alert('发送失败');
-        } finally {
-            setSendingEmail(false);
-        }
-    };
 
     return (
         <div className="flex h-full overflow-hidden animate-page-enter">
@@ -138,15 +119,18 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ report, onBack, onNa
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <button
-                            onClick={handleSendEmail}
-                            disabled={sendingEmail}
-                            className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded border border-slate-800 hover:border-slate-600 transition-all flex items-center gap-2"
+                        {/* 【修改】查看论文列表：使用报告生成日期（created_at）而非论文发布日期（date） */}
+                        {/* 这样确保周末手动生成的报告也能正确定位到当天处理的论文 */}
+                        <button 
+                            onClick={() => {
+                                // 从 created_at 提取日期部分 (YYYY-MM-DD)
+                                const reportDate = report.created_at 
+                                    ? report.created_at.substring(0, 10) 
+                                    : report.date;
+                                onNavigateToPaper(null, [], reportDate);
+                            }} 
+                            className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded border border-slate-800 hover:border-slate-600 transition-all"
                         >
-                            {sendingEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
-                            发送邮件
-                        </button>
-                        <button onClick={() => onNavigateToPaper(null, [], report.date)} className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded border border-slate-800 hover:border-slate-600 transition-all">
                             查看论文列表
                         </button>
                     </div>

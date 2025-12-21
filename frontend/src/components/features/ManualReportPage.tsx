@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Play, Save, AlertTriangle, X, Loader2, HelpCircle, Mail } from 'lucide-react';
 import { WorkflowProgress } from './workflow/WorkflowProgress';
 import { CategorySelector } from '../common/CategorySelector';
@@ -27,8 +27,19 @@ import { WORKFLOW_STEPS } from '../../constants/workflow';
 
 const STEPS = WORKFLOW_STEPS;
 
-// Helper function to transform steps for UI
-const transformStepsForUI = (steps: StepProgress[]): StepProgress[] => {
+/**
+ * 步骤状态转换函数
+ * 
+ * 功能：将后端返回的原始步骤数据转换为前端 UI 展示格式
+ * 
+ * Args:
+ *   steps: 后端返回的步骤列表
+ *   userProfile: 用户画像（用于判断邮箱状态，决定完成提示文案）
+ * 
+ * Returns:
+ *   转换后的步骤列表
+ */
+const transformStepsForUI = (steps: StepProgress[], userProfile?: UserProfile | null): StepProgress[] => {
     const crawlerStep = steps.find(s => s.name === 'run_crawler');
     const fetchStep = steps.find(s => s.name === 'fetch_details');
     const analyzeStep = steps.find(s => s.name === 'analyze_public_papers');
@@ -204,7 +215,9 @@ const transformStepsForUI = (steps: StepProgress[]): StepProgress[] => {
         if (newReportStep.status === 'running') {
             newReportStep.message = '正在生成报告';
         } else if (newReportStep.status === 'completed') {
-            newReportStep.message = '已生成报告并发送至邮箱';
+            // 【修改】根据用户是否有邮箱显示不同的完成提示
+            const hasEmail = userProfile?.info?.email?.trim();
+            newReportStep.message = hasEmail ? '已生成报告并发送至邮箱' : '已生成报告';
         }
 
         newSteps.push(newReportStep);
@@ -255,7 +268,22 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
     const [error, setError] = useState<string | null>(null);
 
     // Transform steps for UI display
-    const uiSteps = React.useMemo(() => transformStepsForUI(steps), [steps]);
+    // 【修改】传入 userProfile 以便根据邮箱状态显示不同的完成提示
+    const uiSteps = React.useMemo(() => transformStepsForUI(steps, userProfile), [steps, userProfile]);
+
+    // 【新增】跟踪工作流状态变化，完成后刷新论文列表
+    const previousIsGenerating = useRef(isGenerating);
+    useEffect(() => {
+        // 检测工作流完成（isGenerating 从 true 变为 false）
+        if (!isGenerating && previousIsGenerating.current) {
+            // 刷新论文列表、推荐论文、研报列表
+            queryClient.invalidateQueries({ queryKey: ['papers'] });
+            queryClient.invalidateQueries({ queryKey: ['recommendations'] });
+            queryClient.invalidateQueries({ queryKey: ['reports'] });
+            console.log('[ManualReportPage] 工作流完成，已刷新论文和研报列表');
+        }
+        previousIsGenerating.current = isGenerating;
+    }, [isGenerating, queryClient]);
 
     useEffect(() => {
         // Optional: Pre-fill logic (可选：预填充逻辑)
@@ -693,7 +721,7 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                         <p className="text-slate-400 mb-6">
                             您当前的剩余额度为 <span className="text-red-400 font-bold">0</span>，无法生成新报告。
                             <br /><br />
-                            请充值或联系管理员获取更多额度。
+                            请充值后继续使用。
                         </p>
                         <div className="flex justify-end gap-3">
                             <button
@@ -704,9 +732,11 @@ export const ManualReportPage: React.FC<ManualReportPageProps> = ({
                             </button>
                             <button
                                 onClick={() => {
-                                    // TODO: 集成充值流程
-                                    showToast("充值功能即将上线", "info");
+                                    // 【修改】跳转到设置页充值区域
                                     setShowQuotaModal(false);
+                                    if (onNavigate) {
+                                        onNavigate('settings#payment');
+                                    }
                                 }}
                                 className="px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-medium"
                             >

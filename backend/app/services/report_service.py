@@ -230,9 +230,12 @@ class ReportService:
             
         # 7. 发送邮件
         # 【修复】传递正确的统计数据给邮件格式化器
+        # 【新增】传递 is_manual 参数用于区分邮件标题
+        is_manual = bool(manual_query)
         email_success = self.send_report_email_advanced(report, papers, user_profile.info.email, 
                                         total_count=total_count, 
-                                        recommended_count=recommended_count)
+                                        recommended_count=recommended_count,
+                                        is_manual=is_manual)
         
         # 提取 usage
         usage = llm_result.get("_usage", {})
@@ -240,7 +243,8 @@ class ReportService:
         return report, usage, email_success
 
     def send_report_email_advanced(self, report: Report, papers: List[PersonalizedPaper], user_email: str,
-                                   total_count: int = None, recommended_count: int = None) -> bool:
+                                   total_count: int = None, recommended_count: int = None,
+                                   is_manual: bool = False) -> bool:
         """
         使用高级格式化发送报告邮件。
 
@@ -250,6 +254,7 @@ class ReportService:
             user_email (str): 用户邮箱
             total_count (int, optional): 爬取的总论文数（用于邮件统计）
             recommended_count (int, optional): 推荐的论文数（用于邮件统计）
+            is_manual (bool): 是否为手动生成的报告，用于区分邮件标题
 
         Returns:
             bool: 发送是否成功
@@ -267,8 +272,11 @@ class ReportService:
                 recommended_count=recommended_count
             )
             
-            # 发送邮件
-            subject = f"【ArxivScout论文日报】{report.date}"
+            # 【修改】根据是否手动生成设置不同的邮件标题
+            if is_manual:
+                subject = "【ArxivScout 即时报告】"
+            else:
+                subject = f"【ArxivScout 论文日报】{report.date}"
             success, msg = email_sender.send_email(user_email, subject, html_content, plain_content)
             
             if success:

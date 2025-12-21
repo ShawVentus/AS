@@ -282,7 +282,8 @@ class SchedulerService:
                     
                     custom_title = f"{manual_query} - 即时报告" if manual_query else None
                     if manual_authors: user_profile.focus.authors = manual_authors
-                    if not user_profile.info.email: continue
+                    # 【修改】移除邮箱检查前置条件，允许无邮箱用户生成报告
+                    # if not user_profile.info.email: continue
                         
                     print(f"正在为用户生成报告: {user_profile.info.name}")
                     
@@ -325,11 +326,15 @@ class SchedulerService:
                         total_stats["cache_hit_tokens"] += usage.get("cache_hit_tokens", 0)
                         total_stats["request_count"] += 1
                     
+                    # 【修改】报告生成成功即扣减额度，邮件发送为附加操作
+                    user_service.deduct_quota(user_id=user_id, amount=1, reason="report_generated", report_id=report.id)
+                    
                     if email_success:
-                        user_service.deduct_quota(user_id=user_id, amount=1, reason="report_generated", report_id=report.id)
-                        print(f"✓ 报告已发送并扣减额度: {user_profile.info.name}")
+                        print(f"✓ 报告已生成、已扣费、已发送邮件: {user_profile.info.name}")
+                    elif user_profile.info.email:
+                        print(f"⚠️ 报告已生成、已扣费，但邮件发送失败: {user_profile.info.name}")
                     else:
-                        print(f"⚠️ 报告生成但发送失败: {user_profile.info.name}")
+                        print(f"✓ 报告已生成、已扣费（用户未设置邮箱，跳过发送）: {user_profile.info.name}")
                         
                 except Exception as e:
                     print(f"为用户 {user_id} 生成报告失败: {e}")

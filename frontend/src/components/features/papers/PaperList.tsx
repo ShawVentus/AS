@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Filter, Download, FileText, Calendar as CalendarIcon, X, ArrowUp } from 'lucide-react';
+import { Filter, FileText, Calendar as CalendarIcon, X, ArrowUp } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PaperAPI } from '../../../services/api';
 import type { Paper } from '../../../types';
@@ -441,10 +441,6 @@ export const PaperList: React.FC<PaperListProps> = ({ dateFilter, onClearDateFil
                                 </div>
                             </div>
                         )}
-
-                        <button className="flex items-center gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded text-xs font-medium shadow-lg shadow-cyan-900/20 transition-colors">
-                            <Download size={14} /> 批量下载
-                        </button>
                     </div>
                 </div>
             </div>

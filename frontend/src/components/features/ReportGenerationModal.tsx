@@ -4,11 +4,16 @@ import { X, CheckCircle, Loader2, AlertCircle, ChevronRight } from 'lucide-react
 import { WorkflowProgress } from './workflow/WorkflowProgress';
 import type { StepProgress } from '../../types';
 
+/**
+ * 报告生成弹窗组件的参数接口
+ */
 interface ReportGenerationModalProps {
     isOpen: boolean;
     onClose: () => void;
     userId: string;
     onComplete?: () => void;
+    /** 用户邮箱，用于判断完成提示显示内容 */
+    userEmail?: string;
 }
 
 
@@ -26,7 +31,7 @@ const STEPS = WORKFLOW_STEPS;
  * 由于 Bohrium 容器环境的反向代理导致 SSE 连接不稳定，
  * 将原来的 SSE 长连接改为定时轮询模式。
  */
-export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ isOpen, onClose, userId, onComplete }) => {
+export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ isOpen, onClose, userId, onComplete, userEmail }) => {
     const [steps, setSteps] = useState<StepProgress[]>(
         STEPS.map(s => ({ ...s, status: 'pending', progress: 0 }))
     );
@@ -430,7 +435,9 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
                             )}
                         </h2>
                         <p className="text-lg text-gray-500 dark:text-gray-400 mt-2">
-                            {isCompleted ? "您的日报已发送至邮箱" : "请稍候，正在处理您的订阅内容"}
+                            {isCompleted 
+                                ? (userEmail?.trim() ? "您的日报已发送至邮箱" : "报告已生成") 
+                                : "请稍候，正在处理您的订阅内容"}
                         </p>
                     </div>
                     <button
