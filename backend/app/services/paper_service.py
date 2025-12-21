@@ -1,5 +1,5 @@
 from typing import List, Optional, Union, Callable, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import subprocess
 import os
@@ -780,6 +780,9 @@ class PaperService:
                     total_cache_hit_tokens += usage.get("cache_hit_tokens", 0)
                     
                     # 构造状态数据字典
+                    # 【修改】添加 created_at 字段，确保重新分析时更新时间戳
+                    # 这样论文会按新的分析日期出现在论文列表中
+                    CN_TZ = timezone(timedelta(hours=8))
                     state_data = {
                         "user_id": user_id,
                         "paper_id": p.meta.id,
@@ -788,7 +791,8 @@ class PaperService:
                         "accepted": filter_result["accepted"],
                         "user_liked": None,
                         "user_feedback": None,
-                        "note": None
+                        "note": None,
+                        "created_at": datetime.now(CN_TZ).isoformat()  # 更新分析时间
                     }
 
                     # [Batch Update] 收集数据，不立即写入
