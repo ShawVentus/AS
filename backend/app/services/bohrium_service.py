@@ -68,9 +68,6 @@ class ConsumeResult:
 BOHRIUM_API_BASE = "https://openapi.dp.tech"
 BOHRIUM_CONSUME_URL = f"{BOHRIUM_API_BASE}/openapi/v1/api/integral/consume"
 
-# 应用标识（固定值）
-BOHRIUM_CLIENT_NAME = os.getenv("BOHRIUM_CLIENT_NAME", "arxivscout")
-
 # 商品 SKU ID（固定值）
 BOHRIUM_SKU_ID = int(os.getenv("BOHRIUM_SKU_ID", "10020"))
 
@@ -79,9 +76,9 @@ DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 DEV_ACCESS_KEY = os.getenv("DEV_BOHRIUM_ACCESS_KEY", "")
 
 # ===================== 缓存配置 =====================
-# accessKey -> user_id 缓存，避免重复调用玻尔 API
+# accessKey -> { user_id, client_name, expires_at } 缓存，避免重复调用玻尔 API
 CACHE_TTL = 300  # 缓存过期时间：5 分钟
-_user_cache: dict = {}  # 内存缓存：{ accessKey: { "user_id": str, "expires_at": float } }
+_user_cache: dict = {}  # 内存缓存：{ accessKey: { "user_id": str, "client_name": str, "expires_at": float } }
 
 
 
@@ -159,7 +156,7 @@ def generate_biz_no() -> int:
     return int(f"{timestamp}{rand_part}")
 
 
-async def consume_integral(access_key: str, event_value: int, app_key: str = None) -> ConsumeResult:
+async def consume_integral(access_key: str, event_value: int, client_name: str) -> ConsumeResult:
     """
     调用玻尔平台积分消费接口。
     
@@ -168,9 +165,8 @@ async def consume_integral(access_key: str, event_value: int, app_key: str = Non
     Args:
         access_key: 用户的玻尔平台 accessKey（从 Cookie appAccessKey 获取）
         event_value: 消费的光子数量（100/400/1200）
-        app_key: 用户的客户端标识（从 Cookie clientName 获取）。
-                 若为 None，则使用环境变量 BOHRIUM_CLIENT_NAME 作为默认值。
-                 注意：在 Bohrium 容器环境中必须传入真实的 clientName，否则会返回 401。
+        client_name: 用户标识（从 Cookie clientName 获取），用于 x-app-key header。
+                     此参数必须提供，不能为空。
     
     Returns:
         ConsumeResult: 消费结果数据类，包含以下字段：
@@ -180,25 +176,29 @@ async def consume_integral(access_key: str, event_value: int, app_key: str = Non
             - request_id (int): 玻尔平台返回的请求 ID（成功时有值）
             - error (str): 错误信息（失败时有值）
     
+    Raises:
+        ValueError: client_name 为空
+    
     Example:
-        >>> result = await consume_integral("sk-xxx", 100, "arxivscout-uuid123")
+        >>> result = await consume_integral("sk-xxx", 100, "user123")
         >>> if result.success:
         >>>     print(f"扣费成功，流水号: {result.out_biz_no}")
         >>> else:
         >>>     print(f"扣费失败: {result.error}")
     """
-    biz_no = generate_biz_no()
+    # 【修复】client_name 是用户标识，必须从 Cookie 获取，不能为空
+    if not client_name:
+        raise ValueError("clientName 不能为空，请确保从玻尔平台访问")
     
-    # 【修复】优先使用传入的 app_key（Cookie 中的 clientName），否则回退到环境变量
-    effective_app_key = app_key or BOHRIUM_CLIENT_NAME
+    biz_no = generate_biz_no()
     
     headers = {
         "accessKey": access_key,
-        "x-app-key": effective_app_key,  # 使用动态 app_key
+        "x-app-key": client_name,  # 用户标识
         "Content-Type": "application/json"
     }
     
-    print(f"[支付] 调用玻尔扣费接口: accessKey={access_key[:8]}..., x-app-key={effective_app_key}, eventValue={event_value}")
+    print(f"[支付] 调用玻尔扣费接口: accessKey={access_key[:8]}..., x-app-key={client_name}, eventValue={event_value}")
     
     payload = {
         "bizNo": biz_no,
@@ -291,16 +291,17 @@ def get_access_key_or_default(access_key: Optional[str]) -> str:
 
 # ===================== 缓存功能函数 =====================
 
-def get_user_id_cached(access_key: str, app_key: Optional[str] = None) -> str:
+def get_user_id_cached(access_key: str, client_name: Optional[str] = None) -> str:
     """
     通过 accessKey 获取 user_id，带内存缓存。
     
     此函数用于后端认证，避免每次请求都调用玻尔 API。
     缓存 TTL 为 5 分钟，过期后自动重新获取。
+    同时会缓存 client_name（用户标识），供后续扣费使用。
     
     Args:
         access_key: 玻尔平台 accessKey（从 Cookie appAccessKey 获取）
-        app_key: 玻尔平台 appKey（从 Cookie clientName 获取）
+        client_name: 用户标识（从 Cookie clientName 获取），首次调用时必须提供
     
     Returns:
         str: 用户 ID（如 '6z023dyl'）
@@ -320,7 +321,7 @@ def get_user_id_cached(access_key: str, app_key: Optional[str] = None) -> str:
     if access_key in _user_cache:
         cached = _user_cache[access_key]
         if cached["expires_at"] > current_time:
-            print(f"[缓存命中] user_id = {cached['user_id']}")
+            print(f"[缓存命中] user_id = {cached['user_id']}, client_name = {cached.get('client_name', 'N/A')}")
             return cached["user_id"]
         else:
             # 缓存过期，删除
@@ -328,16 +329,41 @@ def get_user_id_cached(access_key: str, app_key: Optional[str] = None) -> str:
     
     # 缓存未命中，调用玻尔 API
     print("[缓存未命中] 调用玻尔 API 获取用户信息...")
-    user_info = get_user_info(access_key, app_key)
+    user_info = get_user_info(access_key, client_name)
     
-    # 存入缓存
+    # 存入缓存（包含 client_name）
     _user_cache[access_key] = {
         "user_id": user_info.user_id,
+        "client_name": client_name,  # 同时缓存 client_name
         "expires_at": current_time + CACHE_TTL
     }
     
-    print(f"[缓存已更新] user_id = {user_info.user_id}, TTL = {CACHE_TTL}秒")
+    print(f"[缓存已更新] user_id = {user_info.user_id}, client_name = {client_name}, TTL = {CACHE_TTL}秒")
     return user_info.user_id
+
+
+def get_client_name_cached(access_key: str) -> Optional[str]:
+    """
+    从缓存获取 client_name（用户标识）。
+    
+    用于需要 client_name 但没有直接从 Cookie 获取的场景（如扣费接口）。
+    
+    Args:
+        access_key: 玻尔平台 accessKey
+    
+    Returns:
+        Optional[str]: 缓存的 client_name，若缓存不存在或已过期则返回 None
+    """
+    if not access_key or access_key not in _user_cache:
+        return None
+    
+    cached = _user_cache[access_key]
+    current_time = time.time()
+    
+    if cached["expires_at"] > current_time:
+        return cached.get("client_name")
+    
+    return None
 
 
 def clear_user_cache(access_key: Optional[str] = None) -> None:

@@ -111,11 +111,17 @@ async def consume_payment(request: Request, body: ConsumeRequest):
             "data": null
         }
     """
-    # 1. 获取 accessKey 和 appKey
+    # 1. 获取 accessKey 和 clientName（用户标识）
     try:
         access_key = request.cookies.get("appAccessKey")
         access_key = get_access_key_or_default(access_key)
-        app_key = request.cookies.get("clientName")  # 玻尔平台设置的 appKey
+        client_name = request.cookies.get("clientName")  # 用户标识，用于扣费
+        
+        if not client_name:
+            return ConsumeResponse(
+                success=False,
+                message="用户标识缺失，请从玻尔平台访问"
+            )
     except ValueError as e:
         return ConsumeResponse(
             success=False,
@@ -124,7 +130,7 @@ async def consume_payment(request: Request, body: ConsumeRequest):
     
     # 2. 确保用户存在
     try:
-        user_info = await ensure_user_exists(access_key, app_key)
+        user_info = await ensure_user_exists(access_key, client_name)
     except Exception as e:
         print(f"❌ [支付接口] 获取用户信息失败: {e}")
         return ConsumeResponse(
@@ -146,13 +152,13 @@ async def consume_payment(request: Request, body: ConsumeRequest):
             message="次数与价格不匹配"
         )
     
-    # 4. 执行购买流程（【修复】传入 app_key 以正确调用玻尔扣费接口）
+    # 4. 执行购买流程
     result = await process_purchase(
         user_id=user_info.user_id,
         access_key=access_key,
         event_value=body.eventValue,
         quota_amount=body.quotaAmount,
-        app_key=app_key  # 传入 Cookie 中的 clientName
+        client_name=client_name  # 用户标识
     )
     
     # 5. 返回结果
