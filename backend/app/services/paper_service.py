@@ -857,7 +857,6 @@ class PaperService:
         # 这里的代码块是 filter_papers 的尾部，无法访问 executor 循环中的局部变量
         # 因此必须重写 filter_papers 的 executor 循环部分
         
-        from datetime import datetime
         return FilterResponse(
             user_id=user_id,
             created_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
