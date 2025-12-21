@@ -114,8 +114,8 @@ export const PaperCard: React.FC<PaperCardProps> = ({ paper, index, showIndex = 
                             {(paper.user_state?.relevance_score || 0).toFixed(2)}
                         </span>
                         <span className="text-slate-600">|</span>
-                        {/* Published Date (Now using Created At) */}
-                        <span className="text-slate-400">{formatReportTime(paper.meta.created_at || paper.meta.published_date)}</span>
+                        {/* 【修改】使用用户个性化数据的创建时间 (user_paper_states.created_at) */}
+                        <span className="text-slate-400">{formatReportTime(paper.user_state?.created_at || paper.meta.published_date)}</span>
                         <span className="text-slate-600">|</span>
                         {/* Category - Show All */}
                         <div className="flex gap-1 flex-wrap">

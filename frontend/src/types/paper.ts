@@ -49,6 +49,7 @@ export interface UserPaperState {
     user_liked?: boolean | null;
     user_feedback?: string;
     note?: string;
+    created_at?: string;  // 用户处理论文的时间
 }
 
 export interface PersonalizedPaper {

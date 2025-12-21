@@ -80,6 +80,9 @@ class UserPaperState(BaseModel):
     user_liked: Optional[bool] = None # Like (True) / Dislike (False) / None
     user_feedback: Optional[str] = None # 用户反馈的具体原因
     note: Optional[str] = None # 用户个人笔记
+    
+    # --- 时间戳 ---
+    created_at: Optional[str] = None  # 用户处理论文的时间
 
 class PersonalizedPaper(BaseModel):
     """
