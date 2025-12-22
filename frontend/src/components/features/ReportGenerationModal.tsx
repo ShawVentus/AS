@@ -47,7 +47,7 @@ export const ReportGenerationModal: React.FC<ReportGenerationModalProps> = ({ is
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // 轮询配置
-    const POLL_INTERVAL = 2000;         // 轮询间隔：2 秒
+    const POLL_INTERVAL = 1000;         // 轮询间隔：2 秒
     const MAX_FAIL_COUNT = 5;           // 最大连续失败次数
     const BACKOFF_MULTIPLIER = 1.5;     // 失败后延迟倍数
 
