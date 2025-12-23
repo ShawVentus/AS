@@ -45,6 +45,7 @@ class Settings:
     # Bohrium 配置
     BOHRIUM_API_KEY: str = os.getenv("BOHRIUM_API_KEY", "")
     BOHRIUM_MODEL: str = os.getenv("BOHRIUM_MODEL", "qwen3-max")
+    BOHRIUM_SKU_ID: int = _get_env_as_type("BOHRIUM_SKU_ID", 10020, int)
 
     # 成本控制与模型配置
     # 便宜的模型 (用于分析/筛选)

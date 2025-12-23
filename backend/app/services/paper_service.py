@@ -8,11 +8,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm # 引入 tqdm 用于进度条
 from app.schemas.paper import RawPaperMetadata, UserPaperState, PersonalizedPaper, PaperAnalysis, PaperDetails, PaperLinks, PaperFilter, FilterResponse, FilterResultItem, PaperExportRequest
 from app.schemas.user import UserProfile
-from app.services.llm_service import llm_service
+from app.core.config import settings
 from app.core.database import get_db
 
-# 从环境变量获取最大并发数，默认为 2
-MAX_WORKERS = int(os.getenv("LLM_MAX_WORKERS", 2))
+# 从配置获取最大并发数
+MAX_WORKERS = settings.LLM_MAX_WORKERS
 
 class PaperService:
     def __init__(self):

@@ -120,7 +120,7 @@ if __name__ == "__main__":
     
     scheduler_service.start()
     
-    # 从环境变量获取主机和端口
-    host = os.getenv("HOST", "127.0.0.1")
-    port = int(os.getenv("PORT", 8000))
+    # 从配置获取主机和端口
+    host = settings.HOST
+    port = settings.PORT
     uvicorn.run(app, host=host, port=port)

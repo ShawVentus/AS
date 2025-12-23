@@ -54,19 +54,19 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
 
-          # ⚙️ 普通配置 (使用 Variables)
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
-          MODEL_CHEAP: ${{ vars.MODEL_CHEAP }}
-          MODEL_PERFORMANCE: ${{ vars.MODEL_PERFORMANCE }}
-          LLM_ANALYSIS_BATCH_SIZE: ${{ vars.LLM_ANALYSIS_BATCH_SIZE }}
-          LLM_ANALYSIS_BATCH_DELAY: ${{ vars.LLM_ANALYSIS_BATCH_DELAY }}
-          LLM_MAX_WORKERS: ${{ vars.LLM_MAX_WORKERS }}
-          SMTP_SERVER: ${{ vars.SMTP_SERVER }}
-          SMTP_PORT: ${{ vars.SMTP_PORT }}
-          SENDER_EMAIL: ${{ vars.SENDER_EMAIL }}
-          REPORT_PAPER_LIMIT: ${{ vars.REPORT_PAPER_LIMIT }}
-          WORKFLOW_MAX_RETRIES: ${{ vars.WORKFLOW_MAX_RETRIES }}
-          WORKFLOW_RETRY_DELAY_BASE: ${{ vars.WORKFLOW_RETRY_DELAY_BASE }}
+          # ⚙️ 普通配置 (优先从 Variables 读取，如果为空则从 Secrets 读取以保证兼容性)
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER || secrets.LLM_PROVIDER }}
+          MODEL_CHEAP: ${{ vars.MODEL_CHEAP || secrets.MODEL_CHEAP }}
+          MODEL_PERFORMANCE: ${{ vars.MODEL_PERFORMANCE || secrets.MODEL_PERFORMANCE }}
+          LLM_ANALYSIS_BATCH_SIZE: ${{ vars.LLM_ANALYSIS_BATCH_SIZE || secrets.LLM_ANALYSIS_BATCH_SIZE }}
+          LLM_ANALYSIS_BATCH_DELAY: ${{ vars.LLM_ANALYSIS_BATCH_DELAY || secrets.LLM_ANALYSIS_BATCH_DELAY }}
+          LLM_MAX_WORKERS: ${{ vars.LLM_MAX_WORKERS || secrets.LLM_MAX_WORKERS }}
+          SMTP_SERVER: ${{ vars.SMTP_SERVER || secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ vars.SMTP_PORT || secrets.SMTP_PORT }}
+          SENDER_EMAIL: ${{ vars.SENDER_EMAIL || secrets.SENDER_EMAIL }}
+          REPORT_PAPER_LIMIT: ${{ vars.REPORT_PAPER_LIMIT || secrets.REPORT_PAPER_LIMIT }}
+          WORKFLOW_MAX_RETRIES: ${{ vars.WORKFLOW_MAX_RETRIES || secrets.WORKFLOW_MAX_RETRIES }}
+          WORKFLOW_RETRY_DELAY_BASE: ${{ vars.WORKFLOW_RETRY_DELAY_BASE || secrets.WORKFLOW_RETRY_DELAY_BASE }}
         run: |
           cd backend
           # 检查必要的 API Key (Bohrium 或 OpenRouter)
