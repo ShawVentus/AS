@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "0 7 * * *" # UTC 03:00 = 北京时间 11:00
   workflow_dispatch: # 支持手动触发
+    inputs:
+      force:
+        description: "是否强制运行（忽略 ArXiv 更新检查）"
+        required: false
+        default: "false"
+        type: boolean
 
 concurrency:
   group: daily-report
@@ -17,8 +23,6 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
-        with:
-          ref: "0.1"
 
       - name: 设置 Python 3.11
         uses: actions/setup-python@v5
@@ -60,14 +64,13 @@ jobs:
           SMTP_SERVER: ${{ vars.SMTP_SERVER }}
           SMTP_PORT: ${{ vars.SMTP_PORT }}
           SENDER_EMAIL: ${{ vars.SENDER_EMAIL }}
-          ARXIV_DELAY_SECONDS: ${{ vars.ARXIV_DELAY_SECONDS }}
-          ARXIV_NUM_RETRIES: ${{ vars.ARXIV_NUM_RETRIES }}
           REPORT_PAPER_LIMIT: ${{ vars.REPORT_PAPER_LIMIT }}
           WORKFLOW_MAX_RETRIES: ${{ vars.WORKFLOW_MAX_RETRIES }}
           WORKFLOW_RETRY_DELAY_BASE: ${{ vars.WORKFLOW_RETRY_DELAY_BASE }}
         run: |
           cd backend
-          python3 -c "from app.services.scheduler import scheduler_service; scheduler_service.run_daily_workflow(force=True)"
+          # 根据触发方式决定是否强制运行
+          python3 -c "from app.services.scheduler import scheduler_service; scheduler_service.run_daily_workflow(force=(str('${{ github.event.inputs.force }}').lower() == 'true'))"
 
       # ===== 日志文件上传 =====
       - name: 上传执行日志

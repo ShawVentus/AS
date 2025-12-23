@@ -6,7 +6,6 @@ from email.mime.multipart import MIMEMultipart
 from email.header import Header
 import time
 import os
-import resend
 from jinja2 import Environment, FileSystemLoader
 from app.core.config import settings
 
@@ -36,8 +35,13 @@ class EmailSender:
         self.timeout = getattr(settings, 'SMTP_TIMEOUT', 30)
         
         if self.resend_api_key:
-            resend.api_key = self.resend_api_key
-            logger.info("Resend API Key configured, will use Resend as primary email service.")
+            try:
+                import resend
+                resend.api_key = self.resend_api_key
+                logger.info("Resend API Key configured, will use Resend as primary email service.")
+            except ImportError:
+                logger.warning("resend library not found, will fallback to SMTP.")
+                self.resend_api_key = None
         
         # Jinja2环境
         template_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
@@ -106,9 +110,10 @@ class EmailSender:
         # 优先使用 Resend
         if self.resend_api_key:
             try:
-                # Resend 免费版限制：只能发送到注册邮箱，且发件人必须是 onboarding@resend.dev
-                # 如果用户配置了自定义域名，可以后续优化
-                from_email = "ArxivScout <onboarding@resend.dev>"
+                import resend
+                # 如果设置了 SENDER_EMAIL 且不是默认的 onboarding 地址，则尝试使用它
+                # 注意：Resend 要求发件人域名必须已验证
+                from_email = self.sender_email if self.sender_email and "@resend.dev" not in self.sender_email else "ArxivScout <onboarding@resend.dev>"
                 
                 params = {
                     "from": from_email,
