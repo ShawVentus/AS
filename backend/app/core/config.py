@@ -3,26 +3,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- 环境变量解析工具函数 (放在类定义前以避免 NameError) ---
+# --- 环境变量解析工具函数 ---
 
-def _get_int_env(key: str, default: int) -> int:
-    """安全获取整数环境变量"""
+def _get_env_as_type(key: str, default: any, type_func: callable) -> any:
+    """安全获取环境变量并转换为指定类型"""
     val = os.getenv(key)
-    if not val or not val.strip():
+    if val is None or val.strip() == "":
         return default
     try:
-        return int(val)
-    except ValueError:
-        return default
-
-def _get_float_env(key: str, default: float) -> float:
-    """安全获取浮点数环境变量"""
-    val = os.getenv(key)
-    if not val or not val.strip():
-        return default
-    try:
-        return float(val)
-    except ValueError:
+        return type_func(val)
+    except (ValueError, TypeError):
         return default
 
 class Settings:
@@ -31,7 +21,7 @@ class Settings:
     
     # 服务器配置
     HOST: str = os.getenv("HOST", "127.0.0.1")
-    PORT: int = _get_int_env("PORT", 8000)
+    PORT: int = _get_env_as_type("PORT", 8000, int)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
 
@@ -67,21 +57,21 @@ class Settings:
     MODEL_PERFORMANCE: str = os.getenv("MODEL_PERFORMANCE", "qwen3-max")
     
     # Qwen-Plus 定价 (USD per 1M tokens)
-    QWEN_PLUS_PRICE_INPUT: float = _get_float_env("QWEN_PLUS_PRICE_INPUT", 0.40)
-    QWEN_PLUS_PRICE_OUTPUT: float = _get_float_env("QWEN_PLUS_PRICE_OUTPUT", 1.20)
-    QWEN_MAX_PRICE_INPUT: float = _get_float_env("QWEN_MAX_PRICE_INPUT", 1.60) # 假设价格，需确认
-    QWEN_MAX_PRICE_OUTPUT: float = _get_float_env("QWEN_MAX_PRICE_OUTPUT", 4.80)
+    QWEN_PLUS_PRICE_INPUT: float = _get_env_as_type("QWEN_PLUS_PRICE_INPUT", 0.40, float)
+    QWEN_PLUS_PRICE_OUTPUT: float = _get_env_as_type("QWEN_PLUS_PRICE_OUTPUT", 1.20, float)
+    QWEN_MAX_PRICE_INPUT: float = _get_env_as_type("QWEN_MAX_PRICE_INPUT", 1.60, float) # 假设价格，需确认
+    QWEN_MAX_PRICE_OUTPUT: float = _get_env_as_type("QWEN_MAX_PRICE_OUTPUT", 4.80, float)
     
     # Bohrium API 定价 (USD per 1M tokens)
-    BOHRIUM_PLUS_PRICE_INPUT: float = _get_float_env("BOHRIUM_PLUS_PRICE_INPUT", 0.40)
-    BOHRIUM_PLUS_PRICE_OUTPUT: float = _get_float_env("BOHRIUM_PLUS_PRICE_OUTPUT", 1.20)
-    BOHRIUM_MAX_PRICE_INPUT: float = _get_float_env("BOHRIUM_MAX_PRICE_INPUT", 1.20)
-    BOHRIUM_MAX_PRICE_OUTPUT: float = _get_float_env("BOHRIUM_MAX_PRICE_OUTPUT", 6.00)
+    BOHRIUM_PLUS_PRICE_INPUT: float = _get_env_as_type("BOHRIUM_PLUS_PRICE_INPUT", 0.40, float)
+    BOHRIUM_PLUS_PRICE_OUTPUT: float = _get_env_as_type("BOHRIUM_PLUS_PRICE_OUTPUT", 1.20, float)
+    BOHRIUM_MAX_PRICE_INPUT: float = _get_env_as_type("BOHRIUM_MAX_PRICE_INPUT", 1.20, float)
+    BOHRIUM_MAX_PRICE_OUTPUT: float = _get_env_as_type("BOHRIUM_MAX_PRICE_OUTPUT", 6.00, float)
 
     # LLM 批量处理配置
-    LLM_ANALYSIS_BATCH_SIZE: int = _get_int_env("LLM_ANALYSIS_BATCH_SIZE", 20)
-    LLM_ANALYSIS_BATCH_DELAY: int = _get_int_env("LLM_ANALYSIS_BATCH_DELAY", 60)
-    LLM_MAX_WORKERS: int = _get_int_env("LLM_MAX_WORKERS", 2)
+    LLM_ANALYSIS_BATCH_SIZE: int = _get_env_as_type("LLM_ANALYSIS_BATCH_SIZE", 20, int)
+    LLM_ANALYSIS_BATCH_DELAY: int = _get_env_as_type("LLM_ANALYSIS_BATCH_DELAY", 60, int)
+    LLM_MAX_WORKERS: int = _get_env_as_type("LLM_MAX_WORKERS", 2, int)
 
     # 兼容旧配置
     ACCESS_KEY: str = os.getenv("ACCESS_KEY", "")
@@ -195,7 +185,7 @@ class Settings:
     
     # 邮件配置
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "")
-    SMTP_PORT: int = _get_int_env("SMTP_PORT", 465)
+    SMTP_PORT: int = _get_env_as_type("SMTP_PORT", 465, int)
     SENDER_EMAIL: str = os.getenv("SENDER_EMAIL", "")
     SENDER_PASSWORD: str = os.getenv("SENDER_PASSWORD", "")
     RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
@@ -204,8 +194,8 @@ class Settings:
     # 错误通知邮件配置
     ERROR_NOTIFICATION_EMAIL: str = os.getenv("ERROR_NOTIFICATION_EMAIL") or os.getenv("ADMIN_EMAILS", "").split(",")[0] or os.getenv("SENDER_EMAIL", "")
     ENABLE_ERROR_NOTIFICATIONS: bool = os.getenv("ENABLE_ERROR_NOTIFICATIONS", "true").lower() == "true"
-    ERROR_NOTIFICATION_COOLDOWN: int = _get_int_env("ERROR_NOTIFICATION_COOLDOWN", 1800)  # 同类错误冷却时间（秒），默认30分钟
-    ERROR_NOTIFICATION_MAX_PER_HOUR: int = _get_int_env("ERROR_NOTIFICATION_MAX_PER_HOUR", 5)  # 每小时最多发送错误邮件数
+    ERROR_NOTIFICATION_COOLDOWN: int = _get_env_as_type("ERROR_NOTIFICATION_COOLDOWN", 1800, int)  # 同类错误冷却时间（秒），默认30分钟
+    ERROR_NOTIFICATION_MAX_PER_HOUR: int = _get_env_as_type("ERROR_NOTIFICATION_MAX_PER_HOUR", 5, int)  # 每小时最多发送错误邮件数
 
     # 爬虫配置
     CATEGORIES: str = os.getenv("CATEGORIES", "cs.CV,cs.LG,cs.CL,cs.AI")

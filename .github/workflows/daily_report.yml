@@ -69,6 +69,11 @@ jobs:
           WORKFLOW_RETRY_DELAY_BASE: ${{ vars.WORKFLOW_RETRY_DELAY_BASE }}
         run: |
           cd backend
+          # 检查必要的 API Key (Bohrium 或 OpenRouter)
+          if [ -z "${{ secrets.BOHRIUM_API_KEY }}" ] && [ -z "${{ secrets.OPENROUTER_API_KEY }}" ]; then
+            echo "❌ 错误: 未设置 BOHRIUM_API_KEY 或 OPENROUTER_API_KEY，无法调用 LLM。"
+            exit 1
+          fi
           # 根据触发方式决定是否强制运行
           python3 -c "from app.services.scheduler import scheduler_service; scheduler_service.run_daily_workflow(force=(str('${{ github.event.inputs.force }}').lower() == 'true'))"
 

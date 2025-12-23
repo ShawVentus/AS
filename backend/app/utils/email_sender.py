@@ -111,6 +111,10 @@ class EmailSender:
         if self.resend_api_key:
             try:
                 import resend
+                # 简单校验 API Key 格式 (通常以 re_ 开头)
+                if not self.resend_api_key.startswith("re_"):
+                    logger.warning("Resend API Key 格式似乎不正确，尝试继续发送...")
+
                 # 如果设置了 SENDER_EMAIL 且不是默认的 onboarding 地址，则尝试使用它
                 # 注意：Resend 要求发件人域名必须已验证
                 from_email = self.sender_email if self.sender_email and "@resend.dev" not in self.sender_email else "ArxivScout <onboarding@resend.dev>"
@@ -126,9 +130,16 @@ class EmailSender:
                 logger.info(f"Email sent via Resend to {to_email}")
                 return True, f"Email sent via Resend to {to_email}"
             except Exception as e:
-                logger.error(f"Resend 发送失败: {str(e)}，尝试回退到 SMTP...")
+                error_msg = str(e)
+                logger.error(f"Resend 发送失败: {error_msg}")
+                
+                # 如果是域名未验证错误，给出明确提示
+                if "not verified" in error_msg.lower():
+                    logger.error("提示：Resend 发件人域名未验证，请在 Resend 控制台验证域名或使用默认的 onboarding@resend.dev")
+                
+                logger.info("尝试回退到 SMTP...")
                 if not self.sender_email or not self.sender_password:
-                    return False, f"Resend 失败且未配置 SMTP: {str(e)}"
+                    return False, f"Resend 失败且未配置 SMTP: {error_msg}"
 
         for attempt in range(1, max_retries + 1):
             server = None
@@ -219,9 +230,13 @@ class EmailSender:
                 stats['failed_recipients'].append(recipient)
                 stats['failed_reasons'][recipient] = msg
             
+            # 如果还有下一个收件人
             if i < len(recipients) - 1:
-                time.sleep(delay)
-                
+                # 如果使用的是 SMTP，则需要延迟以防被封；如果是 Resend，可以大大缩短延迟
+                current_delay = delay if not self.resend_api_key else 0.1
+                if current_delay > 0:
+                    time.sleep(current_delay)
+                    
         return stats
 
 email_sender = EmailSender()
