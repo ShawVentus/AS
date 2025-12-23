@@ -2,7 +2,7 @@ name: Daily ArxivScout Report
 
 on:
   schedule:
-    - cron: "0 7 * * *" # UTC 03:00 = 北京时间 11:00
+    - cron: "0 3 * * *" # UTC 03:00 = 北京时间 11:00
   workflow_dispatch: # 支持手动触发
 
 concurrency:
@@ -67,6 +67,7 @@ jobs:
           REPORT_PAPER_LIMIT: ${{ vars.REPORT_PAPER_LIMIT }}
           WORKFLOW_MAX_RETRIES: ${{ vars.WORKFLOW_MAX_RETRIES }}
           WORKFLOW_RETRY_DELAY_BASE: ${{ vars.WORKFLOW_RETRY_DELAY_BASE }}
+          
         run: |
           cd backend
           # 执行每日工作流脚本
