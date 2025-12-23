@@ -41,32 +41,29 @@ jobs:
 
       - name: 执行每日工作流
         env:
-          # 数据库配置
+          # 🔐 敏感配置 (使用 Secrets)
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          # LLM 配置
           BOHRIUM_API_KEY: ${{ secrets.BOHRIUM_API_KEY }}
-          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
-          MODEL_CHEAP: ${{ secrets.MODEL_CHEAP }}
-          MODEL_PERFORMANCE: ${{ secrets.MODEL_PERFORMANCE }}
-          LLM_ANALYSIS_BATCH_SIZE: ${{ secrets.LLM_ANALYSIS_BATCH_SIZE }}
-          LLM_ANALYSIS_BATCH_DELAY: ${{ secrets.LLM_ANALYSIS_BATCH_DELAY }}
-          LLM_MAX_WORKERS: ${{ secrets.LLM_MAX_WORKERS }}
-          # 邮件配置
-          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
           ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
-          # ArXiv 爬虫配置
-          ARXIV_DELAY_SECONDS: ${{ secrets.ARXIV_DELAY_SECONDS }}
-          ARXIV_NUM_RETRIES: ${{ secrets.ARXIV_NUM_RETRIES }}
-          # 报告配置
-          REPORT_PAPER_LIMIT: ${{ secrets.REPORT_PAPER_LIMIT }}
-          # 工作流配置
-          WORKFLOW_MAX_RETRIES: ${{ secrets.WORKFLOW_MAX_RETRIES }}
-          WORKFLOW_RETRY_DELAY_BASE: ${{ secrets.WORKFLOW_RETRY_DELAY_BASE }}
+
+          # ⚙️ 普通配置 (使用 Variables)
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          MODEL_CHEAP: ${{ vars.MODEL_CHEAP }}
+          MODEL_PERFORMANCE: ${{ vars.MODEL_PERFORMANCE }}
+          LLM_ANALYSIS_BATCH_SIZE: ${{ vars.LLM_ANALYSIS_BATCH_SIZE }}
+          LLM_ANALYSIS_BATCH_DELAY: ${{ vars.LLM_ANALYSIS_BATCH_DELAY }}
+          LLM_MAX_WORKERS: ${{ vars.LLM_MAX_WORKERS }}
+          SMTP_SERVER: ${{ vars.SMTP_SERVER }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SENDER_EMAIL: ${{ vars.SENDER_EMAIL }}
+          ARXIV_DELAY_SECONDS: ${{ vars.ARXIV_DELAY_SECONDS }}
+          ARXIV_NUM_RETRIES: ${{ vars.ARXIV_NUM_RETRIES }}
+          REPORT_PAPER_LIMIT: ${{ vars.REPORT_PAPER_LIMIT }}
+          WORKFLOW_MAX_RETRIES: ${{ vars.WORKFLOW_MAX_RETRIES }}
+          WORKFLOW_RETRY_DELAY_BASE: ${{ vars.WORKFLOW_RETRY_DELAY_BASE }}
         run: |
           cd backend
           python3 -c "from app.services.scheduler import scheduler_service; scheduler_service.run_daily_workflow(force=True)"
