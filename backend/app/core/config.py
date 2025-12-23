@@ -45,16 +45,16 @@ class Settings:
     MODEL_PERFORMANCE: str = os.getenv("MODEL_PERFORMANCE", "qwen3-max")
     
     # Qwen-Plus 定价 (USD per 1M tokens)
-    QWEN_PLUS_PRICE_INPUT: float = float(os.getenv("QWEN_PLUS_PRICE_INPUT", "0.40"))
-    QWEN_PLUS_PRICE_OUTPUT: float = float(os.getenv("QWEN_PLUS_PRICE_OUTPUT", "1.20"))
-    QWEN_MAX_PRICE_INPUT: float = float(os.getenv("QWEN_MAX_PRICE_INPUT", "1.60")) # 假设价格，需确认
-    QWEN_MAX_PRICE_OUTPUT: float = float(os.getenv("QWEN_MAX_PRICE_OUTPUT", "4.80"))
+    QWEN_PLUS_PRICE_INPUT: float = _get_float_env.__func__("QWEN_PLUS_PRICE_INPUT", 0.40)
+    QWEN_PLUS_PRICE_OUTPUT: float = _get_float_env.__func__("QWEN_PLUS_PRICE_OUTPUT", 1.20)
+    QWEN_MAX_PRICE_INPUT: float = _get_float_env.__func__("QWEN_MAX_PRICE_INPUT", 1.60) # 假设价格，需确认
+    QWEN_MAX_PRICE_OUTPUT: float = _get_float_env.__func__("QWEN_MAX_PRICE_OUTPUT", 4.80)
     
     # Bohrium API 定价 (USD per 1M tokens)
-    BOHRIUM_PLUS_PRICE_INPUT: float = float(os.getenv("BOHRIUM_PLUS_PRICE_INPUT", "0.40"))
-    BOHRIUM_PLUS_PRICE_OUTPUT: float = float(os.getenv("BOHRIUM_PLUS_PRICE_OUTPUT", "1.20"))
-    BOHRIUM_MAX_PRICE_INPUT: float = float(os.getenv("BOHRIUM_MAX_PRICE_INPUT", "1.20"))
-    BOHRIUM_MAX_PRICE_OUTPUT: float = float(os.getenv("BOHRIUM_MAX_PRICE_OUTPUT", "6.00"))
+    BOHRIUM_PLUS_PRICE_INPUT: float = _get_float_env.__func__("BOHRIUM_PLUS_PRICE_INPUT", 0.40)
+    BOHRIUM_PLUS_PRICE_OUTPUT: float = _get_float_env.__func__("BOHRIUM_PLUS_PRICE_OUTPUT", 1.20)
+    BOHRIUM_MAX_PRICE_INPUT: float = _get_float_env.__func__("BOHRIUM_MAX_PRICE_INPUT", 1.20)
+    BOHRIUM_MAX_PRICE_OUTPUT: float = _get_float_env.__func__("BOHRIUM_MAX_PRICE_OUTPUT", 6.00)
 
     # 辅助方法：安全获取整数环境变量
     @staticmethod
@@ -64,6 +64,16 @@ class Settings:
             return default
         try:
             return int(val)
+        except ValueError:
+            return default
+
+    @staticmethod
+    def _get_float_env(key: str, default: float) -> float:
+        val = os.getenv(key)
+        if not val or not val.strip():
+            return default
+        try:
+            return float(val)
         except ValueError:
             return default
 
