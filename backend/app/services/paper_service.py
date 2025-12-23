@@ -8,14 +8,19 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm # 引入 tqdm 用于进度条
 from app.schemas.paper import RawPaperMetadata, UserPaperState, PersonalizedPaper, PaperAnalysis, PaperDetails, PaperLinks, PaperFilter, FilterResponse, FilterResultItem, PaperExportRequest
 from app.schemas.user import UserProfile
-from app.core.config import settings
+from app.services.llm_service import llm_service
 from app.core.database import get_db
 
-# 从配置获取最大并发数
-MAX_WORKERS = settings.LLM_MAX_WORKERS
+# 从环境变量获取最大并发数，默认为 2
+MAX_WORKERS = int(os.getenv("LLM_MAX_WORKERS", 2))
 
 class PaperService:
     def __init__(self):
+        """
+        初始化论文服务 (Initialize PaperService)
+        
+        功能：获取数据库连接并加载 arXiv 类别映射表。
+        """
         self.db = get_db()
         # 加载类别映射表
         self._load_category_mapping()
@@ -120,49 +125,57 @@ class PaperService:
 
     def clear_daily_papers(self) -> bool:
         """
-        清空每日更新数据库。
-        """
-        try:
-            # delete all rows
-            self.db.table("daily_papers").delete().neq("id", "00000").execute()
-            return True
-        except Exception as e:
-            print(f"Error clearing daily papers: {e}")
-            return False
-
-    def archive_daily_papers(self) -> bool:
-        """
-        将 daily_papers 中的数据归档到 papers 表。
-        保留 daily_papers 中的数据。
+        清空每日更新数据库 (Clear Daily Papers)
+        
+        功能：删除 daily_papers 表中的所有记录。
         
         Args:
             None
             
         Returns:
-            bool: 归档是否成功。
+            bool: 操作是否成功。
         """
-        print("Starting archiving daily papers to public DB...")
+        try:
+            # 删除所有行
+            self.db.table("daily_papers").delete().neq("id", "00000").execute()
+            print("✅ 已清空 daily_papers 表")
+            return True
+        except Exception as e:
+            print(f"❌ 清空每日论文失败: {e}")
+            return False
+
+    def archive_daily_papers(self) -> bool:
+        """
+        将每日论文归档至公共库 (Archive Daily Papers)
+        
+        功能：将 daily_papers 表中的数据同步（upsert）到 papers 表中，实现长期存储。
+        
+        Args:
+            None
+            
+        Returns:
+            bool: 归档操作是否成功。
+        """
+        print("🚀 开始将每日论文归档至公共数据库...")
         try:
             # 1. 获取所有 daily_papers
-            # 假设数量不大，一次性获取。如果数量大需要分页。
             response = self.db.table("daily_papers").select("*").execute()
             daily_papers = response.data
             
             if not daily_papers:
-                print("No papers in daily_papers to archive.")
+                print("ℹ️ daily_papers 中无待归档论文。")
                 return True
                 
-            print(f"Found {len(daily_papers)} papers to archive.")
+            print(f"📂 发现 {len(daily_papers)} 篇待归档论文。")
             
             # 2. 批量插入/更新到 papers 表
-            # Supabase upsert
             res = self.db.table("papers").upsert(daily_papers).execute()
             
-            print(f"Successfully archived {len(res.data)} papers.")
+            print(f"✅ 成功归档 {len(res.data)} 篇论文。")
             return True
             
         except Exception as e:
-            print(f"Error archiving papers: {e}")
+            print(f"❌ 归档论文失败: {e}")
             return False
 
     def export_papers(self, request: PaperExportRequest) -> Union[str, List[dict]]:
@@ -287,11 +300,13 @@ class PaperService:
 
     def merge_paper_state(self, paper: dict, state: Optional[dict]) -> PersonalizedPaper:
         """
-        将论文元数据与用户状态合并 (构造嵌套结构)。
+        将论文元数据与用户状态合并 (Merge Paper Metadata and User State)
+        
+        功能：将原始论文字典数据与用户个性化状态字典合并，构造嵌套的 PersonalizedPaper 对象。
         
         Args:
-            paper (dict): 原始论文数据字典。
-            state (Optional[dict]): 用户状态数据字典，如果不存在则为 None。
+            paper (dict): 原始论文数据字典（来自 papers 表）。
+            state (Optional[dict]): 用户状态数据字典（来自 user_paper_states 表），如果不存在则为 None。
 
         Returns:
             PersonalizedPaper: 合并后的个性化论文对象。
@@ -332,18 +347,20 @@ class PaperService:
 
     def get_papers_by_categories(self, categories: List[str], user_id: str, limit: int = 1, table_name: str = "papers", force: bool = False, published_date: Optional[str] = None) -> List[PersonalizedPaper]:
         """
-        根据用户关注的类别获取候选论文。
-        排除已在 user_paper_states 中存在的论文。
+        根据用户关注的类别获取候选论文 (Get Candidate Papers by Categories)
+        
+        功能：从指定表中筛选符合类别的论文，并排除该用户已处理过的论文。
         
         Args:
-            categories (List[str]): 用户关注的类别列表。
-            user_id (str): 用户 ID。
-            limit (int): 限制数量。
-            table_name (str): 表名。
-            force (bool): 是否强制获取（忽略已存在的状态）。
+            categories (List[str]): 用户关注的 arXiv 类别列表。
+            user_id (str): 用户唯一标识。
+            limit (int): 限制返回的论文数量。
+            table_name (str): 查询的表名，默认为 "papers"。
+            force (bool): 是否强制获取（忽略已处理状态）。
+            published_date (Optional[str]): 指定发布日期（YYYY-MM-DD）。
 
         Returns:
-            List[PersonalizedPaper]: 候选论文列表。
+            List[PersonalizedPaper]: 候选论文对象列表。
         """
         try:
             if not categories:
@@ -397,17 +414,19 @@ class PaperService:
 
     def update_user_feedback(self, user_id: str, paper_id: str, liked: Optional[bool], feedback: Optional[str], note: Optional[str] = None) -> bool:
         """
-        更新用户对论文的反馈 (Like/Dislike, Reason, Note)。存储到数据库对应字段中
+        更新用户对论文的反馈 (Update User Feedback)
+        
+        功能：将用户的点赞、反馈理由或笔记存储到数据库中。
 
         Args:
-            user_id (str): 用户 ID。
-            paper_id (str): 论文 ID。
-            liked (Optional[bool]): 是否喜欢。
-            feedback (Optional[str]): 反馈内容。
-            note (Optional[str]): 用户笔记。
+            user_id (str): 用户唯一标识。
+            paper_id (str): 论文唯一标识。
+            liked (Optional[bool]): 是否喜欢该论文。
+            feedback (Optional[str]): 具体的反馈理由。
+            note (Optional[str]): 用户的个人笔记。
 
         Returns:
-            bool: 是否更新成功。
+            bool: 更新操作是否成功。
         """
         try:
             # 构造更新数据
@@ -433,13 +452,15 @@ class PaperService:
 
     def get_papers(self, user_id: str) -> List[PersonalizedPaper]:
         """
-        从数据库获取所有论文，并附加指定用户的状态信息。
+        获取所有论文及其用户状态 (Get All Papers with User States)
+        
+        功能：从数据库获取最新论文，并附加指定用户的个性化状态（如评分、推荐理由）。
 
         Args:
-            user_id (str): 用户 ID。
+            user_id (str): 用户唯一标识。
 
         Returns:
-            List[PersonalizedPaper]: 个性化论文列表。
+            List[PersonalizedPaper]: 包含用户状态的个性化论文列表。
         """
         try:
             # 1. Fetch Papers
@@ -482,41 +503,47 @@ class PaperService:
 
     def crawl_arxiv_new(self, user_id: str, limit: int = 100) -> List[PersonalizedPaper]:
         """
-        触发爬虫抓取最新的 Arxiv 论文。
+        触发爬虫抓取最新的 Arxiv 论文 (Crawl New Arxiv Papers)
+        
+        功能：调用 Scrapy 爬虫抓取最新论文，并返回包含用户状态的论文列表。
 
         Args:
-            user_id (str): 用户 ID。
-            limit (int, optional): 抓取限制数量。默认为 100。
+            user_id (str): 用户唯一标识。
+            limit (int, 可选): 抓取限制数量。默认为 100。
 
         Returns:
-            List[PersonalizedPaper]: 抓取后最新的论文列表。
+            List[PersonalizedPaper]: 抓取并合并用户状态后的最新论文列表。
         """
         try:
+            print(f"🕷️ 正在触发 Arxiv 爬虫 (限制: {limit})...")
             backend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
             subprocess.run(["scrapy", "crawl", "arxiv"], check=True, cwd=backend_root)
+            print("✅ 爬虫执行完成。")
             return self.get_papers(user_id)
         except Exception as e:
-            print(f"Error crawling: {e}")
+            print(f"❌ 爬虫抓取失败: {e}")
             return self.get_papers(user_id)
 
     def process_pending_papers(self, user_id: str, progress_callback: Optional[Callable[[int, int, str], None]] = None, manual_query: Optional[str] = None, manual_authors: Optional[List[str]] = None, manual_categories: Optional[List[str]] = None, force: bool = False, published_date: Optional[str] = None) -> FilterResponse:
         """
-        处理用户的待处理论文 (Pending Papers)。
+        处理用户的待处理论文 (Process Pending Papers)
         
-        流程:
-        1. 获取用户画像 (Profile)。
-        2. 根据画像中的关注类别 (Focus.category) 或手动输入的类别获取候选论文。
-        3. 调用 filter_papers 进行批量筛选 (LLM)。
+        功能：
+        1. 获取用户画像或手动输入的筛选条件。
+        2. 展开关注类别并从每日更新库中获取候选论文。
+        3. 调用 LLM 进行个性化筛选并持久化结果。
         
         Args:
-            user_id (str): 用户 ID。
-            progress_callback (Optional[Callable]): 进度回调函数，用于更新任务进度。
-            manual_query (Optional[str]): 手动输入的自然语言需求 (覆盖用户画像中的描述)。
-            manual_authors (Optional[List[str]]): 手动输入的作者列表 (覆盖用户画像中的作者)。
-            manual_categories (Optional[List[str]]): 手动输入的类别列表 (覆盖用户画像中的类别)。
+            user_id (str): 用户唯一标识。
+            progress_callback (Optional[Callable]): 进度回调函数，接收 (当前数, 总数, 消息)。
+            manual_query (Optional[str]): 手动输入的自然语言需求（优先级高于画像）。
+            manual_authors (Optional[List[str]]): 手动指定的作者列表（优先级高于画像）。
+            manual_categories (Optional[List[str]]): 手动指定的类别列表（优先级高于画像）。
+            force (bool): 是否强制重新处理已筛选过的论文。
+            published_date (Optional[str]): 指定论文发布日期。
             
         Returns:
-            FilterResponse: 筛选结果统计对象，包含已接受、已拒绝的论文列表及统计信息。
+            FilterResponse: 包含筛选统计和结果列表的响应对象。
         """
         try:
             # 1. 获取用户画像
@@ -602,29 +629,25 @@ class PaperService:
 
     def filter_papers(self, papers: List[PersonalizedPaper], user_profile: UserProfile, user_id: str, progress_callback: Optional[Callable[[int, int, str], None]] = None, manual_query: Optional[str] = None, manual_authors: Optional[List[str]] = None, force: bool = False) -> FilterResponse:
         """
-        使用 LLM 批量过滤论文 (Personalized Filter)。
+        使用 LLM 批量过滤论文 (Filter Papers with LLM)
         
-        核心逻辑：
-        1. 接收论文列表和用户画像。
-        2. 将用户画像的关键部分 (Focus, Status) 序列化为 JSON 字符串，作为 LLM 的 Context。
-        3. 并发处理每篇论文：
-            a. 检查是否已处理过 (避免重复消耗 Token)。
-            b. 将论文元数据 (Meta) 序列化为 JSON 字符串。
-            c. 调用 `_filter_with_retry` 工具函数，传入序列化后的画像和论文数据。
-        4. 获取 LLM 结果 (Relevance Score, Reason, Accepted)。
-        5. 将结果持久化到数据库 (`user_paper_states` 表) 并更新内存对象。
-        6. 构造并返回包含统计信息的 FilterResponse。
+        功能：
+        1. 准备用户上下文（画像或手动需求）。
+        2. 并发调用 LLM 对每篇论文进行相关性评分和理由生成。
+        3. 自动处理重试逻辑并统计 Token 消耗。
+        4. 将筛选结果持久化到数据库。
 
         Args:
             papers (List[PersonalizedPaper]): 待过滤的论文列表。
-            user_profile (UserProfile): 用户画像对象，包含 Focus (关注点) 和 Status (当前任务/阶段)。
-            user_id (str): 用户 ID。
+            user_profile (UserProfile): 用户画像对象。
+            user_id (str): 用户唯一标识。
             progress_callback (Optional[Callable]): 进度回调函数。
-            manual_query (Optional[str]): 手动输入的自然语言需求 (覆盖用户画像)。
-            manual_authors (Optional[List[str]]): 手动输入的作者 (覆盖用户画像)。
+            manual_query (Optional[str]): 手动输入的自然语言需求。
+            manual_authors (Optional[List[str]]): 手动指定的作者。
+            force (bool): 是否强制重新分析。
 
         Returns:
-            FilterResponse: 包含统计信息和所有处理过的论文结果列表。
+            FilterResponse: 包含统计信息和详细结果的响应对象。
         """
         from app.utils.paper_analysis_utils import filter_single_paper
 

@@ -28,6 +28,11 @@ class ReportService:
     """
     
     def __init__(self):
+        """
+        初始化报告服务 (Initialize ReportService)
+        
+        功能：获取数据库连接实例。
+        """
         self.db = get_db()
 
     def get_reports(self, user_id: str) -> List[Report]:
@@ -55,23 +60,21 @@ class ReportService:
 
     def generate_daily_report(self, papers: List[PersonalizedPaper], user_profile: UserProfile, 
                               custom_title: Optional[str] = None, manual_query: Optional[str] = None,
-                              context: Optional[Dict[str, Any]] = None) -> tuple[Report, Dict[str, int]]:
+                              context: Optional[Dict[str, Any]] = None,
+                              background_tasks: Any = None) -> tuple[Report, Dict[str, int], bool]:
         """
         生成每日报告并自动发送邮件。
-        Generate daily report and send email automatically.
-
+        
         Args:
-            papers (List[PersonalizedPaper]): 用于生成报告的论文列表 (List of papers for the report)。
-            user_profile (UserProfile): 用户画像，用于定制报告内容 (User profile for customization)。
-            custom_title (Optional[str]): 自定义报告标题 (Custom report title)。
-            manual_query (Optional[str]): 手动输入的查询 (Manual query for instant report)。
-            context (Optional[Dict[str, Any]]): 工作流上下文，包含 crawled_count 等信息
-
+            papers (List[PersonalizedPaper]): 论文列表
+            user_profile (UserProfile): 用户画像
+            custom_title (Optional[str]): 自定义标题
+            manual_query (Optional[str]): 手动查询内容
+            context (Optional[Dict[str, Any]]): 工作流上下文
+            background_tasks (Any, 可选): FastAPI 后台任务管理器，若提供则异步发送邮件
+            
         Returns:
-            tuple[Report, Dict[str, int], bool]: 
-                - Report: 生成的报告对象 (Generated report object)
-                - Dict[str, int]: Usage 统计 (Usage stats)
-                - bool: 邮件是否成功发送 (Whether email was sent successfully)
+            tuple[Report, Dict[str, int], bool]: (报告对象, 使用统计, 邮件是否提交发送)
         """
         # 0. 应用统一的数量限制
         limit = int(os.environ.get("REPORT_PAPER_LIMIT", 15))
@@ -229,17 +232,30 @@ class ReportService:
             self._log_error("pipeline", f"Error saving report: {str(e)}", {"report_id": report.id})
             
         # 7. 发送邮件
-        # 【修复】传递正确的统计数据给邮件格式化器
-        # 【新增】传递 is_manual 参数用于区分邮件标题
         is_manual = bool(manual_query)
-        email_success = self.send_report_email_advanced(report, papers, user_profile.info.email, 
-                                        total_count=total_count, 
-                                        recommended_count=recommended_count,
-                                        is_manual=is_manual)
+        
+        if background_tasks:
+            # 如果提供了后台任务管理器，则异步发送
+            print(f"[INFO] 邮件发送任务已加入后台队列: {user_profile.info.email}")
+            background_tasks.add_task(
+                self.send_report_email_advanced, 
+                report, papers, user_profile.info.email, 
+                total_count=total_count, 
+                recommended_count=recommended_count,
+                is_manual=is_manual
+            )
+            email_success = True # 标记为已提交
+        else:
+            # 否则同步发送（适用于定时任务等场景）
+            email_success = self.send_report_email_advanced(
+                report, papers, user_profile.info.email, 
+                total_count=total_count, 
+                recommended_count=recommended_count,
+                is_manual=is_manual
+            )
         
         # 提取 usage
         usage = llm_result.get("_usage", {})
-        # 【新增】返回邮件发送状态，用于判断是否应扣减额度
         return report, usage, email_success
 
     def send_report_email_advanced(self, report: Report, papers: List[PersonalizedPaper], user_email: str,
@@ -414,14 +430,14 @@ class ReportService:
 
     def _should_send_email(self, user_id: str, user_email: str) -> bool:
         """
-        检查用户是否应该接收邮件。
+        检查用户是否应该接收邮件 (Check If Should Send Email)
 
         Args:
-            user_id (str): 用户ID
-            user_email (str): 用户邮箱
+            user_id (str): 用户唯一标识。
+            user_email (str): 用户邮箱地址。
 
         Returns:
-            bool: 是否发送
+            bool: 如果应该发送则返回 True，否则返回 False。
         """
         if not user_email:
             return False
@@ -430,13 +446,16 @@ class ReportService:
 
     def _log_email_event(self, report_id: str, user_id: str, event_type: str, event_data: Dict = None):
         """
-        记录邮件事件到 email_analytics 表。
+        记录邮件事件到分析表 (Log Email Event)
 
         Args:
-            report_id (str): 报告ID
-            user_id (str): 用户ID
-            event_type (str): 事件类型 ('sent', 'opened', 'clicked')
-            event_data (Dict, optional): 额外数据
+            report_id (str): 关联的报告 ID。
+            user_id (str): 用户唯一标识。
+            event_type (str): 事件类型，例如 'sent' (已发送), 'opened' (已打开), 'failed' (失败)。
+            event_data (Dict, 可选): 包含统计数据或错误信息的额外字典。
+            
+        Returns:
+            None
         """
         try:
             self.db.table("email_analytics").insert({
@@ -446,19 +465,22 @@ class ReportService:
                 "event_data": event_data or {}
             }).execute()
         except Exception as e:
-            print(f"Error logging email event: {e}")
+            print(f"❌ 记录邮件事件失败: {e}")
 
     def _log_error(self, source: str, message: str, meta: Dict):
         """
-        记录错误到 system_logs 表。
+        记录系统错误日志 (Log System Error)
 
         Args:
-            source (str): 错误来源
-            message (str): 错误信息
-            meta (Dict): 上下文元数据
+            source (str): 错误来源模块名称。
+            message (str): 详细的错误描述信息。
+            meta (Dict): 包含上下文元数据的字典（如报告 ID、用户邮箱等）。
+            
+        Returns:
+            None
         """
         try:
-            print(f"ERROR [{source}]: {message} | Meta: {meta}")
+            print(f"❌ 错误 [{source}]: {message} | 元数据: {meta}")
             self.db.table("system_logs").insert({
                 "level": "ERROR",
                 "source": source,
@@ -466,7 +488,7 @@ class ReportService:
                 "meta": meta
             }).execute()
         except Exception as e:
-            print(f"CRITICAL: Failed to log error: {e}")
+            print(f"‼️ 严重错误：无法记录错误日志: {e}")
 
     def submit_feedback(self, report_id: str, user_id: str, rating: int, feedback_text: str = None) -> bool:
         """

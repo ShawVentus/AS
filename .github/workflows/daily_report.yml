@@ -4,12 +4,6 @@ on:
   schedule:
     - cron: "0 7 * * *" # UTC 03:00 = 北京时间 11:00
   workflow_dispatch: # 支持手动触发
-    inputs:
-      force:
-        description: "是否强制运行（忽略 ArXiv 更新检查）"
-        required: false
-        default: "false"
-        type: boolean
 
 concurrency:
   group: daily-report
@@ -23,6 +17,8 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+        with:
+          ref: "main" # 修改为 main 分支
 
       - name: 设置 Python 3.11
         uses: actions/setup-python@v5
@@ -51,32 +47,30 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           BOHRIUM_API_KEY: ${{ secrets.BOHRIUM_API_KEY }}
           SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
 
-          # ⚙️ 普通配置 (优先从 Variables 读取，如果为空则从 Secrets 读取以保证兼容性)
-          EMAIL_BACKEND: ${{ vars.EMAIL_BACKEND || secrets.EMAIL_BACKEND }}
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER || secrets.LLM_PROVIDER }}
-          MODEL_CHEAP: ${{ vars.MODEL_CHEAP || secrets.MODEL_CHEAP }}
-          MODEL_PERFORMANCE: ${{ vars.MODEL_PERFORMANCE || secrets.MODEL_PERFORMANCE }}
-          LLM_ANALYSIS_BATCH_SIZE: ${{ vars.LLM_ANALYSIS_BATCH_SIZE || secrets.LLM_ANALYSIS_BATCH_SIZE }}
-          LLM_ANALYSIS_BATCH_DELAY: ${{ vars.LLM_ANALYSIS_BATCH_DELAY || secrets.LLM_ANALYSIS_BATCH_DELAY }}
-          LLM_MAX_WORKERS: ${{ vars.LLM_MAX_WORKERS || secrets.LLM_MAX_WORKERS }}
-          SMTP_SERVER: ${{ vars.SMTP_SERVER || secrets.SMTP_SERVER }}
-          SMTP_PORT: ${{ vars.SMTP_PORT || secrets.SMTP_PORT }}
-          SENDER_EMAIL: ${{ vars.SENDER_EMAIL || secrets.SENDER_EMAIL }}
-          REPORT_PAPER_LIMIT: ${{ vars.REPORT_PAPER_LIMIT || secrets.REPORT_PAPER_LIMIT }}
-          WORKFLOW_MAX_RETRIES: ${{ vars.WORKFLOW_MAX_RETRIES || secrets.WORKFLOW_MAX_RETRIES }}
-          WORKFLOW_RETRY_DELAY_BASE: ${{ vars.WORKFLOW_RETRY_DELAY_BASE || secrets.WORKFLOW_RETRY_DELAY_BASE }}
+          # ⚙️ 普通配置 (使用 Variables)
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          MODEL_CHEAP: ${{ vars.MODEL_CHEAP }}
+          MODEL_PERFORMANCE: ${{ vars.MODEL_PERFORMANCE }}
+          LLM_ANALYSIS_BATCH_SIZE: ${{ vars.LLM_ANALYSIS_BATCH_SIZE }}
+          LLM_ANALYSIS_BATCH_DELAY: ${{ vars.LLM_ANALYSIS_BATCH_DELAY }}
+          LLM_MAX_WORKERS: ${{ vars.LLM_MAX_WORKERS }}
+          SMTP_SERVER: ${{ vars.SMTP_SERVER }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SENDER_EMAIL: ${{ vars.SENDER_EMAIL }}
+          SENDER_NAME: ${{ vars.SENDER_NAME }} # 新增：发件人名称
+          SMTP_TIMEOUT: ${{ vars.SMTP_TIMEOUT }} # 新增：SMTP 超时时间
+          BATCH_EMAIL_DELAY: ${{ vars.BATCH_EMAIL_DELAY }} # 新增：批量发送延迟
+          ARXIV_DELAY_SECONDS: ${{ vars.ARXIV_DELAY_SECONDS }}
+          ARXIV_NUM_RETRIES: ${{ vars.ARXIV_NUM_RETRIES }}
+          REPORT_PAPER_LIMIT: ${{ vars.REPORT_PAPER_LIMIT }}
+          WORKFLOW_MAX_RETRIES: ${{ vars.WORKFLOW_MAX_RETRIES }}
+          WORKFLOW_RETRY_DELAY_BASE: ${{ vars.WORKFLOW_RETRY_DELAY_BASE }}
         run: |
           cd backend
-          # 检查必要的 API Key (Bohrium 或 OpenRouter)
-          if [ -z "${{ secrets.BOHRIUM_API_KEY }}" ] && [ -z "${{ secrets.OPENROUTER_API_KEY }}" ]; then
-            echo "❌ 错误: 未设置 BOHRIUM_API_KEY 或 OPENROUTER_API_KEY，无法调用 LLM。"
-            exit 1
-          fi
-          # 根据触发方式决定是否强制运行
-          python3 -c "from app.services.scheduler import scheduler_service; scheduler_service.run_daily_workflow(force=(str('${{ github.event.inputs.force }}').lower() == 'true'))"
+          # 执行每日工作流脚本
+          python3 -c "from app.services.scheduler import scheduler_service; scheduler_service.run_daily_workflow(force=True)"
 
       # ===== 日志文件上传 =====
       - name: 上传执行日志

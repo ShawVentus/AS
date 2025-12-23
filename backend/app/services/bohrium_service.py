@@ -64,14 +64,12 @@ class ConsumeResult:
 
 # ===================== 配置常量 =====================
 
-from app.core.config import settings
-
 # 玻尔平台 API 端点
 BOHRIUM_API_BASE = "https://openapi.dp.tech"
 BOHRIUM_CONSUME_URL = f"{BOHRIUM_API_BASE}/openapi/v1/api/integral/consume"
 
-# 商品 SKU ID（从配置获取）
-BOHRIUM_SKU_ID = settings.BOHRIUM_SKU_ID
+# 商品 SKU ID（固定值）
+BOHRIUM_SKU_ID = int(os.getenv("BOHRIUM_SKU_ID", "10020"))
 
 # 开发模式配置
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"

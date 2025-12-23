@@ -14,4 +14,3 @@ httpx
 psycopg2-binary
 premailer
 cssutils
-resend>=2.0.0

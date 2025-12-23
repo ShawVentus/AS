@@ -13,9 +13,17 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 async def cleanup_stale_executions():
     """
-    清理数据库中过期的 running 任务。
+    清理数据库中过期的 running 任务 (Cleanup Stale Executions)
     
-    定义过期：status='running' 且 updated_at 超过 10 分钟
+    功能：
+    1. 查询所有状态为 'running' 且更新时间超过 10 分钟的任务。
+    2. 将这些任务标记为 'failed'，并记录错误信息。
+    
+    Args:
+        None
+        
+    Returns:
+        None
     """
     from datetime import datetime, timedelta, timezone
     from app.core.database import get_db
@@ -120,7 +128,7 @@ if __name__ == "__main__":
     
     scheduler_service.start()
     
-    # 从配置获取主机和端口
-    host = settings.HOST
-    port = settings.PORT
+    # 从环境变量获取主机和端口
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host=host, port=port)
