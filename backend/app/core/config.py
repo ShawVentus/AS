@@ -185,6 +185,7 @@ class Settings:
         return provider_pricing.get("qwen-plus", {"input_price": 0.40, "output_price": 1.20})
     
     # 邮件配置
+    EMAIL_BACKEND: str = os.getenv("EMAIL_BACKEND", "resend") # resend 或 smtp
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "")
     SMTP_PORT: int = _get_env_as_type("SMTP_PORT", 465, int)
     SENDER_EMAIL: str = os.getenv("SENDER_EMAIL", "")

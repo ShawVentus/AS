@@ -55,6 +55,7 @@ jobs:
           ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
 
           # ⚙️ 普通配置 (优先从 Variables 读取，如果为空则从 Secrets 读取以保证兼容性)
+          EMAIL_BACKEND: ${{ vars.EMAIL_BACKEND || secrets.EMAIL_BACKEND }}
           LLM_PROVIDER: ${{ vars.LLM_PROVIDER || secrets.LLM_PROVIDER }}
           MODEL_CHEAP: ${{ vars.MODEL_CHEAP || secrets.MODEL_CHEAP }}
           MODEL_PERFORMANCE: ${{ vars.MODEL_PERFORMANCE || secrets.MODEL_PERFORMANCE }}

@@ -31,6 +31,7 @@ class EmailSender:
         self.sender_email = settings.SENDER_EMAIL
         self.sender_password = settings.SENDER_PASSWORD
         self.resend_api_key = settings.RESEND_API_KEY
+        self.email_backend = getattr(settings, 'EMAIL_BACKEND', 'resend' if self.resend_api_key else 'smtp').lower()
         self.use_ssl = self.smtp_port == 465
         self.timeout = getattr(settings, 'SMTP_TIMEOUT', 30)
         
@@ -38,10 +39,11 @@ class EmailSender:
             try:
                 import resend
                 resend.api_key = self.resend_api_key
-                logger.info("Resend API Key configured, will use Resend as primary email service.")
+                logger.info(f"Resend API Key configured. Primary backend: {self.email_backend}")
             except ImportError:
                 logger.warning("resend library not found, will fallback to SMTP.")
                 self.resend_api_key = None
+                self.email_backend = 'smtp'
         
         # Jinja2环境
         template_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
@@ -107,17 +109,23 @@ class EmailSender:
             logger.error("邮件发送凭据未设置 (SMTP 或 Resend)")
             return False, "邮件发送凭据未设置"
 
-        # 优先使用 Resend
-        if self.resend_api_key:
+        # 优先使用 Resend (如果配置了且后端不是强制 smtp)
+        if self.resend_api_key and self.email_backend != 'smtp':
             try:
                 import resend
-                # 简单校验 API Key 格式 (通常以 re_ 开头)
+                # 简单校验 API Key 格式
                 if not self.resend_api_key.startswith("re_"):
                     logger.warning("Resend API Key 格式似乎不正确，尝试继续发送...")
 
-                # 如果设置了 SENDER_EMAIL 且不是默认的 onboarding 地址，则尝试使用它
-                # 注意：Resend 要求发件人域名必须已验证
-                from_email = self.sender_email if self.sender_email and "@resend.dev" not in self.sender_email else "ArxivScout <onboarding@resend.dev>"
+                # 智能选择发件人
+                # 规则：如果 SENDER_EMAIL 包含 arxivscout.com (已验证域名)，则使用它；
+                # 否则，为了保证成功率，强制使用 onboarding@resend.dev
+                if self.sender_email and "arxivscout.com" in self.sender_email.lower():
+                    from_email = f"ArxivScout <{self.sender_email}>"
+                else:
+                    from_email = "ArxivScout <onboarding@resend.dev>"
+                    if self.sender_email:
+                        logger.info(f"域名未验证，Resend 强制将发件人从 {self.sender_email} 切换为 onboarding@resend.dev")
                 
                 params = {
                     "from": from_email,
@@ -127,16 +135,17 @@ class EmailSender:
                 }
                 
                 resend.Emails.send(params)
-                logger.info(f"Email sent via Resend to {to_email}")
+                logger.info(f"Email sent via Resend to {to_email} (From: {from_email})")
                 return True, f"Email sent via Resend to {to_email}"
             except Exception as e:
                 error_msg = str(e)
                 logger.error(f"Resend 发送失败: {error_msg}")
                 
-                # 如果是域名未验证错误，给出明确提示
-                if "not verified" in error_msg.lower():
-                    logger.error("提示：Resend 发件人域名未验证，请在 Resend 控制台验证域名或使用默认的 onboarding@resend.dev")
+                # 如果后端强制为 resend，则不回退
+                if self.email_backend == 'resend':
+                    return False, f"Resend 发送失败 (已禁用 SMTP 回退): {error_msg}"
                 
+                # 否则尝试回退到 SMTP
                 logger.info("尝试回退到 SMTP...")
                 if not self.sender_email or not self.sender_password:
                     return False, f"Resend 失败且未配置 SMTP: {error_msg}"
