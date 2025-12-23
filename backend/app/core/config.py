@@ -9,7 +9,7 @@ class Settings:
     
     # 服务器配置
     HOST: str = os.getenv("HOST", "127.0.0.1")
-    PORT: int = int(os.getenv("PORT", 8000))
+    PORT: int = _get_int_env.__func__("PORT", 8000)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
 
@@ -56,10 +56,21 @@ class Settings:
     BOHRIUM_MAX_PRICE_INPUT: float = float(os.getenv("BOHRIUM_MAX_PRICE_INPUT", "1.20"))
     BOHRIUM_MAX_PRICE_OUTPUT: float = float(os.getenv("BOHRIUM_MAX_PRICE_OUTPUT", "6.00"))
 
+    # 辅助方法：安全获取整数环境变量
+    @staticmethod
+    def _get_int_env(key: str, default: int) -> int:
+        val = os.getenv(key)
+        if not val or not val.strip():
+            return default
+        try:
+            return int(val)
+        except ValueError:
+            return default
+
     # LLM 批量处理配置
-    LLM_ANALYSIS_BATCH_SIZE: int = int(os.getenv("LLM_ANALYSIS_BATCH_SIZE", "20"))  # 批量大小
-    LLM_ANALYSIS_BATCH_DELAY: int = int(os.getenv("LLM_ANALYSIS_BATCH_DELAY", "60"))  # 批次间延迟（秒）
-    LLM_MAX_WORKERS: int = int(os.getenv("LLM_MAX_WORKERS", "2"))  # 最大并发数
+    LLM_ANALYSIS_BATCH_SIZE: int = _get_int_env.__func__("LLM_ANALYSIS_BATCH_SIZE", 20)
+    LLM_ANALYSIS_BATCH_DELAY: int = _get_int_env.__func__("LLM_ANALYSIS_BATCH_DELAY", 60)
+    LLM_MAX_WORKERS: int = _get_int_env.__func__("LLM_MAX_WORKERS", 2)
 
     # 兼容旧配置
     ACCESS_KEY: str = os.getenv("ACCESS_KEY", "")
@@ -173,7 +184,7 @@ class Settings:
     
     # 邮件配置
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "")
-    SMTP_PORT: int = int(os.getenv("SMTP_PORT", 465))
+    SMTP_PORT: int = _get_int_env.__func__("SMTP_PORT", 465)
     SENDER_EMAIL: str = os.getenv("SENDER_EMAIL", "")
     SENDER_PASSWORD: str = os.getenv("SENDER_PASSWORD", "")
     RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
@@ -182,8 +193,8 @@ class Settings:
     # 错误通知邮件配置
     ERROR_NOTIFICATION_EMAIL: str = os.getenv("ERROR_NOTIFICATION_EMAIL") or os.getenv("ADMIN_EMAILS", "").split(",")[0] or os.getenv("SENDER_EMAIL", "")
     ENABLE_ERROR_NOTIFICATIONS: bool = os.getenv("ENABLE_ERROR_NOTIFICATIONS", "true").lower() == "true"
-    ERROR_NOTIFICATION_COOLDOWN: int = int(os.getenv("ERROR_NOTIFICATION_COOLDOWN", "1800"))  # 同类错误冷却时间（秒），默认30分钟
-    ERROR_NOTIFICATION_MAX_PER_HOUR: int = int(os.getenv("ERROR_NOTIFICATION_MAX_PER_HOUR", "5"))  # 每小时最多发送错误邮件数
+    ERROR_NOTIFICATION_COOLDOWN: int = _get_int_env.__func__("ERROR_NOTIFICATION_COOLDOWN", 1800)  # 同类错误冷却时间（秒），默认30分钟
+    ERROR_NOTIFICATION_MAX_PER_HOUR: int = _get_int_env.__func__("ERROR_NOTIFICATION_MAX_PER_HOUR", 5)  # 每小时最多发送错误邮件数
 
     # 爬虫配置
     CATEGORIES: str = os.getenv("CATEGORIES", "cs.CV,cs.LG,cs.CL,cs.AI")
