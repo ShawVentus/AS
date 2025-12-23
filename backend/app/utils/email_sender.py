@@ -6,6 +6,7 @@ from email.mime.multipart import MIMEMultipart
 from email.header import Header
 import time
 import os
+import resend
 from jinja2 import Environment, FileSystemLoader
 from app.core.config import settings
 
@@ -30,8 +31,13 @@ class EmailSender:
         self.smtp_port = settings.SMTP_PORT
         self.sender_email = settings.SENDER_EMAIL
         self.sender_password = settings.SENDER_PASSWORD
+        self.resend_api_key = settings.RESEND_API_KEY
         self.use_ssl = self.smtp_port == 465
         self.timeout = getattr(settings, 'SMTP_TIMEOUT', 30)
+        
+        if self.resend_api_key:
+            resend.api_key = self.resend_api_key
+            logger.info("Resend API Key configured, will use Resend as primary email service.")
         
         # Jinja2环境
         template_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
@@ -93,9 +99,31 @@ class EmailSender:
         Returns:
             Tuple[bool, str]: (是否成功, 状态消息)
         """
-        if not self.sender_email or not self.sender_password:
-            logger.error("SMTP凭据未设置")
-            return False, "SMTP凭据未设置"
+        if not self.resend_api_key and (not self.sender_email or not self.sender_password):
+            logger.error("邮件发送凭据未设置 (SMTP 或 Resend)")
+            return False, "邮件发送凭据未设置"
+
+        # 优先使用 Resend
+        if self.resend_api_key:
+            try:
+                # Resend 免费版限制：只能发送到注册邮箱，且发件人必须是 onboarding@resend.dev
+                # 如果用户配置了自定义域名，可以后续优化
+                from_email = "ArxivScout <onboarding@resend.dev>"
+                
+                params = {
+                    "from": from_email,
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html_content,
+                }
+                
+                resend.Emails.send(params)
+                logger.info(f"Email sent via Resend to {to_email}")
+                return True, f"Email sent via Resend to {to_email}"
+            except Exception as e:
+                logger.error(f"Resend 发送失败: {str(e)}，尝试回退到 SMTP...")
+                if not self.sender_email or not self.sender_password:
+                    return False, f"Resend 失败且未配置 SMTP: {str(e)}"
 
         for attempt in range(1, max_retries + 1):
             server = None

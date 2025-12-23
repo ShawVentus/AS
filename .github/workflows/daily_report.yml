@@ -47,6 +47,7 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           BOHRIUM_API_KEY: ${{ secrets.BOHRIUM_API_KEY }}
           SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
 
           # ⚙️ 普通配置 (使用 Variables)

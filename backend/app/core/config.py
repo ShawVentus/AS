@@ -176,6 +176,7 @@ class Settings:
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", 465))
     SENDER_EMAIL: str = os.getenv("SENDER_EMAIL", "")
     SENDER_PASSWORD: str = os.getenv("SENDER_PASSWORD", "")
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
     RECIPIENT_EMAILS: str = os.getenv("RECIPIENT_EMAILS", "")
     
     # 错误通知邮件配置
