@@ -1,0 +1,31 @@
+// ArxivScout Poster Workflow
+digraph ArxivScout_Workflow {
+	dpi=300 fontname="Microsoft YaHei" rankdir=LR size="12,5"
+	node [fontname="Microsoft YaHei" fontsize=12 shape=box style="filled, rounded"]
+	node [fillcolor="#FDF2F2" fontcolor="#991B1B" strokecolor="#E02424"]
+	T1 [label="⏰ 每日定时自动触发"]
+	T2 [label="👤 用户手动关键词触发"]
+	node [fillcolor="#FEF3C7" fontcolor="#92400E" shape=diamond strokecolor="#D97706"]
+	UpdateCheck [label="是否存在更新?"]
+	node [fillcolor="#EFF6FF" fontcolor="#1E40AF" shape=box strokecolor="#1D4ED8"]
+	Crawler [label="运行 Scrapy 异步爬虫"]
+	Details [label="摘要及元数据详情补全"]
+	node [fillcolor="#F5F3FF" fontcolor="#5B21B6" strokecolor="#6D28D9"]
+	LLM_Analysis [label="LLM 通用分析
+(提取 TLDR 与 研究动机)"]
+	node [fillcolor="#FFF7ED" fontcolor="#9A3412" strokecolor="#C2410C"]
+	SemanticMatch [label="用户研究偏好语义匹配"]
+	Scoring [label="LLM 智能打分与采纳判定"]
+	node [fillcolor="#ECFDF5" fontcolor="#065F46" strokecolor="#059669"]
+	ReportGen [label="生成结构化 Markdown 报告"]
+	Delivery [label="邮件推送 (Resend) / 前端展示"]
+	T1 -> UpdateCheck
+	UpdateCheck -> Crawler [label=" 是"]
+	T2 -> Crawler [label=" 跳过检查" color="#E02424" fontcolor="#E02424" style=dashed]
+	Crawler -> Details
+	Details -> LLM_Analysis
+	LLM_Analysis -> SemanticMatch
+	SemanticMatch -> Scoring
+	Scoring -> ReportGen [label=" 匹配成功"]
+	ReportGen -> Delivery
+}

@@ -1,0 +1,101 @@
+# ArxivScout 项目流程分析与流程图设计方案
+
+本文档基于对后端源代码的深度阅读，理清了 ArxivScout 的业务流程，并特别强调了 **Supabase 在线数据库** 作为核心存储枢纽的作用。
+
+## 1. 核心技术架构：在线数据库驱动
+
+项目的核心数据流转完全依赖于 **Supabase (在线 PostgreSQL)**。所有阶段的产出都会即时持久化到云端，确保了分布式执行和断点续传的能力。
+
+### 事实根据 (Code Evidence):
+*   **数据库初始化** ([backend/app/core/database.py](file:///Users/mac/Desktop/AS/backend/app/core/database.py)):
+    ```python
+    # 使用 Supabase 官方 SDK 连接在线数据库
+    supabase: Client = create_client(url, key)
+    ```
+*   **多表联动存储**:
+    *   [daily_papers](file:///Users/mac/Desktop/AS/backend/app/services/paper_service.py#121-132): 存放当日抓取的原始数据。
+    *   [papers](file:///Users/mac/Desktop/AS/backend/app/services/paper_service.py#434-482): 存放归档后的全量论文数据。
+    *   `user_paper_states`: 存放用户个性化筛选结果（评分、推荐理由）。
+    *   [reports](file:///Users/mac/Desktop/AS/backend/app/services/report_service.py#33-55): 存放最终生成的经营报告。
+
+---
+
+## 2. 业务流程深度解析
+
+### 阶段一：数据采集 (Collection)
+*   **逻辑**：系统监控 ArXiv 更新，启动 Scrapy 爬虫。
+*   **代码证据**：`RunCrawlerStep` 调用 `scrapy crawl arxiv`，随后 `FetchDetailsStep` 补全摘要。
+*   **在线存储**：数据首先存入 [daily_papers](file:///Users/mac/Desktop/AS/backend/app/services/paper_service.py#121-132) 表。
+
+### 阶段二：智能分析 (Analysis)
+*   **逻辑**：LLM 对新论文进行通用分析（TLDR、研究动机）。
+*   **代码证据** ([paper_service.py](file:///Users/mac/Desktop/AS/backend/app/services/paper_service.py)):
+    ```python
+    # 批量分析并更新数据库
+    paper_service.batch_analyze_papers(papers_to_analyze)
+    ```
+*   **在线存储**：分析结果（`details` 字段）写回 [daily_papers](file:///Users/mac/Desktop/AS/backend/app/services/paper_service.py#121-132)。
+
+### 阶段三：归档与筛选 (Archiving & Filtering)
+*   **归档逻辑**：将当日论文移入永久库。
+*   **代码证据** ([paper_service.py](file:///Users/mac/Desktop/AS/backend/app/services/paper_service.py)):
+    ```python
+    self.db.table("papers").upsert(daily_papers).execute()
+    ```
+*   **筛选逻辑**：LLM 根据用户画像（`UserProfile`）进行语义匹配。
+*   **在线存储**：筛选结果存入 `user_paper_states` 表。
+
+### 阶段四：成果交付 (Reporting)
+*   **逻辑**：汇总筛选出的论文，生成结构化报告并发送邮件。
+*   **代码证据** ([report_service.py](file:///Users/mac/Desktop/AS/backend/app/services/report_service.py)):
+    ```python
+    self.db.table("reports").insert(report_data).execute()
+    ```
+
+---
+
+## 3. 流程图生成指令 (Mermaid)
+
+此流程图特别突出了 **在线数据库 (Cloud DB)** 作为各阶段数据交换的中心。
+
+```mermaid
+graph TD
+    %% 节点定义
+    StartAuto([每日定时触发])
+    StartManual([用户手动触发])
+    
+    subgraph CloudDB ["☁️ Supabase 在线数据库 (核心枢纽)"]
+        T_Daily[(daily_papers<br/>当日临时表)]
+        T_Papers[(papers<br/>全量归档表)]
+        T_States[(user_paper_states<br/>用户筛选表)]
+        T_Reports[(reports<br/>报告存储表)]
+    end
+
+    %% 流程连接
+    StartAuto --> CheckUpdate{ArXiv 更新?}
+    CheckUpdate -- 有更新 --> Crawler[Scrapy 爬虫抓取]
+    StartManual --> Crawler
+    
+    Crawler -->|写入元数据| T_Daily
+    T_Daily -->|读取摘要| LLM_Public[LLM 通用分析]
+    LLM_Public -->|写入 TLDR/动机| T_Daily
+    
+    T_Daily -->|数据归档| T_Papers
+    
+    T_Papers -->|语义匹配| LLM_Filter[LLM 个性化筛选]
+    LLM_Filter -->|写入评分/理由| T_States
+    
+    T_States -->|汇总采纳论文| LLM_Report[LLM 报告生成]
+    LLM_Report -->|保存报告内容| T_Reports
+    
+    T_Reports --> Deliver([邮件推送 & 前端展示])
+
+    %% 样式
+    style CloudDB fill:#f0f7ff,stroke:#0052cc,stroke-width:2px
+    classDef database fill:#e1f5fe,stroke:#01579b,stroke-width:1px
+    class T_Daily,T_Papers,T_States,T_Reports database
+```
+
+## 4. 总结
+
+ArxivScout 的设计理念是 **“状态即数据”**。通过将每一个中间步骤的结果都存储在在线数据库中，系统不仅实现了高可靠性，还能够支持复杂的手动/自动混合工作流。

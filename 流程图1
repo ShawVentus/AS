@@ -1,0 +1,90 @@
+# ArxivScout 项目流程图设计方案
+
+本文档旨在理清 ArxivScout 的业务流程，并提供一个可用于生成流程图的指令（Mermaid 格式）。
+
+## 业务流程核心逻辑
+
+整个流程可以分为四个核心阶段，涵盖了从数据源抓取到最终报告交付的全过程。
+
+### 1. 搜集阶段 (Collection)
+*   **触发机制**：
+    *   **自动**：每日定时检查 ArXiv 更新。
+    *   **手动**：用户输入关键词进行即时搜索。
+*   **核心步骤**：
+    *   `CheckUpdate`: 监控 ArXiv 官网发布动态。
+    *   `RunCrawler`: 启动 Scrapy 爬虫抓取元数据。
+    *   `FetchDetails`: 调用 ArXiv API 补全论文摘要和详细信息。
+
+### 2. 分析阶段 (Analysis)
+*   **核心步骤**：
+    *   `PublicAnalysis`: 使用 LLM (如 Qwen) 对论文进行通用分析。
+    *   **产出**：生成论文的 TLDR (一句话总结)、提取研究动机 (Motivation) 和核心贡献。
+
+### 3. 筛选阶段 (Filtering)
+*   **核心步骤**：
+    *   `PersonalizedFilter`: 根据用户的“研究偏好”和“关注领域”进行语义匹配。
+    *   **逻辑**：LLM 为每篇论文打分，只有符合用户口味的论文才会被标记为“已采纳”。
+
+### 4. 报告生成阶段 (Reporting)
+*   **核心步骤**：
+    *   `GenerateReport`: 汇总已采纳的论文，生成结构化的 Markdown/HTML 报告。
+    *   `SendEmail`: 通过 Resend 或 SMTP 将报告推送到用户邮箱。
+
+---
+
+## 流程图思路 (Flowchart Logic)
+
+*   **布局**：采用从左到右 (LR) 的布局，体现时间的先后顺序。
+*   **模块化**：使用子图 (subgraph) 将流程划分为“数据采集”、“智能分析”、“个性化筛选”和“成果交付”。
+*   **区分触发**：用不同的起始节点区分“每日自动运行”和“用户手动触发”。
+
+---
+
+## 流程图生成指令 (Mermaid Command)
+
+你可以将以下代码复制到任何支持 Mermaid 的工具中（如 [Mermaid Live Editor](https://mermaid.live/)、Notion、GitHub 或 ChatGPT）：
+
+```mermaid
+graph LR
+    %% 定义样式
+    classDef trigger fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef process fill:#fff,stroke:#333,stroke-width:1px;
+    classDef phase fill:#f5f5f5,stroke:#666,stroke-dasharray: 5 5;
+
+    %% 触发点
+    StartAuto([每日定时触发]) --> CheckUpdate{检查更新?}
+    StartManual([用户手动触发]) --> RunCrawler
+
+    subgraph Collection ["1. 数据采集阶段"]
+        CheckUpdate -- 有更新 --> RunCrawler[运行爬虫抓取元数据]
+        RunCrawler --> FetchDetails[获取论文摘要详情]
+    end
+
+    subgraph Analysis ["2. 智能分析阶段"]
+        FetchDetails --> PublicAnalysis[LLM 通用分析: 生成 TLDR/研究动机]
+    end
+
+    subgraph Filtering ["3. 个性化筛选阶段"]
+        PublicAnalysis --> UserPrefs[(用户研究偏好库)]
+        UserPrefs --> PersonalizedFilter[LLM 语义匹配与打分]
+        PersonalizedFilter -- 匹配成功 --> Accepted[标记为已采纳]
+    end
+
+    subgraph Reporting ["4. 成果交付阶段"]
+        Accepted --> GenerateReport[生成结构化经营报告]
+        GenerateReport --> SendEmail[邮件推送/前端展示]
+    end
+
+    %% 样式应用
+    class StartAuto,StartManual trigger;
+    class Collection,Analysis,Filtering,Reporting phase;
+```
+
+## 验证计划
+
+### 自动化测试
+*   由于本任务不涉及代码修改，无需运行自动化测试。
+
+### 手动验证
+*   [ ] 确认 Mermaid 代码在 [Mermaid Live Editor](https://mermaid.live/) 中能正确渲染。
+*   [ ] 确认流程描述与 [backend/app/services/workflow_engine.py](file:///Users/mac/Desktop/AS/backend/app/services/workflow_engine.py) 中的步骤一致。

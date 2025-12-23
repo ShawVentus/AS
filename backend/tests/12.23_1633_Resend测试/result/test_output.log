@@ -1,0 +1,8 @@
+=== Resend 发送能力测试报告 ===
+API Key 已加载: re_fz...Zbfd
+
+--- 测试 1: 使用 onboarding@resend.dev ---
+✅ 发送成功! 响应 ID: 56508510-56e1-4f73-9af8-1bb294e44505
+
+--- 测试 2: 使用自定义地址 937585404@qq.com ---
+❌ 发送失败 (预期内，如果域名未验证): The qq.com domain is not verified. Please, add and verify your domain on https://resend.com/domains

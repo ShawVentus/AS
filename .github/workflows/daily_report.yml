@@ -58,10 +58,10 @@ jobs:
           LLM_MAX_WORKERS: ${{ vars.LLM_MAX_WORKERS }}
           SMTP_SERVER: ${{ vars.SMTP_SERVER }}
           SMTP_PORT: ${{ vars.SMTP_PORT }}
-          SENDER_EMAIL: ${{ vars.SENDER_EMAIL }}
-          SENDER_NAME: ${{ vars.SENDER_NAME }} # 新增：发件人名称
-          SMTP_TIMEOUT: ${{ vars.SMTP_TIMEOUT }} # 新增：SMTP 超时时间
-          BATCH_EMAIL_DELAY: ${{ vars.BATCH_EMAIL_DELAY }} # 新增：批量发送延迟
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }} # 修改为从 secrets 读取，避免与 vars 冲突
+          SENDER_NAME: ${{ vars.SENDER_NAME }}
+          SMTP_TIMEOUT: ${{ vars.SMTP_TIMEOUT }}
+          BATCH_EMAIL_DELAY: ${{ vars.BATCH_EMAIL_DELAY }}
           ARXIV_DELAY_SECONDS: ${{ vars.ARXIV_DELAY_SECONDS }}
           ARXIV_NUM_RETRIES: ${{ vars.ARXIV_NUM_RETRIES }}
           REPORT_PAPER_LIMIT: ${{ vars.REPORT_PAPER_LIMIT }}

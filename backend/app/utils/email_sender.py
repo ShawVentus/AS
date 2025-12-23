@@ -58,8 +58,18 @@ class EmailSender:
         """
         server = None
         try:
+            # [DEBUG] 环境变量脱敏校验
+            email_len = len(self.sender_email) if self.sender_email else 0
+            pass_len = len(self.sender_password) if self.sender_password else 0
+            email_hint = f"{self.sender_email[0]}***{self.sender_email[-1]}" if email_len > 2 else "N/A"
+            
+            logger.info(f"🔍 [DEBUG] SMTP 认证信息校验: Email长度={email_len}({email_hint}), Password长度={pass_len}")
+            
             server_cls = smtplib.SMTP_SSL if self.use_ssl else smtplib.SMTP
             server = server_cls(self.smtp_server, self.smtp_port, timeout=self.timeout)
+            
+            # [DEBUG] 开启 SMTP 详细调试模式
+            server.set_debuglevel(1)
             
             if not self.use_ssl:
                 server.ehlo()
