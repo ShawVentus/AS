@@ -1,0 +1,67 @@
+name: Daily ArxivScout Report
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # UTC 03:00 = 北京时间 11:00
+  workflow_dispatch: # 支持手动触发
+
+concurrency:
+  group: daily-report
+  cancel-in-progress: false
+
+jobs:
+  daily-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          ref: v0.1
+
+      - name: 设置 Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ===== pip 缓存加速 =====
+      - name: 缓存 pip 依赖
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: 安装依赖
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: 执行每日工作流
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          BOHRIUM_API_KEY: ${{ secrets.BOHRIUM_API_KEY }}
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+          MODEL_CHEAP: ${{ secrets.MODEL_CHEAP }}
+          MODEL_PERFORMANCE: ${{ secrets.MODEL_PERFORMANCE }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+          ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
+        run: |
+          cd backend
+          python3 -c "from app.services.scheduler import scheduler_service; scheduler_service.run_daily_workflow(force=False)"
+
+      # ===== 日志文件上传 =====
+      - name: 上传执行日志
+        uses: actions/upload-artifact@v4
+        if: always() # 无论成功失败都上传
+        with:
+          name: workflow-logs-${{ github.run_id }}
+          path: backend/logs/
+          retention-days: 30 # 保留 30 天
